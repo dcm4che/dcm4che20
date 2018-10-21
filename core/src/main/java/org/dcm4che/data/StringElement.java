@@ -78,6 +78,11 @@ class StringElement extends BaseDicomElement {
             dicomWriter.getOutputStream().write(vr.paddingByte);
     }
 
+    @Override
+    public void purgeEncodedValue() {
+        encodedValue = null;
+    }
+
     private static class EncodedValue {
         final SpecificCharacterSet specificCharacterSet;
         final byte[] value;

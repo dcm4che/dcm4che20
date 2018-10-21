@@ -1,5 +1,6 @@
 package org.dcm4che.data;
 
+import org.dcm4che.io.DicomReader;
 import org.dcm4che.io.DicomWriter;
 import org.dcm4che.util.TagUtils;
 
@@ -14,7 +15,7 @@ import java.util.stream.Stream;
  */
 public class DicomObject implements Iterable<DicomElement> {
     private DicomSequence dcmSeq;
-    private ArrayList<DicomElement> elements = new ArrayList<>();
+    private volatile ArrayList<DicomElement> elements;
     private SpecificCharacterSet specificCharacterSet;
     private PrivateCreator privateCreator;
     private int itemLength;
@@ -28,13 +29,16 @@ public class DicomObject implements Iterable<DicomElement> {
 
     public DicomObject(DicomSequence dcmSeq) {
         this.dcmSeq = dcmSeq;
+        this.elements = new ArrayList<>();
     }
 
-    DicomObject(DicomSequence dcmSeq, DicomInput dicomInput, long dicomInputPos, int dicomInputLen) {
+    DicomObject(DicomSequence dcmSeq, DicomInput dicomInput, long dicomInputPos, int dicomInputLen, boolean lazy) {
         this.dcmSeq = dcmSeq;
         this.dicomInput = dicomInput;
         this.dicomInputPos = dicomInputPos;
         this.dicomInputLen = dicomInputLen;
+        if (!lazy)
+            this.elements = new ArrayList<>();
     }
 
     public DicomSequence getDicomSequence() {
@@ -56,25 +60,62 @@ public class DicomObject implements Iterable<DicomElement> {
     }
 
     public boolean isEmpty() {
-        return elements.isEmpty();
+        return elements().isEmpty();
     }
 
     public int size() {
-        return elements.size();
+        return elements().size();
     }
 
     @Override
     public Iterator<DicomElement> iterator() {
-        return elements.iterator();
+        return elements().iterator();
     }
 
     public Stream<DicomElement> stream() {
-        return elements.stream();
+        return elements().stream();
     }
 
     public void trimToSize() {
-        elements.trimToSize();
-        elements.forEach(DicomElement::trimToSize);
+        ArrayList<DicomElement> elements = this.elements;
+        if (elements != null) {
+            elements.trimToSize();
+            elements.forEach(DicomElement::trimToSize);
+        }
+    }
+
+    public void purgeEncodedValues() {
+        ArrayList<DicomElement> elements = this.elements;
+        if (elements != null)
+            elements.forEach(DicomElement::purgeEncodedValue);
+    }
+
+    public void purgeParsedItems() {
+        ArrayList<DicomElement> elements = this.elements;
+        if (elements != null)
+            elements.forEach(DicomElement::purgeParsedItems);
+    }
+
+    void purgeElements() {
+        elements = null;
+    }
+
+    ArrayList<DicomElement> elements() {
+        ArrayList<DicomElement> localRef = this.elements;
+        if (localRef == null) {
+            synchronized (this) {
+                localRef = this.elements;
+                if (localRef == null) {
+                    this.elements = localRef = new ArrayList<>();
+                    try {
+                        DicomReader.parse(this, dicomInput, dicomInputPos, dicomInputLen);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
+        return localRef;
     }
 
     public SpecificCharacterSet specificCharacterSet() {
@@ -86,7 +127,7 @@ public class DicomObject implements Iterable<DicomElement> {
     }
 
     public DicomElement get(int tag) {
-        int i = binarySearch(elements, tag);
+        int i = binarySearch(elements(), tag);
         if (i >= 0) {
             return elements.get(i);
         }
@@ -154,7 +195,7 @@ public class DicomObject implements Iterable<DicomElement> {
     }
 
     public DicomElement add(DicomElement el) {
-        List<DicomElement> list = this.elements;
+        List<DicomElement> list = elements();
         if (list.isEmpty() || Integer.compareUnsigned(list.get(list.size()-1).tag(), el.tag()) < 0) {
             list.add(el);
             return null;

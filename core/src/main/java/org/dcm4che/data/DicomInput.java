@@ -57,8 +57,8 @@ public class DicomInput {
         return new ParsedDicomElement(dcmObj, tag, vr, valuePos, valueLength);
     }
 
-    public DicomObject item(DicomSequence dcmElm, long valuePos, int valueLength) {
-        return new DicomObject(dcmElm, this, valuePos, valueLength);
+    public DicomObject item(DicomSequence dcmElm, long valuePos, int valueLength, boolean lazy) {
+        return new DicomObject(dcmElm, this, valuePos, valueLength, lazy);
     }
 
     public DataFragment dataFragment(DataFragments dcmElm, long valuePos, int valueLength) {

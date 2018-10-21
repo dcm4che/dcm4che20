@@ -48,5 +48,9 @@ public interface DicomElement {
 
     default void trimToSize() {}
 
+    default void purgeParsedItems() {}
+
+    default void purgeEncodedValue() {}
+
     void writeTo(DicomWriter dicomWriter) throws IOException;
 }

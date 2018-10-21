@@ -17,6 +17,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
     private final MemoryCache cache;
     private InputStream in;
     private DicomInput input;
+    private boolean lazy;
     private int limit = -1;
     private long pos;
     private int tag;
@@ -39,6 +40,12 @@ public class DicomReader implements DicomInputHandler, Closeable {
         this.in = in;
     }
 
+    private DicomReader(DicomInput input, long pos) {
+        this.input = input;
+        this.pos = pos;
+        this.cache = input.cache;
+    }
+
     public DicomEncoding getEncoding() {
         return input != null ? input.encoding : null;
     }
@@ -48,6 +55,15 @@ public class DicomReader implements DicomInputHandler, Closeable {
         if (input.encoding.deflated) {
             in = cache.inflate(pos, in);
         }
+        return this;
+    }
+
+    public boolean isLazy() {
+        return lazy;
+    }
+
+    public DicomReader withLazy(boolean lazy) {
+        this.lazy = lazy;
         return this;
     }
 
@@ -212,11 +228,16 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return value;
     }
 
+    public static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
+        new DicomReader(input, pos).parse(dcmObj, length);
+    }
+
     private boolean parse(DicomObject dcmObj, int length) throws IOException {
         boolean undefinedLength = length == -1;
+        boolean expectEOF = undefinedLength && dcmObj.getDicomSequence() == null;
         long endPos = pos + length;
         while ((undefinedLength || pos < endPos)
-                && readHeader(dcmObj, undefinedLength && dcmObj.getDicomSequence() == null)
+                && readHeader(dcmObj, expectEOF)
                 && !(undefinedLength && isDelimitationItem(Tag.ItemDelimitationItem))) {
             if (vr == VR.SQ) {
                 if (!parseItems(new DicomSequence(dcmObj, tag)))
@@ -227,6 +248,24 @@ public class DicomReader implements DicomInputHandler, Closeable {
             } else {
                 if (!parseCommonElement(input.dicomElement(dcmObj, tag, vr, pos, valueLength)))
                     return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean skipItem(int length) throws IOException {
+        if (length != -1) {
+            pos += length;
+        } else {
+            while (readHeader(null, false)
+                    && !isDelimitationItem(Tag.ItemDelimitationItem)) {
+                if (valueLength != -1) {
+                    pos += valueLength;
+                } else if (encodedVR == VR.UN && !probeExplicitVR(pos + 12)) {
+                    skipSequenceWithUndefLengthIVR_LE();
+                } else {
+                    skipSequenceWithUndefLength();
+                }
             }
         }
         return true;
@@ -251,10 +290,14 @@ public class DicomReader implements DicomInputHandler, Closeable {
 
     private boolean parseItems(DicomSequence dcmElm) throws IOException {
         return handler.startElement(dcmElm, true)
-                && (encodedVR == VR.UN && !probeExplicitVR(pos + 12)
-                    ? parseItemsIVR_LE(dcmElm, valueLength)
-                    : parseItems(dcmElm, valueLength))
+                && parseItems0(dcmElm)
                 && handler.endElement(dcmElm);
+    }
+
+    private boolean parseItems0(DicomSequence dcmElm) throws IOException {
+        return encodedVR == VR.UN && !probeExplicitVR(pos + 12)
+            ? parseItemsIVR_LE(dcmElm, valueLength)
+            : parseItems(dcmElm, valueLength);
     }
 
     private boolean parseItemsIVR_LE(DicomSequence dcmElm, int length) throws IOException {
@@ -277,15 +320,35 @@ public class DicomReader implements DicomInputHandler, Closeable {
             if (tag != Tag.Item)
                 throw new DicomParseException("Expected (FFFE,E000) but " + TagUtils.toString(tag));
 
-            if (!parseItem(input.item(dcmElm, pos, valueLength)))
+            if (!parseItem(input.item(dcmElm, pos, valueLength, lazy)))
                 return false;
         }
         return true;
     }
 
+    private void skipSequenceWithUndefLengthIVR_LE() throws IOException {
+        DicomInput input0 = input;
+        input = new DicomInput(cache, DicomEncoding.IVR_LE);
+        try {
+            skipSequenceWithUndefLength();
+        } finally {
+            input = input0;
+        }
+    }
+
+    private void skipSequenceWithUndefLength() throws IOException {
+        while (readHeader(null, false)
+                && !isDelimitationItem(Tag.SequenceDelimitationItem)) {
+            if (tag != Tag.Item)
+                throw new DicomParseException("Expected (FFFE,E000) but " + TagUtils.toString(tag));
+
+            skipItem(valueLength);
+        }
+    }
+
     private boolean parseItem(DicomObject dcmObj) throws IOException {
         return handler.startItem(dcmObj)
-                && parse(dcmObj, valueLength)
+                && lazy ? skipItem(valueLength) : parse(dcmObj, valueLength)
                 && handler.endItem(dcmObj);
     }
 
@@ -300,22 +363,19 @@ public class DicomReader implements DicomInputHandler, Closeable {
         if (bulkData) {
             cache.skipBytes(pos - headerLength, headerLength, in, null);
         }
-        return parseDataFragments(fragments, valueLength, bulkData) && handler.endElement(dcmElm);
+        return parseDataFragments(fragments, bulkData) && handler.endElement(dcmElm);
     }
 
-    private boolean parseDataFragments(DataFragments dcmElm, int length, boolean bulkData) throws IOException {
-        boolean undefinedLength = length == -1;
-        long endPos = pos + length;
-        while ((undefinedLength || pos < endPos)
-                && readHeader(null, false)
-                && !(undefinedLength && isDelimitationItem(Tag.SequenceDelimitationItem))) {
+    private boolean parseDataFragments(DataFragments dcmElm, boolean bulkData) throws IOException {
+        while (readHeader(null, false)
+                && !isDelimitationItem(Tag.SequenceDelimitationItem)) {
             if (tag != Tag.Item)
                 throw new DicomParseException("Expected (FFFE,E000) but " + TagUtils.toString(tag));
 
             if (bulkData) {
                 cache.skipBytes(pos - headerLength, headerLength + valueLength, in, bulkDataSpoolStream);
                 bulkDataSpoolStreamPos += headerLength + valueLength;
-            } else if (!handler.dataFragment(input.dataFragment(dcmElm, pos, valueLength))) {
+            } else if (dcmElm != null && !handler.dataFragment(input.dataFragment(dcmElm, pos, valueLength))) {
                 return false;
             }
 

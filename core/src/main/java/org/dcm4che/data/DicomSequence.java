@@ -37,6 +37,16 @@ public class DicomSequence extends BaseDicomElement {
     }
 
     @Override
+    public void purgeParsedItems() {
+        items.forEach(DicomObject::purgeElements);
+    }
+
+    @Override
+    public void purgeEncodedValue() {
+        items.forEach(DicomObject::purgeEncodedValues);
+    }
+
+    @Override
     public void writeTo(DicomWriter writer) throws IOException {
         boolean undefinedLength = writer.getSequenceLengthEncoding().undefined.test(items.size());
         writer.writeHeader(tag, vr, undefinedLength ? -1 : items.stream().mapToInt(writer::lengthOf).sum());
