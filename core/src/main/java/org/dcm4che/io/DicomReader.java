@@ -6,6 +6,7 @@ import org.dcm4che.util.TagUtils;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.function.Predicate;
 
@@ -17,7 +18,6 @@ public class DicomReader implements DicomInputHandler, Closeable {
     private final MemoryCache cache;
     private InputStream in;
     private DicomInput input;
-    private boolean lazy;
     private int limit = -1;
     private long pos;
     private int tag;
@@ -27,6 +27,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
     private int valueLength;
     private DicomObject fmi;
     private DicomInputHandler handler = this;
+    private Predicate<DicomElement> parseItemsPredicate = x -> true;
     private Predicate<DicomElement> bulkDataPredicate = x -> false;
     private URIProducer bulkDataURIProducer;
     private PathSupplier bulkDataSpoolPathSupplier;
@@ -58,20 +59,21 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return this;
     }
 
-    public boolean isLazy() {
-        return lazy;
-    }
-
-    public DicomReader withLazy(boolean lazy) {
-        this.lazy = lazy;
-        return this;
-    }
-
     public DicomReader withLimit(int limit) throws IOException {
         if (limit <= 0)
             throw new IllegalArgumentException("limit: " + limit);
 
         this.limit = limit;
+        return this;
+    }
+
+    public DicomReader withParseItems(Predicate<DicomElement> parseItemsPredicate) {
+        this.parseItemsPredicate = Objects.requireNonNull(parseItemsPredicate);
+        return this;
+    }
+
+    public DicomReader withParseItemsLazy(int seqTag) {
+        this.parseItemsPredicate = x -> x.tag() != seqTag;
         return this;
     }
 
@@ -320,7 +322,9 @@ public class DicomReader implements DicomInputHandler, Closeable {
             if (tag != Tag.Item)
                 throw new DicomParseException("Expected (FFFE,E000) but " + TagUtils.toString(tag));
 
-            if (!parseItem(input.item(dcmElm, pos, valueLength, lazy)))
+            if (parseItemsPredicate.test(dcmElm)
+                ? !parseItem(input.item(dcmElm, pos, valueLength, new ArrayList<>()))
+                : !skipItem(input.item(dcmElm, pos, valueLength, null)))
                 return false;
         }
         return true;
@@ -348,7 +352,13 @@ public class DicomReader implements DicomInputHandler, Closeable {
 
     private boolean parseItem(DicomObject dcmObj) throws IOException {
         return handler.startItem(dcmObj)
-                && lazy ? skipItem(valueLength) : parse(dcmObj, valueLength)
+                && parse(dcmObj, valueLength)
+                && handler.endItem(dcmObj);
+    }
+
+    private boolean skipItem(DicomObject dcmObj) throws IOException {
+        return handler.startItem(dcmObj)
+                && skipItem(valueLength)
                 && handler.endItem(dcmObj);
     }
 

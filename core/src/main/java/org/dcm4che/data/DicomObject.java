@@ -32,13 +32,13 @@ public class DicomObject implements Iterable<DicomElement> {
         this.elements = new ArrayList<>();
     }
 
-    DicomObject(DicomSequence dcmSeq, DicomInput dicomInput, long dicomInputPos, int dicomInputLen, boolean lazy) {
+    DicomObject(DicomSequence dcmSeq, DicomInput dicomInput, long dicomInputPos, int dicomInputLen,
+                ArrayList<DicomElement> elements) {
         this.dcmSeq = dcmSeq;
         this.dicomInput = dicomInput;
         this.dicomInputPos = dicomInputPos;
         this.dicomInputLen = dicomInputLen;
-        if (!lazy)
-            this.elements = new ArrayList<>();
+        this.elements = elements;
     }
 
     public DicomSequence getDicomSequence() {

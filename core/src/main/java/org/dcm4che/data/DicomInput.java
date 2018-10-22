@@ -6,6 +6,7 @@ import org.dcm4che.io.MemoryCache;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -57,8 +58,8 @@ public class DicomInput {
         return new ParsedDicomElement(dcmObj, tag, vr, valuePos, valueLength);
     }
 
-    public DicomObject item(DicomSequence dcmElm, long valuePos, int valueLength, boolean lazy) {
-        return new DicomObject(dcmElm, this, valuePos, valueLength, lazy);
+    public DicomObject item(DicomSequence dcmElm, long valuePos, int valueLength, ArrayList<DicomElement> elements) {
+        return new DicomObject(dcmElm, this, valuePos, valueLength, elements);
     }
 
     public DataFragment dataFragment(DataFragments dcmElm, long valuePos, int valueLength) {

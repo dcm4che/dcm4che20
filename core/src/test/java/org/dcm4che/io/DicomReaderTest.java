@@ -74,15 +74,15 @@ class DicomReaderTest {
             0, 0, 16, 1, 2, 0, 0, 0, 1, 0,
             0, 0, 0, 8, 2, 0, 0, 0, 1, 1
     };
-    private static final byte[] SHARED_FUNCTIONAL_GROUPS_SEQ_IVR_LE = {
-            0, 82, 41, -110, 40, 0, 0, 0,
+    private static final byte[] PER_FRAME_FUNCTIONAL_GROUPS_SEQ_IVR_LE = {
+            0, 82, 48, -110, 40, 0, 0, 0,
             -2, -1, 0, -32, 32, 0, 0, 0,
             24, 0, 20, -111, 24, 0, 0, 0,
             -2, -1, 0, -32, 16, 0, 0, 0,
             24, 0, -126, -112, 8, 0, 0, 0, -1, -1, -1, -1, 102, 102, -10, 63
     };
-    private static final byte[] SHARED_FUNCTIONAL_GROUPS_SEQ_EVR_LE = {
-            0, 82, 41, -110, 83, 81, 0, 0, -1, -1, -1, -1,
+    private static final byte[] PER_FRAME_FUNCTIONAL_GROUPS_SEQ_EVR_LE = {
+            0, 82, 48, -110, 83, 81, 0, 0, -1, -1, -1, -1,
             -2, -1, 0, -32, -1, -1, -1, -1,
             24, 0, 20, -111, 83, 81, 0, 0, -1, -1, -1, -1,
             -2, -1, 0, -32, -1, -1, -1, -1,
@@ -177,18 +177,18 @@ class DicomReaderTest {
     }
 
     @Test
-    void parseItemsLazyIVR_LE() throws IOException {
-        parseSequenceLazy(SHARED_FUNCTIONAL_GROUPS_SEQ_IVR_LE, DicomEncoding.IVR_LE);
+    void parsePerFrameFunctionalGroupsSequenceLazyIVR_LE() throws IOException {
+        parsePerFrameFunctionalGroupsSequenceLazy(PER_FRAME_FUNCTIONAL_GROUPS_SEQ_IVR_LE, DicomEncoding.IVR_LE);
     }
 
     @Test
-    void parseItemsLazyEVR_LE() throws IOException {
-        parseSequenceLazy(SHARED_FUNCTIONAL_GROUPS_SEQ_EVR_LE, DicomEncoding.EVR_LE);
+    void parsePerFrameFunctionalGroupsSequenceLazyEVR_LE() throws IOException {
+        parsePerFrameFunctionalGroupsSequenceLazy(PER_FRAME_FUNCTIONAL_GROUPS_SEQ_EVR_LE, DicomEncoding.EVR_LE);
     }
 
     @Test
     void parseDataFragments() throws IOException {
-        DicomElement el = parse(pixel_data(), DicomEncoding.EVR_LE, false).get(Tag.PixelData);
+        DicomElement el = parse(pixel_data(), DicomEncoding.EVR_LE).get(Tag.PixelData);
         assertTrue(el instanceof DataFragments);
         assertEquals(VR.OB, el.vr());
         DataFragment dataFragment = ((DataFragments) el).getDataFragment(1);
@@ -259,28 +259,36 @@ class DicomReaderTest {
         }
     }
 
-    static DicomObject parse(byte[] b, DicomEncoding encoding, boolean lazy) throws IOException {
+    static DicomObject parse(byte[] b, DicomEncoding encoding) throws IOException {
+        try (DicomReader reader = new DicomReader(new ByteArrayInputStream(b))
+                .withEncoding(encoding)) {
+            return reader.readDataSet();
+        }
+    }
+
+    static DicomObject parseLazy(byte[] b, DicomEncoding encoding, int seqTag) throws IOException {
         try (DicomReader reader = new DicomReader(new ByteArrayInputStream(b))
                 .withEncoding(encoding)
-                .withLazy(lazy)) {
+                .withParseItemsLazy(seqTag)) {
             return reader.readDataSet();
         }
     }
 
     static void parseSequence(byte[] b, DicomEncoding encoding, int tag) throws IOException {
-        DicomElement el = parse(b, encoding, false).get(tag);
+        DicomElement el = parse(b, encoding).get(tag);
         assertTrue(el instanceof DicomSequence);
         assertEquals(VR.SQ, el.vr());
         DicomObject item = ((DicomSequence) el).getItem(0);
         assertNotNull(item);
     }
 
-    static void parseSequenceLazy(byte[] b, DicomEncoding encoding) throws IOException {
-        DicomElement sharedFGSeq = parse(b, encoding, true).get(Tag.SharedFunctionalGroupsSequence);
-        assertTrue(sharedFGSeq instanceof DicomSequence);
-        DicomObject sharedFG = ((DicomSequence) sharedFGSeq).getItem(0);
-        assertNotNull(sharedFG);
-        DicomElement mrEchoSeq = sharedFG.get(Tag.MREchoSequence);
+    static void parsePerFrameFunctionalGroupsSequenceLazy(byte[] b, DicomEncoding encoding) throws IOException {
+        DicomElement functionalGroupSeq = parseLazy(b, encoding, Tag.PerFrameFunctionalGroupsSequence)
+                .get(Tag.PerFrameFunctionalGroupsSequence);
+        assertTrue(functionalGroupSeq instanceof DicomSequence);
+        DicomObject functionalGroup = ((DicomSequence) functionalGroupSeq).getItem(0);
+        assertNotNull(functionalGroup);
+        DicomElement mrEchoSeq = functionalGroup.get(Tag.MREchoSequence);
         assertTrue(mrEchoSeq instanceof DicomSequence);
         DicomObject mrEcho = ((DicomSequence) mrEchoSeq).getItem(0);
         assertNotNull(mrEcho);
