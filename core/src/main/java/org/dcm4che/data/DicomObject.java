@@ -126,10 +126,50 @@ public class DicomObject implements Iterable<DicomElement> {
                 : SpecificCharacterSet.ASCII;
     }
 
+    public DicomElement get(String privateCreator, int tag) {
+        if (privateCreator != null && TagUtils.isPrivateGroup(tag)) {
+            int creatorTag;
+            if ((creatorTag = creatorTag(privateCreator, tag, false)) == 0) {
+                return null;
+            }
+            tag = TagUtils.toPrivateTag(creatorTag, tag);
+        }
+        return get(tag);
+    }
+
+    private int creatorTag(String value, int tag, boolean reserve) {
+        int gggg0000 = tag & 0xffff0000;
+        if (privateCreator != null
+                && ((privateCreator.tag & 0xffff0000) == gggg0000)
+                && privateCreator.value.equals(value)) {
+            return privateCreator.tag;
+        }
+        ArrayList<DicomElement> list = elements();
+        int i = binarySearch(list, gggg0000 + 0x10);
+        if (i < 0) i = -(i + 1);
+        DicomElement el;
+        int creatorTag = gggg0000 + 0x0f;
+        while (i < list.size() && ((el = list.get(i)).tag() & 0xffffff00) == gggg0000) {
+            creatorTag = el.tag();
+            if (value.equals(el.stringValue(0, null))) {
+                privateCreator = new PrivateCreator(creatorTag, value);
+                return creatorTag;
+            }
+            i++;
+        }
+        if (!reserve)
+            return 0;
+
+        list.add(i, new StringElement(this, ++creatorTag, VR.LO, value));
+        privateCreator = new PrivateCreator(creatorTag, value);
+        return creatorTag;
+    }
+
     public DicomElement get(int tag) {
-        int i = binarySearch(elements(), tag);
+        ArrayList<DicomElement> list = elements();
+        int i = binarySearch(list, tag);
         if (i >= 0) {
-            return elements.get(i);
+            return list.get(i);
         }
         return null;
     }
@@ -147,8 +187,26 @@ public class DicomObject implements Iterable<DicomElement> {
         return el != null ? el.stringValue(index, defaultValue) : defaultValue;
     }
 
+    public String getString(String privateCreator, int tag) {
+        return getString(privateCreator, tag, 0, null);
+    }
+
+    public String getString(String privateCreator, int tag, String defaultValue) {
+        return getString(privateCreator, tag, 0, defaultValue);
+    }
+
+    public String getString(String privateCreator, int tag, int index, String defaultValue) {
+        DicomElement el = get(privateCreator, tag);
+        return el != null ? el.stringValue(index, defaultValue) : defaultValue;
+    }
+
     public String[] getStrings(int tag) {
         DicomElement el = get(tag);
+        return el != null ? el.stringValues() : DicomElement.EMPTY_STRINGS;
+    }
+
+    public String[] getStrings(String privateCreator, int tag) {
+        DicomElement el = get(privateCreator, tag);
         return el != null ? el.stringValues() : DicomElement.EMPTY_STRINGS;
     }
 
@@ -161,8 +219,22 @@ public class DicomObject implements Iterable<DicomElement> {
         return el != null ? el.intValue(index, defaultValue) : defaultValue;
     }
 
+    public int getInt(String privateCreator, int tag, int defaultValue) {
+        return getInt(privateCreator, tag, 0, defaultValue);
+    }
+
+    public int getInt(String privateCreator, int tag, int index, int defaultValue) {
+        DicomElement el = get(privateCreator, tag);
+        return el != null ? el.intValue(index, defaultValue) : defaultValue;
+    }
+
     public int[] getInts(int tag) {
         DicomElement el = get(tag);
+        return el != null ? el.intValues() : DicomElement.EMPTY_INTS;
+    }
+
+    public int[] getInts(String privateCreator, int tag) {
+        DicomElement el = get(privateCreator, tag);
         return el != null ? el.intValues() : DicomElement.EMPTY_INTS;
     }
 
@@ -175,8 +247,22 @@ public class DicomObject implements Iterable<DicomElement> {
         return el != null ? el.floatValue(index, defaultValue) : defaultValue;
     }
 
+    public float getFloat(String privateCreator, int tag, float defaultValue) {
+        return getFloat(privateCreator, tag, 0, defaultValue);
+    }
+
+    public float getFloat(String privateCreator, int tag, int index, float defaultValue) {
+        DicomElement el = get(privateCreator, tag);
+        return el != null ? el.floatValue(index, defaultValue) : defaultValue;
+    }
+
     public float[] getFloats(int tag) {
         DicomElement el = get(tag);
+        return el != null ? el.floatValues() : DicomElement.EMPTY_FLOATS;
+    }
+
+    public float[] getFloats(String privateCreator, int tag) {
+        DicomElement el = get(privateCreator, tag);
         return el != null ? el.floatValues() : DicomElement.EMPTY_FLOATS;
     }
 
@@ -189,8 +275,22 @@ public class DicomObject implements Iterable<DicomElement> {
         return el != null ? el.doubleValue(index, defaultValue) : defaultValue;
     }
 
+    public double getDouble(String privateCreator, int tag, double defaultValue) {
+        return getDouble(privateCreator, tag, 0, defaultValue);
+    }
+
+    public double getDouble(String privateCreator, int tag, int index, double defaultValue) {
+        DicomElement el = get(privateCreator, tag);
+        return el != null ? el.doubleValue(index, defaultValue) : defaultValue;
+    }
+
     public double[] getDoubles(int tag) {
         DicomElement el = get(tag);
+        return el != null ? el.doubleValues() : DicomElement.EMPTY_DOUBLES;
+    }
+
+    public double[] getDoubles(String privateCreator, int tag) {
+        DicomElement el = get(privateCreator, tag);
         return el != null ? el.doubleValues() : DicomElement.EMPTY_DOUBLES;
     }
 
@@ -212,16 +312,32 @@ public class DicomObject implements Iterable<DicomElement> {
         return add(vr.type.elementOf(this, tag, vr));
     }
 
+    public DicomElement setNull(String privateCreator, int tag, VR vr) {
+        return setNull(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr);
+    }
+
     public DicomElement setInt(int tag, VR vr, int... vals) {
         return add(vr.type.elementOf(this, tag, vr, vals));
+    }
+
+    public DicomElement setInt(String privateCreator, int tag, VR vr, int... vals) {
+        return setInt(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
     }
 
     public DicomElement setFloat(int tag, VR vr, float... vals) {
         return add(vr.type.elementOf(this, tag, vr, vals));
     }
 
+    public DicomElement setFloat(String privateCreator, int tag, VR vr, float... vals) {
+        return setFloat(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
+    }
+
     public DicomElement setDouble(int tag, VR vr, double... vals) {
         return add(vr.type.elementOf(this, tag, vr, vals));
+    }
+
+    public DicomElement setDouble(String privateCreator, int tag, VR vr, double... vals) {
+        return setDouble(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
     }
 
     public DicomElement setString(int tag, VR vr, String val) {
@@ -232,10 +348,22 @@ public class DicomObject implements Iterable<DicomElement> {
         return add(vr.type.elementOf(this, tag, vr, vals));
     }
 
+    public DicomElement setString(String privateCreator, int tag, VR vr, String val) {
+        return setString(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, val);
+    }
+
+    public DicomElement setString(String privateCreator, int tag, VR vr, String... vals) {
+        return setString(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
+    }
+
     public DicomSequence newDicomSequence(int tag) {
         DicomSequence seq = new DicomSequence(this, tag);
         add(seq);
         return seq;
+    }
+
+    public DicomElement newDicomSequence(String privateCreator, int tag) {
+        return newDicomSequence(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag));
     }
 
     private static int binarySearch(List<DicomElement> l, int tag) {
