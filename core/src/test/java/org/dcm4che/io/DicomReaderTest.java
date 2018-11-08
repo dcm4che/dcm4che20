@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,12 +23,6 @@ class DicomReaderTest {
     private static final byte[] IVR_LE = {0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0};
     private static final byte[] EVR_LE = {8, 0, 0, 0, 'U', 'L', 4, 0, 0, 0, 0, 0};
     private static final byte[] EVR_BE = {0, 8, 0, 0, 'U', 'L', 0, 4, 0, 0, 0, 0};
-    private static final byte[] DICM_FMI_DEFL = {'D', 'I', 'C', 'M',
-            2, 0, 0, 0, 'U', 'L', 4, 0, 30, 0, 0, 0,
-            2, 0, 16, 0, 'U', 'I', 22, 0,
-            49, 46, 50, 46, 56, 52, 48, 46, 49, 48, 48, 48, 56, 46, 49, 46, 50, 46, 49, 46, 57, 57,
-            3, 0
-    };
     private static final byte[] WF_SEQ_EVR_LE = {
             0, 84, 0, 1, 'S', 'Q', 0, 0, 8, 0, 0, 0,
             -2, -1, 0, -32, 0, 0, 0, 0
@@ -46,25 +42,6 @@ class DicomReaderTest {
             9, 0, 0, 16, 'U', 'N', 0, 0, -1, -1, -1, -1,
             -2, -1, 0, -32, 0, 0, 0, 0,
             -2, -1, -35, -32, 0, 0, 0, 0
-    };
-    private static final byte[] WF_DATA_HEADER = {
-            0, 84, 0, 1, 'S', 'Q', 0, 0, 18, 1, 0, 0,
-            -2, -1, 0, -32, 10, 1, 0, 0,
-            0, 84, 16, 16, 'O', 'W', 0, 0, 0, 1, 0, 0
-    };
-    private static final byte[] OVERLAY_DATA_HEADER = {
-            0, 96, 0, 48, 'O', 'W', 0, 0, 0, 1, 0, 0
-    };
-    private static final byte[] PIXEL_DATA_HEADER = {
-            -32, 127, 16, 0, 'O', 'B', 0, 0, -1, -1, -1, -1,
-            -2, -1, 0, -32, 0, 0, 0, 0,
-            -2, -1, 0, -32, 0, 1, 0, 0,
-    };
-    private static final byte[] PIXEL_DATA_FOOTER = {
-            -2, -1, -35, -32, 0, 0, 0, 0
-    };
-    private static final byte[] DATASET_TRAILING_PADDING = {
-            -4, -1, -4, -1, 'O', 'B', 0, 0, 0, 0, 0, 0
     };
     private static final byte[] C_ECHO_RQ = {
             0, 0, 0, 0, 4, 0, 0, 0, 56, 0, 0, 0,
@@ -93,38 +70,6 @@ class DicomReaderTest {
             -2, -1, -35, -32, 0, 0, 0, 0
     };
 
-    private static byte[] preamble_fmi_defl() {
-        byte[] b = new byte[128 + DICM_FMI_DEFL.length];
-        System.arraycopy(DICM_FMI_DEFL, 0, b, 128, DICM_FMI_DEFL.length);
-        return b;
-    }
-
-    private static byte[] pixel_data() {
-        return pixel_data(new byte[PIXEL_DATA_HEADER.length + 256 + PIXEL_DATA_FOOTER.length], 0);
-    }
-
-    private static byte[] pixel_data(byte[] b, int destPos) {
-        System.arraycopy(PIXEL_DATA_HEADER, 0, b, destPos, PIXEL_DATA_HEADER.length);
-        System.arraycopy(PIXEL_DATA_FOOTER, 0, b,
-                destPos + PIXEL_DATA_HEADER.length + 256, PIXEL_DATA_FOOTER.length);
-        return b;
-    }
-
-    private static byte[] waveform_overlay_pixeldata() {
-        byte[] b = new byte[WF_DATA_HEADER.length + 256 + OVERLAY_DATA_HEADER.length + 256 +
-                PIXEL_DATA_HEADER.length + 256 + PIXEL_DATA_FOOTER.length + DATASET_TRAILING_PADDING.length];
-        System.arraycopy(WF_DATA_HEADER, 0, b, 0, WF_DATA_HEADER.length);
-        System.arraycopy(OVERLAY_DATA_HEADER, 0, b,
-                WF_DATA_HEADER.length + 256, OVERLAY_DATA_HEADER.length);
-        pixel_data(b, WF_DATA_HEADER.length + 256 + OVERLAY_DATA_HEADER.length + 256);
-        System.arraycopy(DATASET_TRAILING_PADDING, 0, b,
-                WF_DATA_HEADER.length + 256 + OVERLAY_DATA_HEADER.length + 256 +
-                        PIXEL_DATA_HEADER.length + 256 + PIXEL_DATA_FOOTER.length,
-                DATASET_TRAILING_PADDING.length);
-        return b;
-    }
-
-
     @Test
     void readDataSetIVR_LE() throws IOException {
         assertEquals(DicomEncoding.IVR_LE, readDataSet(IVR_LE));
@@ -142,7 +87,7 @@ class DicomReaderTest {
 
     @Test
     void readDataSetDEFL() throws IOException {
-        assertEquals(DicomEncoding.DEFL_EVR_LE, readDataSet(preamble_fmi_defl()));
+        assertEquals(DicomEncoding.DEFL_EVR_LE, readDataSet("preamble_fmi_defl.dcm"));
     }
 
     @Test
@@ -188,7 +133,7 @@ class DicomReaderTest {
 
     @Test
     void parseDataFragments() throws IOException {
-        DicomElement el = parse(pixel_data(), DicomEncoding.EVR_LE).get(Tag.PixelData);
+        DicomElement el = parse(resourceAsStream("pixeldata.dcm"), DicomEncoding.EVR_LE).get(Tag.PixelData);
         assertTrue(el instanceof DataFragments);
         assertEquals(VR.OB, el.vr());
         DataFragment dataFragment = ((DataFragments) el).getDataFragment(1);
@@ -211,21 +156,22 @@ class DicomReaderTest {
 
     @Test
     void withBulkDataURI() throws IOException {
-        Path srcPath = Paths.get("src.dcm");
-        DicomObject data = parseWithBulkDataURI(srcPath);
-        DicomElement seg = data.get(Tag.WaveformSequence);
-        assertTrue(seg instanceof DicomSequence);
-        DicomObject item = ((DicomSequence) seg).getItem(0);
+        URL srcURL = resource("waveform_overlay_pixeldata.dcm");
+        Path sourcePath = Paths.get(URI.create(srcURL.toString()));
+        DicomObject data = parseWithBulkDataURI(sourcePath);
+        DicomElement seq = data.get(Tag.WaveformSequence);
+        assertTrue(seq instanceof DicomSequence);
+        DicomObject item = ((DicomSequence) seq).getItem(0);
         assertNotNull(item);
         DicomElement waveformData = item.get(Tag.WaveformData);
         assertNotNull(waveformData);
-        assertTrue(waveformData.bulkDataURI().endsWith("src.dcm#offset=32&length=256"));
+        assertTrue(waveformData.bulkDataURI().endsWith("waveform_overlay_pixeldata.dcm#offset=32&length=256"));
         DicomElement overlayData = data.get(Tag.OverlayData);
         assertNotNull(overlayData);
-        assertTrue(overlayData.bulkDataURI().endsWith("src.dcm#offset=300&length=256"));
+        assertTrue(overlayData.bulkDataURI().endsWith("waveform_overlay_pixeldata.dcm#offset=300&length=256"));
         DicomElement pixelData = data.get(Tag.PixelData);
         assertNotNull(pixelData);
-        assertTrue(pixelData.bulkDataURI().endsWith("src.dcm#offset=568&length=-1"));
+        assertTrue(pixelData.bulkDataURI().endsWith("waveform_overlay_pixeldata.dcm#offset=568"));
         assertNotNull(data.get(Tag.DataSetTrailingPadding));
     }
 
@@ -240,15 +186,23 @@ class DicomReaderTest {
         assertNotNull(item);
         DicomElement waveformData = item.get(Tag.WaveformData);
         assertNotNull(waveformData);
-        assertTrue(waveformData.bulkDataURI().endsWith("target/bulkdata.blk#offset=0&length=256"));
+        assertTrue(waveformData.bulkDataURI().endsWith("target/bulkdata.blk#length=256"));
         DicomElement overlayData = data.get(Tag.OverlayData);
         assertNotNull(overlayData);
         assertTrue(overlayData.bulkDataURI().endsWith("target/bulkdata.blk#offset=256&length=256"));
         DicomElement pixelData = data.get(Tag.PixelData);
         assertNotNull(pixelData);
-        assertTrue(pixelData.bulkDataURI().endsWith("target/bulkdata.blk#offset=512&length=-1"));
+        assertTrue(pixelData.bulkDataURI().endsWith("target/bulkdata.blk#offset=512"));
         assertNotNull(data.get(Tag.DataSetTrailingPadding));
         assertEquals(792, Files.size(spoolPath));
+    }
+
+    static DicomEncoding readDataSet(String name) throws IOException {
+        try (InputStream in = resourceAsStream(name)) {
+            DicomReader reader = new DicomReader(in);
+            reader.readDataSet();
+            return reader.getEncoding();
+        }
     }
 
     static DicomEncoding readDataSet(byte[] b) throws IOException {
@@ -259,9 +213,8 @@ class DicomReaderTest {
         }
     }
 
-    static DicomObject parse(byte[] b, DicomEncoding encoding) throws IOException {
-        try (DicomReader reader = new DicomReader(new ByteArrayInputStream(b))
-                .withEncoding(encoding)) {
+    static DicomObject parse(InputStream in, DicomEncoding encoding) throws IOException {
+        try (DicomReader reader = new DicomReader(in).withEncoding(encoding)) {
             return reader.readDataSet();
         }
     }
@@ -275,7 +228,7 @@ class DicomReaderTest {
     }
 
     static void parseSequence(byte[] b, DicomEncoding encoding, int tag) throws IOException {
-        DicomElement el = parse(b, encoding).get(tag);
+        DicomElement el = parse(new ByteArrayInputStream(b), encoding).get(tag);
         assertTrue(el instanceof DicomSequence);
         assertEquals(VR.SQ, el.vr());
         DicomObject item = ((DicomSequence) el).getItem(0);
@@ -296,24 +249,24 @@ class DicomReaderTest {
     }
 
     static DicomObject parseWithoutBulkData() throws IOException {
-        try (DicomReader reader = new DicomReader(new ByteArrayInputStream(waveform_overlay_pixeldata()))
+        try (DicomReader reader = new DicomReader(resourceAsStream("waveform_overlay_pixeldata.dcm"))
                 .withEncoding(DicomEncoding.EVR_LE)
                 .withBulkData(DicomReader::isBulkData)) {
             return reader.readDataSet();
         }
     }
 
-    static DicomObject parseWithBulkDataURI(Path srcPath) throws IOException {
-        try (DicomReader reader = new DicomReader(new ByteArrayInputStream(waveform_overlay_pixeldata()))
+    static DicomObject parseWithBulkDataURI(Path sourcePath) throws IOException {
+        try (DicomReader reader = new DicomReader(Files.newInputStream(sourcePath))
                 .withEncoding(DicomEncoding.EVR_LE)
                 .withBulkData(DicomReader::isBulkData)
-                .withBulkDataURI(srcPath)) {
+                .withBulkDataURI(sourcePath)) {
             return reader.readDataSet();
         }
     }
 
     static DicomObject parseSpoolBulkData(Path spoolPath) throws IOException {
-        try (DicomReader reader = new DicomReader(new ByteArrayInputStream(waveform_overlay_pixeldata()))
+        try (DicomReader reader = new DicomReader(resourceAsStream("waveform_overlay_pixeldata.dcm"))
                 .withEncoding(DicomEncoding.EVR_LE)
                 .withBulkData(DicomReader::isBulkData)
                 .spoolBulkData(() -> spoolPath)) {
@@ -321,4 +274,11 @@ class DicomReaderTest {
         }
     }
 
+    static URL resource(String name) {
+        return Thread.currentThread().getContextClassLoader().getResource(name);
+    }
+
+    static InputStream resourceAsStream(String name) throws IOException {
+        return resource(name).openStream();
+    }
 }

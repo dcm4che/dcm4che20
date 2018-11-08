@@ -2,6 +2,8 @@ package org.dcm4che.data;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -12,6 +14,7 @@ class DicomObjectTest {
 
     private static final String PRIVATE_CREATOR_A = "PRIVATE CREATOR A";
     private static final String PRIVATE_CREATOR_B = "PRIVATE CREATOR B";
+    private static final String BULK_DATA_URI = "http://BulkData/URI";
 
     @Test
     void getPrivate() {
@@ -57,6 +60,41 @@ class DicomObjectTest {
         assertEquals(0xB, dataset.getInt(0x00091120, -1));
         assertEquals(0.2222f, dataset.getFloat(0x00091130, -1));
         assertEquals(0.22222222, dataset.getDouble(0x00091140, -1));
-
     }
+
+    @Test
+    void serializeBulkData() {
+        DicomObject data = new DicomObject();
+        DicomElement seq = data.newDicomSequence(Tag.WaveformSequence);
+        DicomObject item = new DicomObject();
+        seq.addItem(item);
+        item.setBulkData(Tag.WaveformData, VR.OW, BULK_DATA_URI);
+        data = deserialize(serialize(data));
+        seq = data.get(Tag.WaveformSequence);
+        assertTrue(seq instanceof DicomSequence);
+        item = seq.getItem(0);
+        assertNotNull(item);
+        DicomElement waveformData = item.get(Tag.WaveformData);
+        assertNotNull(waveformData);
+        assertEquals(BULK_DATA_URI, waveformData.bulkDataURI());
+    }
+
+    private static byte[] serialize(DicomObject dcmobj) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(out)){
+            oos.writeObject(dcmobj);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return out.toByteArray();
+    }
+
+    private static DicomObject deserialize(byte[] b) {
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(b))) {
+            return (DicomObject) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }

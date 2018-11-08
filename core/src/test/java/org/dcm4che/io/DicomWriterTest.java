@@ -3,8 +3,11 @@ package org.dcm4che.io;
 import org.dcm4che.data.*;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,11 +16,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since Aug 2018
  */
 class DicomWriterTest {
-    private static final byte[] DICM_FMI_DEFL = {'D', 'I', 'C', 'M',
-            2, 0, 0, 0, 'U', 'L', 4, 0, 30, 0, 0, 0,
-            2, 0, 16, 0, 'U', 'I', 22, 0,
-            49, 46, 50, 46, 56, 52, 48, 46, 49, 48, 48, 48, 56, 46, 49, 46, 50, 46, 49, 46, 57, 57,
-            3, 0};
     private static final byte[] C_ECHO_RQ = {
             0, 0, 0, 0, 4, 0, 0, 0, 56, 0, 0, 0,
             0, 0, 2, 0, 18, 0, 0, 0,
@@ -58,12 +56,6 @@ class DicomWriterTest {
             -2, -1, 13, -32, 0, 0, 0, 0
     };
 
-    private static byte[] preamble_fmi_defl() {
-        byte[] b = new byte[128 + DICM_FMI_DEFL.length];
-        System.arraycopy(DICM_FMI_DEFL, 0, b, 128, DICM_FMI_DEFL.length);
-        return b;
-    }
-
     private static DicomObject c_echo_rq() {
         DicomObject cmd = new DicomObject();
         cmd.setString(Tag.AffectedSOPClassUID, VR.UI, UID.VerificationSOPClass);
@@ -90,7 +82,7 @@ class DicomWriterTest {
         try (DicomWriter w = new DicomWriter(bout)) {
             w.writeFileMetaInformation(fmi).writeDataSet(new DicomObject());
         }
-        assertArrayEquals(preamble_fmi_defl(), bout.toByteArray());
+        assertArrayEquals(resourceAsBytes("preamble_fmi_defl.dcm"), bout.toByteArray());
     }
 
     @Test
@@ -104,40 +96,62 @@ class DicomWriterTest {
 
     @Test
     void writeSequenceIVR_LE() throws IOException {
-        writeSequence(DicomEncoding.IVR_LE, false,
-                DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
-                DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
-                IVR_LE);
+        assertArrayEquals(IVR_LE,
+            writeDataset(DicomEncoding.IVR_LE, false,
+                    DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
+                    DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
+                    sequences()));
     }
 
     @Test
     void writeSequenceEVR_BE_GROUP() throws IOException {
-        writeSequence(DicomEncoding.EVR_BE, true,
-                DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
-                DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
-                EVR_BE_GROUP);
+        assertArrayEquals(EVR_BE_GROUP,
+            writeDataset(DicomEncoding.EVR_BE, true,
+                    DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
+                    DicomWriter.LengthEncoding.UNDEFINED_OR_ZERO,
+                    sequences()));
     }
 
     @Test
     void writeSequenceExplicitItemLength() throws IOException {
-        writeSequence(DicomEncoding.IVR_LE, true,
-                DicomWriter.LengthEncoding.UNDEFINED,
-                DicomWriter.LengthEncoding.EXPLICIT,
-                EXPL_ITEM_LEN);
+        assertArrayEquals(EXPL_ITEM_LEN,
+            writeDataset(DicomEncoding.IVR_LE, true,
+                    DicomWriter.LengthEncoding.UNDEFINED,
+                    DicomWriter.LengthEncoding.EXPLICIT,
+                    sequences()));
     }
 
     @Test
     void writeSequenceExplicitSequenceLength() throws IOException {
-        writeSequence(DicomEncoding.IVR_LE, true,
-                DicomWriter.LengthEncoding.EXPLICIT,
-                DicomWriter.LengthEncoding.UNDEFINED,
-                EXPL_SEQ_LEN);
+        assertArrayEquals(EXPL_SEQ_LEN,
+            writeDataset(DicomEncoding.IVR_LE, true,
+                    DicomWriter.LengthEncoding.EXPLICIT,
+                    DicomWriter.LengthEncoding.UNDEFINED,
+                    sequences()));
     }
 
-    private void writeSequence(DicomEncoding encoding, boolean includeGroupLength,
-                               DicomWriter.LengthEncoding seqLengthEncoding,
-                               DicomWriter.LengthEncoding itemLengthEncoding,
-                               byte[] expected)
+    @Test
+    void withBulkDataURI() throws IOException {
+        String baseURL = DicomReaderTest.resource("waveform_overlay_pixeldata.dcm").toString();
+        DicomObject data = new DicomObject();
+        DicomElement seq = data.newDicomSequence(Tag.WaveformSequence);
+        DicomObject item = new DicomObject();
+        seq.addItem(item);
+        item.setBulkData(Tag.WaveformData, VR.OW, baseURL + "#offset=32&length=256");
+        data.setBulkData(Tag.OverlayData, VR.OW, baseURL + "#offset=300&length=256");
+        data.setBulkData(Tag.PixelData, VR.OB, baseURL + "#offset=568");
+        data.setNull(Tag.DataSetTrailingPadding, VR.OB);
+        assertArrayEquals(resourceAsBytes("waveform_overlay_pixeldata.dcm"),
+                writeDataset(DicomEncoding.EVR_LE, false,
+                    DicomWriter.LengthEncoding.EXPLICIT,
+                    DicomWriter.LengthEncoding.EXPLICIT,
+                    data));
+    }
+
+    private byte[] writeDataset(DicomEncoding encoding, boolean includeGroupLength,
+                              DicomWriter.LengthEncoding seqLengthEncoding,
+                              DicomWriter.LengthEncoding itemLengthEncoding,
+                              DicomObject dataset)
             throws IOException {
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         try (DicomWriter w = new DicomWriter(bout)
@@ -146,8 +160,17 @@ class DicomWriterTest {
                 .withSequenceLengthEncoding(seqLengthEncoding)
                 .withItemLengthEncoding(itemLengthEncoding)
         ) {
-            w.writeDataSet(sequences());
+            w.writeDataSet(dataset);
         }
-        assertArrayEquals(expected, bout.toByteArray());
+        return bout.toByteArray();
+    }
+
+    static byte[] resourceAsBytes(String name) throws IOException {
+        URL url = DicomReaderTest.resource(name);
+        byte[] b = new byte[(int) Files.size(Paths.get(URI.create(url.toString())))];
+        try (InputStream in = url.openStream()) {
+            in.read(b);
+        }
+        return b;
     }
 }

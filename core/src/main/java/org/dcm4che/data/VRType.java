@@ -116,6 +116,10 @@ interface VRType {
         return new BaseDicomElement(dcmObj, tag, vr);
     }
 
+    default DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, byte[] val) {
+        throw new UnsupportedOperationException();
+    }
+
     default DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, int[] vals) {
         throw new UnsupportedOperationException();
     }

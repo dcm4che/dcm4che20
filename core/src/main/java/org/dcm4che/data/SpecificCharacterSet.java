@@ -15,6 +15,7 @@ import java.util.StringTokenizer;
 public class SpecificCharacterSet {
 
     public static final SpecificCharacterSet ASCII = new SpecificCharacterSet(new Codec[]{Codec.ISO_646});
+    public static final SpecificCharacterSet UTF_8 = new SpecificCharacterSet(new Codec[]{Codec.UTF_8});
 
     private static SpecificCharacterSet DEFAULT = ASCII;
     private static ThreadLocal<SoftReference<Encoder>> cachedEncoder1 = new ThreadLocal<SoftReference<Encoder>>();

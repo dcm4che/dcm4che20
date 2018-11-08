@@ -22,10 +22,12 @@ public class DicomSequence extends BaseDicomElement {
         items.forEach(DicomObject::trimToSize);
     }
 
+    @Override
     public void addItem(DicomObject item) {
         items.add(item);
     }
 
+    @Override
     public DicomObject getItem(int index) {
         return index < items.size() ? items.get(index) : null;
     }

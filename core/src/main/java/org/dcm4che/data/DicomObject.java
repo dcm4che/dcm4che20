@@ -1,10 +1,11 @@
 package org.dcm4che.data;
 
+import org.dcm4che.io.DicomEncoding;
 import org.dcm4che.io.DicomReader;
 import org.dcm4che.io.DicomWriter;
 import org.dcm4che.util.TagUtils;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -13,7 +14,7 @@ import java.util.stream.Stream;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-public class DicomObject implements Iterable<DicomElement> {
+public class DicomObject implements Iterable<DicomElement>, Externalizable {
     private DicomSequence dcmSeq;
     private volatile ArrayList<DicomElement> elements;
     private SpecificCharacterSet specificCharacterSet;
@@ -145,10 +146,10 @@ public class DicomObject implements Iterable<DicomElement> {
             return privateCreator.tag;
         }
         ArrayList<DicomElement> list = elements();
-        int i = binarySearch(list, gggg0000 + 0x10);
+        int creatorTag = gggg0000 | 0x10;
+        int i = binarySearch(list, creatorTag--);
         if (i < 0) i = -(i + 1);
         DicomElement el;
-        int creatorTag = gggg0000 + 0x0f;
         while (i < list.size() && ((el = list.get(i)).tag() & 0xffffff00) == gggg0000) {
             creatorTag = el.tag();
             if (value.equals(el.stringValue(0, null))) {
@@ -316,6 +317,14 @@ public class DicomObject implements Iterable<DicomElement> {
         return setNull(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr);
     }
 
+    public DicomElement setBytes(int tag, VR vr, byte[] val) {
+        return add(vr.type.elementOf(this, tag, vr, val));
+    }
+
+    public DicomElement setBytes(String privateCreator, int tag, VR vr, byte[] val) {
+        return setBytes(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, val);
+    }
+
     public DicomElement setInt(int tag, VR vr, int... vals) {
         return add(vr.type.elementOf(this, tag, vr, vals));
     }
@@ -354,6 +363,14 @@ public class DicomObject implements Iterable<DicomElement> {
 
     public DicomElement setString(String privateCreator, int tag, VR vr, String... vals) {
         return setString(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
+    }
+
+    public DicomElement setBulkData(int tag, VR vr, String uri) {
+        return add(new BulkDataElement(this, tag, vr, uri));
+    }
+
+    public DicomElement setBulkData(String privateCreator, int tag, VR vr, String uri) {
+        return setBulkData(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, uri);
     }
 
     public DicomSequence newDicomSequence(int tag) {
@@ -396,6 +413,38 @@ public class DicomObject implements Iterable<DicomElement> {
             privateCreator = new PrivateCreator(tag, getString(tag));
         }
         return privateCreator;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        DicomWriter writer = new DicomWriter(new OutputStream() {
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                out.write(b, off, len);
+            }
+
+            @Override
+            public void write(int i) throws IOException {
+                out.write(i);
+            }
+        }).withEncoding(DicomEncoding.SERIALIZE);
+        writer.writeDataSet(this);
+        writer.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        new DicomReader(new InputStream() {
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                return in.read(b, off, len);
+            }
+
+            @Override
+            public int read() throws IOException {
+                return in.read();
+            }
+        }).withEncoding(DicomEncoding.SERIALIZE).readDataSet(this);
     }
 
     private static class PrivateCreator {

@@ -21,7 +21,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
     private int limit = -1;
     private long pos;
     private int tag;
-    private VR encodedVR;
+    private int vrCode;
     private VR vr;
     private int headerLength;
     private int valueLength;
@@ -188,23 +188,23 @@ public class DicomReader implements DicomInputHandler, Closeable {
         if (pos + 8 > cache.length()) {
             throw new EOFException();
         }
+        vrCode = 0;
         switch (tag = input.tagAt(pos)) {
             case Tag.Item:
             case Tag.ItemDelimitationItem:
             case Tag.SequenceDelimitationItem:
-                encodedVR = null;
                 vr = VR.NONE;
                 valueLength = input.intAt(pos + 4);
                 return 8;
         }
         if (!input.encoding.explicitVR) {
-            encodedVR = null;
             vr = lookupVR(dcmObj);
             valueLength = input.intAt(pos + 4);
             return 8;
         }
-        encodedVR = VR.of(cache.vrcode(pos + 4));
-        if (encodedVR.shortValueLength) {
+        vrCode = cache.vrcode(pos + 4);
+        VR encodedVR = VR.of(vrCode & input.encoding.vrCodeMask);
+        if (vrCode < 0 || encodedVR.shortValueLength) {
             valueLength = input.ushortAt(pos + 6);
             vr = encodedVR;
             return 8;
@@ -241,7 +241,11 @@ public class DicomReader implements DicomInputHandler, Closeable {
         while ((undefinedLength || pos < endPos)
                 && readHeader(dcmObj, expectEOF)
                 && !(undefinedLength && isDelimitationItem(Tag.ItemDelimitationItem))) {
-            if (vr == VR.SQ) {
+            if (vrCode < 0) {
+                dcmObj.add(new BulkDataElement(
+                        dcmObj, tag, vr, input.stringAt(pos, valueLength, SpecificCharacterSet.UTF_8)));
+                pos += valueLength;
+            } else if (vr == VR.SQ) {
                 if (!parseItems(new DicomSequence(dcmObj, tag)))
                     return false;
             } else if (valueLength == -1) {
@@ -263,7 +267,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
                     && !isDelimitationItem(Tag.ItemDelimitationItem)) {
                 if (valueLength != -1) {
                     pos += valueLength;
-                } else if (encodedVR == VR.UN && !probeExplicitVR(pos + 12)) {
+                } else if (vrCode == VR.UN.code && !probeExplicitVR(pos + 12)) {
                     skipSequenceWithUndefLengthIVR_LE();
                 } else {
                     skipSequenceWithUndefLength();
@@ -297,7 +301,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
     }
 
     private boolean parseItems0(DicomSequence dcmElm) throws IOException {
-        return encodedVR == VR.UN && !probeExplicitVR(pos + 12)
+        return vrCode == VR.UN.code && !probeExplicitVR(pos + 12)
             ? parseItemsIVR_LE(dcmElm, valueLength)
             : parseItems(dcmElm, valueLength);
     }
@@ -422,9 +426,19 @@ public class DicomReader implements DicomInputHandler, Closeable {
 
     private String bulkDataURI(String url, long pos, int valueLength) {
         StringBuilder sb = new StringBuilder();
-        sb.append(url).append("#offset=").append(pos).append("&length=").append(valueLength);
-        if (input.encoding.byteOrder == ByteOrder.BIG_ENDIAN)
-            sb.append("&bigEndian=true");
+        char ch = '#';
+        sb.append(url);
+        if (pos != 0) {
+            sb.append(ch).append("offset=").append(pos);
+            ch = '&';
+        }
+        if (valueLength != -1) {
+            sb.append(ch).append("length=").append(valueLength);
+            ch = '&';
+        }
+        if (input.encoding.byteOrder == ByteOrder.BIG_ENDIAN) {
+            sb.append(ch).append("endian=big");
+        }
         return sb.toString();
     }
 

@@ -1,6 +1,7 @@
 package org.dcm4che.io;
 
 import org.dcm4che.data.*;
+import org.dcm4che.util.StringUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -172,6 +173,19 @@ public class DicomWriter implements Closeable {
 
     public int lengthOf(DicomObject item) {
         return 8 + itemLengthEncoding.adjustLength.applyAsInt(item.getItemLength());
+    }
+
+    public void serialize(BulkDataElement el) throws IOException {
+        byte[] header = this.header;
+        ByteOrder byteOrder = encoding.byteOrder;
+        byteOrder.tagToBytes(el.tag(), header, 0);
+        int vrCode = el.vr().code;
+        header[4] = (byte) ((vrCode | 0x8000) >>> 8);
+        header[5] = (byte) vrCode;
+        byte[] encodedURI = SpecificCharacterSet.UTF_8.encode(el.bulkDataURI(), null);
+        byteOrder.shortToBytes(encodedURI.length, header, 6);
+        out.write(header, 0, 8);
+        out.write(encodedURI);
     }
 
     public enum LengthEncoding {
