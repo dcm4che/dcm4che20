@@ -1,6 +1,5 @@
-package org.dcm4che.io;
+package org.dcm4che.data;
 
-import org.dcm4che.data.*;
 import org.dcm4che.util.TagUtils;
 
 import java.io.Closeable;
@@ -32,10 +31,6 @@ public class DicomWriter implements Closeable {
 
     public DicomWriter(OutputStream out) {
         this.out = Objects.requireNonNull(out);
-    }
-
-    public OutputStream getOutputStream() {
-        return out;
     }
 
     public DicomEncoding getEncoding() {
@@ -75,13 +70,6 @@ public class DicomWriter implements Closeable {
     public DicomWriter withSequenceLengthEncoding(LengthEncoding sequenceLengthEncoding) {
         this.sequenceLengthEncoding = Objects.requireNonNull(sequenceLengthEncoding);
         return this;
-    }
-
-    public byte[] swapBuffer() {
-        if (swapBuffer == null) {
-            swapBuffer = new byte[BUFFER_LENGTH];
-        }
-        return swapBuffer;
     }
 
     @Override
@@ -170,7 +158,18 @@ public class DicomWriter implements Closeable {
         }
     }
 
-    public void writeSequence(DicomSequence seq) throws IOException {
+    OutputStream getOutputStream() {
+        return out;
+    }
+
+    byte[] swapBuffer() {
+        if (swapBuffer == null) {
+            swapBuffer = new byte[BUFFER_LENGTH];
+        }
+        return swapBuffer;
+    }
+
+    void writeSequence(DicomSequence seq) throws IOException {
         boolean undefinedLength = sequenceLengthEncoding.undefined.test(seq.size());
         writeHeader(seq.tag(), seq.vr(), undefinedLength ? -1 : seq.itemStream().mapToInt(this::lengthOf).sum());
         for (DicomObject item : seq) {
@@ -190,7 +189,7 @@ public class DicomWriter implements Closeable {
         }
     }
 
-    public void serialize(BulkDataElement bulkData) throws IOException {
+    void serialize(BulkDataElement bulkData) throws IOException {
         byte[] header = this.header;
         ByteOrder byteOrder = encoding.byteOrder;
         byteOrder.tagToBytes(bulkData.tag(), header, 0);

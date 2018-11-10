@@ -1,4 +1,4 @@
-package org.dcm4che.io;
+package org.dcm4che.data;
 
 import java.io.IOException;
 

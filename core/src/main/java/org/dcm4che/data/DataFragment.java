@@ -8,7 +8,7 @@ import java.io.OutputStream;
  * @since Aug 2018
  */
 public interface DataFragment {
-    DataFragments getDataFragments();
+    DataFragments containedBy();
 
     int valueLength();
 

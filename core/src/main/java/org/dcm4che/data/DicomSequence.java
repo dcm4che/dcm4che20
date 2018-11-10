@@ -1,7 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.io.DicomWriter;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -49,7 +47,6 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
         return items.stream();
     }
 
-    @Override
     public void purgeParsedItems() {
         items.forEach(DicomObject::purgeElements);
     }

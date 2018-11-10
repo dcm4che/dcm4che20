@@ -1,8 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.io.DicomEncoding;
-import org.dcm4che.io.DicomReader;
-import org.dcm4che.io.DicomWriter;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;

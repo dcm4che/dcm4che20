@@ -1,6 +1,4 @@
-package org.dcm4che.io;
-
-import org.dcm4che.data.UID;
+package org.dcm4che.data;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>

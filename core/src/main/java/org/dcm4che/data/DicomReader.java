@@ -1,6 +1,5 @@
-package org.dcm4che.io;
+package org.dcm4che.data;
 
-import org.dcm4che.data.*;
 import org.dcm4che.util.TagUtils;
 
 import java.io.*;
@@ -230,13 +229,13 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return value;
     }
 
-    public static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
+    static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
         new DicomReader(input, pos).parse(dcmObj, length);
     }
 
     private boolean parse(DicomObject dcmObj, int length) throws IOException {
         boolean undefinedLength = length == -1;
-        boolean expectEOF = undefinedLength && dcmObj.getDicomSequence() == null;
+        boolean expectEOF = undefinedLength && dcmObj.containedBy() == null;
         long endPos = pos + length;
         while ((undefinedLength || pos < endPos)
                 && readHeader(dcmObj, expectEOF)
@@ -280,7 +279,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
     private boolean parseCommonElement(DicomElement dcmElm) throws IOException {
         boolean bulkData = bulkDataPredicate.test(dcmElm);
         if (bulkData && bulkDataURIProducer != null) {
-            dcmElm = new BulkDataElement(dcmElm.getDicomObject(), tag, vr, bulkDataURIProducer.apply(this));
+            dcmElm = new BulkDataElement(dcmElm.containedBy(), tag, vr, bulkDataURIProducer.apply(this));
         }
         if (!handler.startElement(dcmElm, !(bulkData && bulkDataURIProducer == null)))
             return false;
@@ -369,7 +368,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
     private boolean parseDataFragments(DataFragments fragments) throws IOException {
         boolean bulkData = bulkDataPredicate.test(fragments);
         DicomElement dcmElm = bulkData && bulkDataURIProducer != null
-                ? new BulkDataElement(fragments.getDicomObject(), tag, vr, bulkDataURIProducer.apply(this))
+                ? new BulkDataElement(fragments.containedBy(), tag, vr, bulkDataURIProducer.apply(this))
                 : fragments;
         if (!handler.startElement(dcmElm, !(bulkData && bulkDataURIProducer == null)))
             return false;
@@ -445,19 +444,19 @@ public class DicomReader implements DicomInputHandler, Closeable {
     @Override
     public boolean startElement(DicomElement dcmElm, boolean include) {
         if (include)
-            dcmElm.getDicomObject().add(dcmElm);
+            dcmElm.containedBy().add(dcmElm);
         return true;
     }
 
     @Override
     public boolean startItem(DicomObject dcmObj) {
-        dcmObj.getDicomSequence().addItem(dcmObj);
+        dcmObj.containedBy().addItem(dcmObj);
         return true;
     }
 
     @Override
     public boolean dataFragment(DataFragment dataFragment) {
-        dataFragment.getDataFragments().addDataFragment(dataFragment);
+        dataFragment.containedBy().addDataFragment(dataFragment);
         return true;
     }
 
@@ -478,22 +477,22 @@ public class DicomReader implements DicomInputHandler, Closeable {
             case Tag.DoubleFloatPixelData:
             case Tag.SpectroscopyData:
             case Tag.EncapsulatedDocument:
-                return !el.getDicomObject().hasParent();
+                return !el.containedBy().hasParent();
             case Tag.WaveformData:
-                return isWaveformSequenceItem(el.getDicomObject());
+                return isWaveformSequenceItem(el.containedBy());
         }
         switch (el.tag() & 0xFF00FFFF) {
             case Tag.AudioSampleData:
             case Tag.CurveData:
             case Tag.OverlayData:
-                return !el.getDicomObject().hasParent();
+                return !el.containedBy().hasParent();
         }
         return false;
     }
 
     private static boolean isWaveformSequenceItem(DicomObject item) {
-        DicomSequence seq = item.getDicomSequence();
-        return seq != null && seq.tag() == Tag.WaveformSequence && !seq.getDicomObject().hasParent();
+        DicomSequence seq = item.containedBy();
+        return seq != null && seq.tag() == Tag.WaveformSequence && !seq.containedBy().hasParent();
     }
 
     @FunctionalInterface

@@ -1,10 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.io.ByteOrder;
-import org.dcm4che.io.DicomEncoding;
-import org.dcm4che.io.DicomWriter;
-import org.dcm4che.io.ToggleByteOrder;
-
 import java.io.*;
 import java.net.URI;
 

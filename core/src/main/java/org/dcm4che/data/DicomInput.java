@@ -1,9 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.io.DicomEncoding;
-import org.dcm4che.io.DicomWriter;
-import org.dcm4che.io.MemoryCache;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -12,57 +8,57 @@ import java.util.ArrayList;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-public class DicomInput {
+class DicomInput {
 
-    public final MemoryCache cache;
-    public final DicomEncoding encoding;
+    final MemoryCache cache;
+    final DicomEncoding encoding;
 
-    public DicomInput(MemoryCache cache, DicomEncoding encoding) {
+    DicomInput(MemoryCache cache, DicomEncoding encoding) {
         this.cache = cache;
         this.encoding = encoding;
     }
 
-    public byte byteAt(long pos) {
+    byte byteAt(long pos) {
         return cache.byteAt(pos);
     }
 
-    public short shortAt(long pos) {
+    short shortAt(long pos) {
         return cache.shortAt(pos, encoding.byteOrder);
     }
 
-    public int ushortAt(long pos) {
+    int ushortAt(long pos) {
         return cache.ushortAt(pos, encoding.byteOrder);
     }
 
-    public int intAt(long pos) {
+    int intAt(long pos) {
         return cache.intAt(pos, encoding.byteOrder);
     }
 
-    public long uintAt(long pos) {
+    long uintAt(long pos) {
         return cache.uintAt(pos, encoding.byteOrder);
     }
 
-    public int tagAt(long pos) {
+    int tagAt(long pos) {
         return cache.tagAt(pos, encoding.byteOrder);
     }
 
-    public long longAt(long pos) {
+    long longAt(long pos) {
         return cache.longAt(pos, encoding.byteOrder);
     }
 
-    public String stringAt(long pos, int len, SpecificCharacterSet cs) {
+    String stringAt(long pos, int len, SpecificCharacterSet cs) {
         return cache.stringAt(pos, len, cs);
     }
 
-    public DicomElement dicomElement(DicomObject dcmObj, int tag, VR vr, long valuePos, int valueLength) {
+    DicomElement dicomElement(DicomObject dcmObj, int tag, VR vr, long valuePos, int valueLength) {
         return new ParsedDicomElement(dcmObj, tag, vr, valuePos, valueLength);
     }
 
-    public DicomObject item(DicomSequence dcmElm, long valuePos, int valueLength, ArrayList<DicomElement> elements) {
+    DicomObject item(DicomSequence dcmElm, long valuePos, int valueLength, ArrayList<DicomElement> elements) {
         return new DicomObject(dcmElm, this, valuePos, valueLength, elements);
     }
 
-    public DataFragment dataFragment(DataFragments dcmElm, long valuePos, int valueLength) {
+    DataFragment dataFragment(DataFragments dcmElm, long valuePos, int valueLength) {
         return new ParsedDataFragment(dcmElm, valuePos, valueLength);
     }
 
@@ -145,7 +141,7 @@ public class DicomInput {
         }
 
         @Override
-        public DataFragments getDataFragments() {
+        public DataFragments containedBy() {
             return dataFragments;
         }
 

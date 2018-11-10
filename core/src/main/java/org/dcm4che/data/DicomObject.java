@@ -1,8 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.io.DicomEncoding;
-import org.dcm4che.io.DicomReader;
-import org.dcm4che.io.DicomWriter;
 import org.dcm4che.util.TagUtils;
 
 import java.io.*;
@@ -41,12 +38,12 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         this.elements = elements;
     }
 
-    public DicomSequence getDicomSequence() {
+    public DicomSequence containedBy() {
         return dcmSeq;
     }
 
     public DicomObject getParent() {
-        return dcmSeq != null ? dcmSeq.getDicomObject() : null;
+        return dcmSeq != null ? dcmSeq.containedBy() : null;
     }
 
     public boolean hasParent() {
@@ -90,13 +87,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
             elements.forEach(DicomElement::purgeEncodedValue);
     }
 
-    public void purgeParsedItems() {
-        ArrayList<DicomElement> elements = this.elements;
-        if (elements != null)
-            elements.forEach(DicomElement::purgeParsedItems);
-    }
-
-    void purgeElements() {
+    public void purgeElements() {
         elements = null;
     }
 
@@ -122,7 +113,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return specificCharacterSet != null
                 ? specificCharacterSet
                 : dcmSeq != null
-                ? dcmSeq.getDicomObject().specificCharacterSet()
+                ? dcmSeq.containedBy().specificCharacterSet()
                 : SpecificCharacterSet.ASCII;
     }
 

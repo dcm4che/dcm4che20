@@ -1,7 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.io.DicomWriter;
-
 import java.io.IOException;
 
 /**
@@ -18,7 +16,7 @@ public interface DicomElement {
 
     VR vr();
 
-    DicomObject getDicomObject();
+    DicomObject containedBy();
 
     int valueLength();
 
@@ -41,8 +39,6 @@ public interface DicomElement {
     default double[] doubleValues() { return EMPTY_DOUBLES; }
 
     default void trimToSize() {}
-
-    default void purgeParsedItems() {}
 
     default void purgeEncodedValue() {}
 }

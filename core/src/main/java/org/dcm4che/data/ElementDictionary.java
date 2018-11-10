@@ -17,11 +17,11 @@ public abstract class ElementDictionary {
         this.tagClass = tagClass;
     }
 
-    public static ElementDictionary getStandardElementDictionary() {
+    public static ElementDictionary standardElementDictionary() {
         return StandardElementDictionary.INSTANCE;
     }
 
-    public static ElementDictionary getElementDictionary(String privateCreator) {
+    public static ElementDictionary elementDictionaryOf(String privateCreator) {
         return privateCreator == null ? StandardElementDictionary.INSTANCE
                 : loader.stream()
                 .map(ServiceLoader.Provider::get)
@@ -37,15 +37,15 @@ public abstract class ElementDictionary {
     }
 
     public static VR vrOf(int tag, String privateCreator) {
-        return getElementDictionary(privateCreator).vrOf(tag);
+        return elementDictionaryOf(privateCreator).vrOf(tag);
     }
 
     public static String keywordOf(int tag, String privateCreator) {
-        return getElementDictionary(privateCreator).keywordOf(tag);
+        return elementDictionaryOf(privateCreator).keywordOf(tag);
     }
 
     public static int tagForKeyword(String keyword, String privateCreatorID) {
-        return getElementDictionary(privateCreatorID).tagForKeyword(keyword);
+        return elementDictionaryOf(privateCreatorID).tagForKeyword(keyword);
     }
 
     public final String getPrivateCreator() {

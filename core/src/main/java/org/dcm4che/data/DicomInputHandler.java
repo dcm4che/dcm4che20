@@ -1,8 +1,4 @@
-package org.dcm4che.io;
-
-import org.dcm4che.data.DataFragment;
-import org.dcm4che.data.DicomElement;
-import org.dcm4che.data.DicomObject;
+package org.dcm4che.data;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -17,7 +13,7 @@ public interface DicomInputHandler {
         return true;
     }
 
-    default  boolean startItem(DicomObject dcmObj) {
+    default boolean startItem(DicomObject dcmObj) {
         return true;
     }
 
@@ -25,7 +21,7 @@ public interface DicomInputHandler {
         return true;
     }
 
-    default  boolean dataFragment(DataFragment dataFragment) {
+    default boolean dataFragment(DataFragment dataFragment) {
         return true;
     }
 }

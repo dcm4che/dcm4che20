@@ -1,6 +1,4 @@
-package org.dcm4che.io;
-
-import org.dcm4che.data.SpecificCharacterSet;
+package org.dcm4che.data;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -12,7 +10,7 @@ import java.util.zip.InflaterInputStream;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-public class MemoryCache {
+class MemoryCache {
 
     private static final int MAX_BUFFER_SIZE = 2048;
     private final ArrayList<byte[]> blocks = new ArrayList<>();
@@ -86,7 +84,7 @@ public class MemoryCache {
         return inflaterInputStream;
     }
 
-    public byte byteAt(long pos) {
+    byte byteAt(long pos) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
         return b[blockOffset(b, pos)];
@@ -96,7 +94,7 @@ public class MemoryCache {
         return shortAt(pos, ByteOrder.BIG_ENDIAN);
     }
 
-    public short shortAt(long pos, ByteOrder byteOrder) {
+    short shortAt(long pos, ByteOrder byteOrder) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
         int offset = blockOffset(b, pos);
@@ -105,11 +103,11 @@ public class MemoryCache {
                 : byteOrder.bytesToShort(byteAt(pos), byteAt(pos + 1));
     }
 
-    public int ushortAt(long pos, ByteOrder byteOrder) {
+    int ushortAt(long pos, ByteOrder byteOrder) {
         return shortAt(pos, byteOrder) & 0xffff;
     }
 
-    public int intAt(long pos, ByteOrder byteOrder) {
+    int intAt(long pos, ByteOrder byteOrder) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
         int offset = blockOffset(b, pos);
@@ -118,11 +116,11 @@ public class MemoryCache {
                 : byteOrder.bytesToInt(byteAt(pos), byteAt(pos + 1), byteAt(pos + 2), byteAt(pos + 3));
     }
 
-    public long uintAt(long pos, ByteOrder byteOrder) {
+    long uintAt(long pos, ByteOrder byteOrder) {
         return intAt(pos, byteOrder) & 0xffffffffL;
     }
 
-    public int tagAt(long pos, ByteOrder byteOrder) {
+    int tagAt(long pos, ByteOrder byteOrder) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
         int offset = blockOffset(b, pos);
@@ -131,7 +129,7 @@ public class MemoryCache {
                 : byteOrder.bytesToTag(byteAt(pos), byteAt(pos + 1), byteAt(pos + 2), byteAt(pos + 3));
     }
 
-    public long longAt(long pos, ByteOrder byteOrder) {
+    long longAt(long pos, ByteOrder byteOrder) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
         int offset = blockOffset(b, pos);
@@ -141,7 +139,7 @@ public class MemoryCache {
                                 byteAt(pos + 4), byteAt(pos + 5), byteAt(pos + 6), byteAt(pos + 7));
     }
 
-    public String stringAt(long pos, int len, SpecificCharacterSet cs) {
+    String stringAt(long pos, int len, SpecificCharacterSet cs) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
         int offset = blockOffset(b, pos);
@@ -171,7 +169,7 @@ public class MemoryCache {
         }
     }
 
-    public void writeBytesTo(long pos, int length, OutputStream out) throws IOException {
+    void writeBytesTo(long pos, int length, OutputStream out) throws IOException {
         int i = blockIndex(pos);
         byte[] src = blocks.get(i);
         int srcPos = blockOffset(src, pos);
@@ -185,7 +183,7 @@ public class MemoryCache {
         }
     }
 
-    public void writeSwappedBytesTo(long pos, int length, OutputStream out, ToggleByteOrder toggleByteOrder, byte[] buf)
+    void writeSwappedBytesTo(long pos, int length, OutputStream out, ToggleByteOrder toggleByteOrder, byte[] buf)
             throws IOException {
         if (buf.length == 0 || (buf.length & 7) != 0) {
             throw new IllegalArgumentException("buf.length: " + buf.length);
