@@ -1,14 +1,16 @@
 package org.dcm4che.io;
 
 import org.dcm4che.data.*;
-import org.dcm4che.util.StringUtils;
+import org.dcm4che.util.TagUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.IntPredicate;
 import java.util.function.IntUnaryOperator;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
@@ -127,6 +129,7 @@ public class DicomWriter implements Closeable {
         boolean includeGroupLength0 = includeGroupLength;
         try {
             includeGroupLength = true;
+            calculateItemLength(fmi);
             write(fmi);
         } finally {
             includeGroupLength = includeGroupLength0;
@@ -140,6 +143,9 @@ public class DicomWriter implements Closeable {
             throw new IllegalStateException("encoding not initialized");
 
         Objects.requireNonNull(dcmobj);
+        if (includeGroupLength || itemLengthEncoding.explicit || sequenceLengthEncoding.explicit) {
+            calculateItemLength(dcmobj);
+        }
         write(dcmobj);
         if (out instanceof DeflaterOutputStream) {
             ((DeflaterOutputStream) out).finish();
@@ -153,39 +159,100 @@ public class DicomWriter implements Closeable {
         Objects.requireNonNull(dcmobj);
         encoding = DicomEncoding.IVR_LE;
         includeGroupLength = true;
+        calculateItemLength(dcmobj);
         write(dcmobj);
     }
 
-    void write(DicomObject dcmObj) throws IOException {
-        if (includeGroupLength || itemLengthEncoding.explicit || sequenceLengthEncoding.explicit) {
-            dcmObj.calculateItemLength(this);
+    private void write(DicomObject dcmObj) throws IOException {
+        for (DicomElement element : dcmObj) {
+            if (includeGroupLength || !TagUtils.isGroupLength(element.tag()))
+                element.writeTo(this);
         }
-        dcmObj.writeTo(this);
     }
 
-    public int calculateLengthOf(DicomElement el) {
-        return (!encoding.explicitVR || el.vr().shortValueLength ? 8 : 12) + el.calculateValueLength(this);
+    public void writeSequence(DicomSequence seq) throws IOException {
+        boolean undefinedLength = sequenceLengthEncoding.undefined.test(seq.size());
+        writeHeader(seq.tag(), seq.vr(), undefinedLength ? -1 : seq.itemStream().mapToInt(this::lengthOf).sum());
+        for (DicomObject item : seq) {
+            writeItem(item);
+        }
+        if (undefinedLength) {
+            writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
+        }
     }
 
-    public int calculateLengthOf(DicomObject item) {
-        return 8 + itemLengthEncoding.adjustLength.applyAsInt(item.calculateItemLength(this));
+    private void writeItem(DicomObject dcmobj) throws IOException {
+        boolean undefinedLength = itemLengthEncoding.undefined.test(dcmobj.size());
+        writeHeader(Tag.Item, VR.NONE, undefinedLength ? -1 : dcmobj.getItemLength());
+        write(dcmobj);
+        if (undefinedLength) {
+            writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
+        }
     }
 
-    public int lengthOf(DicomObject item) {
-        return 8 + itemLengthEncoding.adjustLength.applyAsInt(item.getItemLength());
-    }
-
-    public void serialize(BulkDataElement el) throws IOException {
+    public void serialize(BulkDataElement bulkData) throws IOException {
         byte[] header = this.header;
         ByteOrder byteOrder = encoding.byteOrder;
-        byteOrder.tagToBytes(el.tag(), header, 0);
-        int vrCode = el.vr().code;
+        byteOrder.tagToBytes(bulkData.tag(), header, 0);
+        int vrCode = bulkData.vr().code;
         header[4] = (byte) ((vrCode | 0x8000) >>> 8);
         header[5] = (byte) vrCode;
-        byte[] encodedURI = SpecificCharacterSet.UTF_8.encode(el.bulkDataURI(), null);
+        byte[] encodedURI = SpecificCharacterSet.UTF_8.encode(bulkData.bulkDataURI(), null);
         byteOrder.shortToBytes(encodedURI.length, header, 6);
         out.write(header, 0, 8);
         out.write(encodedURI);
+    }
+
+    private int calculateLengthOf(DicomElement el) {
+        int len = (!encoding.explicitVR || el.vr().shortValueLength ? 8 : 12);
+        if (el instanceof DicomSequence) {
+            DicomSequence seq = (DicomSequence) el;
+            len += sequenceLengthEncoding.adjustLength.applyAsInt(
+                    seq.isEmpty() ? 0 : seq.itemStream().mapToInt(this::calculateLengthOf).sum());
+        } else if (el instanceof DataFragments) {
+            DataFragments dataFragments = (DataFragments) el;
+            len += dataFragments.fragmentStream().mapToInt(DataFragment::valueLength).sum()
+                    + dataFragments.size() * 8 + 8;
+        } else {
+            len += el.valueLength();
+        }
+        return len;
+    }
+
+    private int calculateLengthOf(DicomObject item) {
+        return 8 + itemLengthEncoding.adjustLength.applyAsInt(calculateItemLength(item));
+    }
+
+    private int calculateItemLength(DicomObject dcmobj) {
+        int len = 0;
+        if (!dcmobj.isEmpty()) {
+            int groupLengthTag = TagUtils.groupLengthTagOf(dcmobj.firstElement().tag());
+            if (includeGroupLength && groupLengthTag != TagUtils.groupLengthTagOf(dcmobj.lastElement().tag())) {
+                Map<Integer, Integer> groups = dcmobj.elementStream()
+                        .collect(Collectors.groupingBy(
+                                x -> TagUtils.groupNumber(x.tag()),
+                                Collectors.filtering(x -> !TagUtils.isGroupLength(x.tag()),
+                                        Collectors.summingInt(this::calculateLengthOf))));
+                for (Map.Entry<Integer, Integer> group : groups.entrySet()) {
+                    int glen = group.getValue();
+                    dcmobj.setInt(group.getKey() << 16, VR.UL, glen);
+                    len += glen + 12;
+                }
+            } else {
+                len = dcmobj.elementStream().filter(x -> !TagUtils.isGroupLength(x.tag()))
+                        .collect(Collectors.summingInt(this::calculateLengthOf));
+                if (includeGroupLength) {
+                    dcmobj.setInt(groupLengthTag, VR.UL, len);
+                    len += 12;
+                }
+            }
+        }
+        dcmobj.setItemLength(len);
+        return len;
+    }
+
+    private int lengthOf(DicomObject item) {
+        return 8 + itemLengthEncoding.adjustLength.applyAsInt(item.getItemLength());
     }
 
     public enum LengthEncoding {

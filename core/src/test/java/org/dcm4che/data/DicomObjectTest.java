@@ -65,18 +65,19 @@ class DicomObjectTest {
     @Test
     void serializeBulkData() {
         DicomObject data = new DicomObject();
-        DicomElement seq = data.newDicomSequence(Tag.WaveformSequence);
+        DicomSequence seq = data.newDicomSequence(Tag.WaveformSequence);
         DicomObject item = new DicomObject();
         seq.addItem(item);
         item.setBulkData(Tag.WaveformData, VR.OW, BULK_DATA_URI);
         data = deserialize(serialize(data));
-        seq = data.get(Tag.WaveformSequence);
-        assertTrue(seq instanceof DicomSequence);
+        DicomElement elm = data.get(Tag.WaveformSequence);
+        assertTrue(elm instanceof DicomSequence);
+        seq = (DicomSequence) elm;
         item = seq.getItem(0);
         assertNotNull(item);
         DicomElement waveformData = item.get(Tag.WaveformData);
-        assertNotNull(waveformData);
-        assertEquals(BULK_DATA_URI, waveformData.bulkDataURI());
+        assertTrue(waveformData instanceof BulkDataElement);
+        assertEquals(BULK_DATA_URI, ((BulkDataElement) waveformData).bulkDataURI());
     }
 
     private static byte[] serialize(DicomObject dcmobj) {

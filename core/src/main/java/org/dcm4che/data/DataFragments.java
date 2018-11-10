@@ -4,16 +4,32 @@ import org.dcm4che.io.DicomWriter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.stream.Stream;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-public class DataFragments extends BaseDicomElement {
+public class DataFragments extends BaseDicomElement implements Iterable<DataFragment> {
+
     private final ArrayList<DataFragment> items = new ArrayList<>();
 
     public DataFragments(DicomObject dicomObject, int tag, VR vr) {
         super(dicomObject, tag, vr);
+    }
+
+    @Override
+    public Iterator<DataFragment> iterator() {
+        return items.iterator();
+    }
+
+    public Stream<DataFragment> fragmentStream() {
+        return items.stream();
+    }
+
+    public int size() {
+        return items.size();
     }
 
     @Override
@@ -27,11 +43,6 @@ public class DataFragments extends BaseDicomElement {
 
     public DataFragment getDataFragment(int index) {
         return index < items.size() ? items.get(index) : null;
-    }
-
-    @Override
-    public int calculateValueLength(DicomWriter writer) {
-        return items.stream().mapToInt(DataFragment::valueLength).sum() + items.size() * 8 + 8;
     }
 
     @Override

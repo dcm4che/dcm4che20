@@ -4,12 +4,14 @@ import org.dcm4che.io.DicomWriter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.stream.Stream;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-public class DicomSequence extends BaseDicomElement {
+public class DicomSequence extends BaseDicomElement implements Iterable<DicomObject> {
     private final ArrayList<DicomObject> items = new ArrayList<>();
 
     public DicomSequence(DicomObject dcmObj, int tag) {
@@ -22,20 +24,29 @@ public class DicomSequence extends BaseDicomElement {
         items.forEach(DicomObject::trimToSize);
     }
 
-    @Override
     public void addItem(DicomObject item) {
         items.add(item);
     }
 
-    @Override
     public DicomObject getItem(int index) {
         return index < items.size() ? items.get(index) : null;
     }
 
+    public int size() {
+        return items.size();
+    }
+
+    public boolean isEmpty() {
+        return items.isEmpty();
+    }
+
     @Override
-    public int calculateValueLength(DicomWriter writer) {
-        return writer.getSequenceLengthEncoding().adjustLength.applyAsInt(
-                items.isEmpty() ? 0 : items.stream().mapToInt(writer::calculateLengthOf).sum());
+    public Iterator<DicomObject> iterator() {
+        return items.iterator();
+    }
+
+    public Stream<DicomObject> itemStream() {
+        return items.stream();
     }
 
     @Override
@@ -50,13 +61,6 @@ public class DicomSequence extends BaseDicomElement {
 
     @Override
     public void writeTo(DicomWriter writer) throws IOException {
-        boolean undefinedLength = writer.getSequenceLengthEncoding().undefined.test(items.size());
-        writer.writeHeader(tag, vr, undefinedLength ? -1 : items.stream().mapToInt(writer::lengthOf).sum());
-        for (DicomObject item : items) {
-            item.writeItemTo(writer);
-        }
-        if (undefinedLength) {
-            writer.writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
-        }
+        writer.writeSequence(this);
     }
 }

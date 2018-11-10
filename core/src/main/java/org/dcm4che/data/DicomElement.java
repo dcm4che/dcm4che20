@@ -24,14 +24,6 @@ public interface DicomElement {
 
     void writeTo(DicomWriter dicomWriter) throws IOException;
 
-    default String bulkDataURI() {
-        return null;
-    }
-
-    default int calculateValueLength(DicomWriter writer) {
-        return valueLength();
-    }
-
     default String stringValue(int index, String defaultValue) { return defaultValue; }
 
     default String[] stringValues() { return EMPTY_STRINGS; }
@@ -53,12 +45,4 @@ public interface DicomElement {
     default void purgeParsedItems() {}
 
     default void purgeEncodedValue() {}
-
-    default void addItem(DicomObject item) {
-        throw new UnsupportedOperationException();
-    }
-
-    default DicomObject getItem(int index) {
-        return null;
-    }
 }

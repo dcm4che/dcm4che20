@@ -7,7 +7,6 @@ import org.dcm4che.util.TagUtils;
 
 import java.io.*;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -73,7 +72,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return elements().iterator();
     }
 
-    public Stream<DicomElement> stream() {
+    public Stream<DicomElement> elementStream() {
         return elements().stream();
     }
 
@@ -125,6 +124,14 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
                 : dcmSeq != null
                 ? dcmSeq.getDicomObject().specificCharacterSet()
                 : SpecificCharacterSet.ASCII;
+    }
+
+    public DicomElement firstElement() {
+        return elements().get(0);
+    }
+
+    public DicomElement lastElement() {
+        return elements().get(elements.size() - 1);
     }
 
     public DicomElement get(String privateCreator, int tag) {
@@ -458,55 +465,12 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
 
     }
 
-    public void writeTo(DicomWriter writer) throws IOException {
-        for (DicomElement element : elements) {
-            if (writer.isIncludeGroupLength() || !TagUtils.isGroupLength(element.tag()))
-                element.writeTo(writer);
-        }
-    }
-
-    public void writeItemTo(DicomWriter dicomWriter) throws IOException {
-        boolean undefinedLength = dicomWriter.getItemLengthEncoding().undefined.test(size());
-        dicomWriter.writeHeader(Tag.Item, VR.NONE, undefinedLength ? -1 : itemLength);
-        writeTo(dicomWriter);
-        if (undefinedLength) {
-            dicomWriter.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
-        }
-    }
-
-    public int calculateItemLength(DicomWriter writer) {
-        int len = 0;
-        if (!elements.isEmpty()) {
-            int groupLengthTag0 = groupLengthTag(0);
-            if (writer.isIncludeGroupLength() && groupLengthTag0 != groupLengthTag(size() - 1)) {
-                Map<Integer, Integer> groups = stream()
-                        .collect(Collectors.groupingBy(
-                                x -> TagUtils.groupNumber(x.tag()),
-                                Collectors.filtering(x -> !TagUtils.isGroupLength(x.tag()),
-                                        Collectors.summingInt(writer::calculateLengthOf))));
-                for (Map.Entry<Integer, Integer> group : groups.entrySet()) {
-                    int glen = group.getValue();
-                    setInt(group.getKey() << 16, VR.UL, glen);
-                    len += glen + 12;
-                }
-            } else {
-                len = stream().filter(x -> !TagUtils.isGroupLength(x.tag()))
-                        .collect(Collectors.summingInt(writer::calculateLengthOf));
-                if (writer.isIncludeGroupLength()) {
-                    setInt(groupLengthTag0, VR.UL, len);
-                    len += 12;
-                }
-            }
-        }
-        return this.itemLength = len;
-    }
-
     public int getItemLength() {
         return itemLength;
     }
 
-    private int groupLengthTag(int index) {
-        return TagUtils.groupLengthTagOf(elements.get(index).tag());
+    public void setItemLength(int itemLength) {
+        this.itemLength = itemLength;
     }
 
 }

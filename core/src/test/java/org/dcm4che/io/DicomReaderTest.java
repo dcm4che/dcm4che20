@@ -164,14 +164,17 @@ class DicomReaderTest {
         DicomObject item = ((DicomSequence) seq).getItem(0);
         assertNotNull(item);
         DicomElement waveformData = item.get(Tag.WaveformData);
-        assertNotNull(waveformData);
-        assertTrue(waveformData.bulkDataURI().endsWith("waveform_overlay_pixeldata.dcm#offset=32&length=256"));
+        assertTrue(waveformData instanceof BulkDataElement);
+        assertTrue(((BulkDataElement) waveformData).bulkDataURI()
+                .endsWith("waveform_overlay_pixeldata.dcm#offset=32&length=256"));
         DicomElement overlayData = data.get(Tag.OverlayData);
-        assertNotNull(overlayData);
-        assertTrue(overlayData.bulkDataURI().endsWith("waveform_overlay_pixeldata.dcm#offset=300&length=256"));
+        assertTrue(overlayData instanceof BulkDataElement);
+        assertTrue(((BulkDataElement) overlayData).bulkDataURI()
+                .endsWith("waveform_overlay_pixeldata.dcm#offset=300&length=256"));
         DicomElement pixelData = data.get(Tag.PixelData);
-        assertNotNull(pixelData);
-        assertTrue(pixelData.bulkDataURI().endsWith("waveform_overlay_pixeldata.dcm#offset=568"));
+        assertTrue(pixelData instanceof BulkDataElement);
+        assertTrue(((BulkDataElement) pixelData).bulkDataURI()
+                .endsWith("waveform_overlay_pixeldata.dcm#offset=568"));
         assertNotNull(data.get(Tag.DataSetTrailingPadding));
     }
 
@@ -185,14 +188,17 @@ class DicomReaderTest {
         DicomObject item = ((DicomSequence) seg).getItem(0);
         assertNotNull(item);
         DicomElement waveformData = item.get(Tag.WaveformData);
-        assertNotNull(waveformData);
-        assertTrue(waveformData.bulkDataURI().endsWith("target/bulkdata.blk#length=256"));
+        assertTrue(waveformData instanceof BulkDataElement);
+        assertTrue(((BulkDataElement) waveformData).bulkDataURI()
+                .endsWith("target/bulkdata.blk#length=256"));
         DicomElement overlayData = data.get(Tag.OverlayData);
-        assertNotNull(overlayData);
-        assertTrue(overlayData.bulkDataURI().endsWith("target/bulkdata.blk#offset=256&length=256"));
+        assertTrue(overlayData instanceof BulkDataElement);
+        assertTrue(((BulkDataElement) overlayData).bulkDataURI()
+                .endsWith("target/bulkdata.blk#offset=256&length=256"));
         DicomElement pixelData = data.get(Tag.PixelData);
-        assertNotNull(pixelData);
-        assertTrue(pixelData.bulkDataURI().endsWith("target/bulkdata.blk#offset=512"));
+        assertTrue(pixelData instanceof BulkDataElement);
+        assertTrue(((BulkDataElement) pixelData).bulkDataURI()
+                .endsWith("target/bulkdata.blk#offset=512"));
         assertNotNull(data.get(Tag.DataSetTrailingPadding));
         assertEquals(792, Files.size(spoolPath));
     }

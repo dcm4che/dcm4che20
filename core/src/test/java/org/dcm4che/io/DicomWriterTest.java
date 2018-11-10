@@ -134,7 +134,7 @@ class DicomWriterTest {
     void withBulkDataURI() throws IOException {
         String baseURL = DicomReaderTest.resource("waveform_overlay_pixeldata.dcm").toString();
         DicomObject data = new DicomObject();
-        DicomElement seq = data.newDicomSequence(Tag.WaveformSequence);
+        DicomSequence seq = data.newDicomSequence(Tag.WaveformSequence);
         DicomObject item = new DicomObject();
         seq.addItem(item);
         item.setBulkData(Tag.WaveformData, VR.OW, baseURL + "#offset=32&length=256");

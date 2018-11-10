@@ -25,17 +25,8 @@ public class BulkDataElement extends BaseDicomElement {
         return parseInt("length=", -1);
     }
 
-    @Override
     public String bulkDataURI() {
         return uri;
-    }
-
-    int offset() {
-        return parseInt("offset=", 0);
-    }
-
-    ByteOrder byteOrder() {
-        return "big".equals(cut("endian=")) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
     }
 
     @Override
@@ -44,6 +35,14 @@ public class BulkDataElement extends BaseDicomElement {
             writer.serialize(this);
         else
             transferTo(writer);
+    }
+
+    int offset() {
+        return parseInt("offset=", 0);
+    }
+
+    ByteOrder byteOrder() {
+        return "big".equals(cut("endian=")) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
     }
 
     private void transferTo(DicomWriter writer) throws IOException {
