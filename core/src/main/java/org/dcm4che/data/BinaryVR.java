@@ -1,5 +1,6 @@
 package org.dcm4che.data;
 
+import org.dcm4che.util.StringUtils;
 import org.dcm4che.util.TagUtils;
 
 /**
@@ -504,7 +505,7 @@ enum BinaryVR implements VRType {
     }
 
     private static String doubleToString(DicomInput input, long pos) {
-        return Double.toString(dicomInputToDouble(input, pos));
+        return StringUtils.trimDS(Double.toString(dicomInputToDouble(input, pos)));
     }
 
     private static double dicomInputToDouble(DicomInput input, long pos) {
@@ -516,7 +517,7 @@ enum BinaryVR implements VRType {
     }
 
     private static String floatToString(DicomInput input, long pos) {
-        return Float.toString(dicomInputToFloat(input, pos));
+        return StringUtils.trimDS(Float.toString(dicomInputToFloat(input, pos)));
     }
 
     private static float dicomInputToFloat(DicomInput input, long pos) {

@@ -128,4 +128,8 @@ public class StringUtils {
 
         return sb.toString();
     }
+
+    public static String trimDS(String s) {
+        return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s.replace(".0E", "E");
+    }
 }
