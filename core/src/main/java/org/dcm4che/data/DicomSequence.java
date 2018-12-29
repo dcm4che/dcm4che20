@@ -11,6 +11,8 @@ import java.util.stream.Stream;
  */
 public class DicomSequence extends BaseDicomElement implements Iterable<DicomObject> {
     private final ArrayList<DicomObject> items = new ArrayList<>();
+    private long streamPosition = -1L;
+    private int valueLength = 0;
 
     public DicomSequence(DicomObject dcmObj, int tag) {
         super(dcmObj, tag, VR.SQ);
@@ -36,6 +38,26 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
 
     public boolean isEmpty() {
         return items.isEmpty();
+    }
+
+    @Override
+    public int valueLength() {
+        return valueLength;
+    }
+
+    DicomSequence valueLength(int valueLength) {
+        this.valueLength = valueLength;
+        return this;
+    }
+
+    DicomSequence streamPosition(long streamPosition) {
+        this.streamPosition = streamPosition;
+        return this;
+    }
+
+    @Override
+    public long getStreamPosition() {
+        return streamPosition;
     }
 
     @Override

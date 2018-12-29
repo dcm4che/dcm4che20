@@ -49,6 +49,22 @@ enum StringVR implements VRType {
     }
 
     @Override
+    public StringBuilder appendValue(DicomInput input, long valuePos, int valueLen, SpecificCharacterSet cs,
+                                     StringBuilder appendTo, int maxLength) {
+        if (valueLen > 0) {
+            String str = input.stringAt(valuePos, Math.min(valueLen, maxLength << 1),  cs);
+            int remaining = maxLength - appendTo.length();
+            int len = str.length();
+            if (len > remaining)
+                len = remaining;
+            else if (str.charAt(len - 1) <= ' ')
+                len--;
+            appendTo.append(str.substring(0, len));
+        }
+        return appendTo;
+    }
+
+    @Override
     public String stringValue(DicomInput input, long valuePos, int valueLen, int index, SpecificCharacterSet cs,
                               String defaultValue) {
         return stringValue(input.stringAt(valuePos, valueLen, cs), index, defaultValue);

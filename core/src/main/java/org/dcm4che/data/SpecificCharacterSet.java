@@ -64,7 +64,7 @@ public class SpecificCharacterSet {
         }
 
         public static Codec forCode(String code) {
-            if (code == null)
+            if (code == null || code.isEmpty())
                 return SpecificCharacterSet.DEFAULT.codecs[0];
 
             switch(last2digits(code)) {
@@ -458,9 +458,6 @@ public class SpecificCharacterSet {
         if (codes == null || codes.length == 0)
             return DEFAULT;
 
-        if (codes.length > 1)
-            codes = checkISO2022(codes);
-
         Codec[] infos = new Codec[codes.length];
         for (int i = 0; i < codes.length; i++)
             infos[i] = Codec.forCode(codes[i]);
@@ -469,21 +466,11 @@ public class SpecificCharacterSet {
                 : new SpecificCharacterSet(infos, codes);
     }
 
-    private static String[] checkISO2022(String[] codes) {
-        for (String code : codes) {
-            if (code != null && !code.startsWith("ISO 2022")) {
-                return new String[]{codes[0]};
-            }
-        }
-        return codes;
-    }
-
     public String[] toCodes () {
         return dicomCodes;
     }
 
-    private static Encoder encoder(ThreadLocal<SoftReference<Encoder>> tl,
-                                   Codec codec) {
+    private static Encoder encoder(ThreadLocal<SoftReference<Encoder>> tl, Codec codec) {
         SoftReference<Encoder> sr;
         Encoder enc;
         if ((sr = tl.get()) == null || (enc = sr.get()) == null

@@ -9,6 +9,11 @@ interface VRType {
         throw new UnsupportedOperationException();
     }
 
+    default StringBuilder appendValue(DicomInput dicomInput, long valuePos, int valueLen, SpecificCharacterSet cs,
+                                      StringBuilder appendTo, int maxLength) {
+        return appendTo;
+    }
+
     default String stringValue(DicomInput input, long valuePos, int valueLen, int index, SpecificCharacterSet cs,
                                String defaultValue) {
         return defaultValue;

@@ -1,6 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.data.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -180,8 +179,7 @@ class DicomReaderTest {
 
     @Test
     void spoolBulkData() throws IOException {
-        Path spoolPath = Paths.get("target/bulkdata.blk");
-        Files.deleteIfExists(spoolPath);
+        Path spoolPath = Files.createTempFile(null,".blk");
         DicomObject data = parseSpoolBulkData(spoolPath);
         DicomElement seg = data.get(Tag.WaveformSequence);
         assertTrue(seg instanceof DicomSequence);
@@ -190,17 +188,18 @@ class DicomReaderTest {
         DicomElement waveformData = item.get(Tag.WaveformData);
         assertTrue(waveformData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) waveformData).bulkDataURI()
-                .endsWith("target/bulkdata.blk#length=256"));
+                .endsWith(".blk#length=256"));
         DicomElement overlayData = data.get(Tag.OverlayData);
         assertTrue(overlayData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) overlayData).bulkDataURI()
-                .endsWith("target/bulkdata.blk#offset=256&length=256"));
+                .endsWith(".blk#offset=256&length=256"));
         DicomElement pixelData = data.get(Tag.PixelData);
         assertTrue(pixelData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) pixelData).bulkDataURI()
-                .endsWith("target/bulkdata.blk#offset=512"));
+                .endsWith(".blk#offset=512"));
         assertNotNull(data.get(Tag.DataSetTrailingPadding));
         assertEquals(792, Files.size(spoolPath));
+        Files.deleteIfExists(spoolPath);
     }
 
     static DicomEncoding readDataSet(String name) throws IOException {

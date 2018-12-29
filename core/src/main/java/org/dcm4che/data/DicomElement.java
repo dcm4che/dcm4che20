@@ -41,4 +41,8 @@ public interface DicomElement {
     default void trimToSize() {}
 
     default void purgeEncodedValue() {}
+
+    default long getStreamPosition() { return -1L; }
+
+    StringBuilder promptTo(StringBuilder appendTo, int maxLength);
 }

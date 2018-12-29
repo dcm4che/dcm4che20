@@ -1,5 +1,7 @@
 package org.dcm4che.data;
 
+import org.dcm4che.util.TagUtils;
+
 import java.io.IOException;
 
 /**
@@ -40,5 +42,28 @@ class BaseDicomElement implements DicomElement {
     @Override
     public void writeTo(DicomWriter writer) throws IOException {
         writer.writeHeader(tag, vr, 0);
+    }
+
+    @Override
+    public String toString() {
+        return promptTo(new StringBuilder(), 78).toString();
+    }
+
+    @Override
+    public StringBuilder promptTo(StringBuilder appendTo, int maxLength) {
+        dicomObject.appendNestingLevel(appendTo)
+                .append(TagUtils.toString(tag))
+                .append(' ').append(vr).append(' ')
+                .append('#').append(valueLength());
+        if (promptValueTo(appendTo, maxLength).length() < maxLength) {
+            appendTo.append(' ').append(ElementDictionary.keywordOf(tag, dicomObject.getPrivateCreator(tag)));
+            if (appendTo.length() > maxLength)
+                appendTo.setLength(maxLength);
+        }
+        return appendTo;
+    }
+
+    protected StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
+        return appendTo;
     }
 }

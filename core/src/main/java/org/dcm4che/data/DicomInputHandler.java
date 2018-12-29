@@ -1,11 +1,13 @@
 package org.dcm4che.data;
 
+import java.io.IOException;
+
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
 public interface DicomInputHandler {
-    default boolean startElement(DicomElement dcmElm, boolean include) {
+    default boolean startElement(DicomElement dcmElm, boolean bulkData) throws IOException {
         return true;
     }
 
@@ -21,7 +23,7 @@ public interface DicomInputHandler {
         return true;
     }
 
-    default boolean dataFragment(DataFragment dataFragment) {
+    default boolean dataFragment(DataFragment dataFragment) throws IOException {
         return true;
     }
 }

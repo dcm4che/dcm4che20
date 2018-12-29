@@ -17,7 +17,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     private PrivateCreator privateCreator;
     private int itemLength;
     private DicomInput dicomInput;
-    private long dicomInputPos;
+    private long dicomInputPos = -1L;
     private int dicomInputLen;
 
     public DicomObject() {
@@ -34,9 +34,11 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         this.dcmSeq = dcmSeq;
         this.dicomInput = dicomInput;
         this.dicomInputPos = dicomInputPos;
-        this.dicomInputLen = dicomInputLen;
+        this.itemLength = this.dicomInputLen = dicomInputLen;
         this.elements = elements;
     }
+
+    public long getStreamPosition() { return dicomInputPos; }
 
     public DicomSequence containedBy() {
         return dcmSeq;
@@ -114,7 +116,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
                 ? specificCharacterSet
                 : dcmSeq != null
                 ? dcmSeq.containedBy().specificCharacterSet()
-                : SpecificCharacterSet.ASCII;
+                : SpecificCharacterSet.getDefaultCharacterSet();
     }
 
     public DicomElement firstElement() {
@@ -294,6 +296,9 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public DicomElement add(DicomElement el) {
+        if (el.tag() == Tag.SpecificCharacterSet)
+            specificCharacterSet = SpecificCharacterSet.valueOf(el.stringValues());
+
         List<DicomElement> list = elements();
         if (list.isEmpty() || Integer.compareUnsigned(list.get(list.size()-1).tag(), el.tag()) < 0) {
             list.add(el);
@@ -308,6 +313,9 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public DicomElement setNull(int tag, VR vr) {
+        if (tag == Tag.SpecificCharacterSet)
+            specificCharacterSet = SpecificCharacterSet.getDefaultCharacterSet();
+
         return add(vr.type.elementOf(this, tag, vr));
     }
 
@@ -443,6 +451,13 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
                 return in.read();
             }
         }).withEncoding(DicomEncoding.SERIALIZE).readDataSet(this);
+    }
+
+    public StringBuilder appendNestingLevel(StringBuilder sb) {
+        int count = nestingLevel();
+        while (count-- > 0)
+            sb.append('>');
+        return sb;
     }
 
     private static class PrivateCreator {

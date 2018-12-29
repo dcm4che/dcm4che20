@@ -12,9 +12,25 @@ import java.util.stream.Stream;
 public class DataFragments extends BaseDicomElement implements Iterable<DataFragment> {
 
     private final ArrayList<DataFragment> items = new ArrayList<>();
+    private long streamPosition;
 
     public DataFragments(DicomObject dicomObject, int tag, VR vr) {
         super(dicomObject, tag, vr);
+    }
+
+    DataFragments streamPosition(long streamPosition) {
+        this.streamPosition = streamPosition;
+        return this;
+    }
+
+    @Override
+    public long getStreamPosition() {
+        return streamPosition;
+    }
+
+    @Override
+    public int valueLength() {
+        return -1;
     }
 
     @Override

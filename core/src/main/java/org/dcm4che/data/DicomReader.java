@@ -92,10 +92,23 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return this;
     }
 
+    public DicomReader withInputHandler(DicomInputHandler handler) {
+        this.handler = Objects.requireNonNull(handler);
+        return this;
+    }
+
+    public DicomInputHandler getInputHandler() {
+        return handler;
+    }
+
     public DicomReader spoolBulkData(PathSupplier bulkDataSpoolPathSupplier) {
         this.bulkDataSpoolPathSupplier = Objects.requireNonNull(bulkDataSpoolPathSupplier);
         this.bulkDataURIProducer = DicomReader::bulkDataSpoolPathURI;
         return this;
+    }
+
+    public long getStreamPosition() {
+        return pos;
     }
 
     public DicomObject readFileMetaInformation() throws IOException {
@@ -111,7 +124,11 @@ public class DicomReader implements DicomInputHandler, Closeable {
         pos = 132;
         input = new DicomInput(cache, DicomEncoding.EVR_LE);
         readHeader(dcmObj, false);
-        parse(dcmObj, readInt());
+        DicomElement groupLength = input.dicomElement(dcmObj, tag, vr, pos, valueLength);
+        handler.startElement(groupLength, false);
+        handler.endElement(groupLength);
+        pos += valueLength;
+        parse(dcmObj, groupLength.intValue(0, -1));
         String tsuid = dcmObj.getString(Tag.TransferSyntaxUID);
         if (tsuid == null)
             throw new DicomParseException("Missing Transfer Syntax UID in File Meta Information");
@@ -150,6 +167,35 @@ public class DicomReader implements DicomInputHandler, Closeable {
             guessEncoding(dcmObj);
         }
         return parse(dcmObj, limit);
+    }
+
+    public StringBuilder promptFilePreambleTo(StringBuilder appendTo, int maxLength) {
+        appendTo.append('[');
+        if (BinaryVR.OB.appendValue(input, 0, 128, null, appendTo, maxLength).length() < maxLength)
+            appendTo.append(']');
+        return appendTo;
+    }
+
+    public StringBuilder promptTo(DicomElement dcmElm, StringBuilder appendTo, int maxLength)
+            throws IOException {
+        if (vr != VR.SQ && valueLength > 0) // ensure to read enough bytes for promptTo from input stream
+            cache.loadFromStream(
+                    pos + Math.min(valueLength, vr.type instanceof StringVR ? maxLength << 1 : maxLength),
+                    in);
+        dcmElm.promptTo(appendTo, maxLength);
+        if (vr != VR.SQ && valueLength > 1024) // avoid cache allocation for large attribute values
+            cache.skipBytes(pos, valueLength, in, null);
+        return appendTo;
+    }
+
+    public StringBuilder promptTo(DataFragment dataFragment, StringBuilder appendTo, int maxLength)
+            throws IOException {
+        if (valueLength > 0) // ensure to read enough bytes for promptTo from input stream
+            cache.loadFromStream(pos + Math.min(valueLength, maxLength << 1), in);
+        dataFragment.promptTo(appendTo, maxLength);
+        if (valueLength > 0) // avoid cache allocation for data fragments
+            cache.skipBytes(pos - headerLength, headerLength + valueLength, in, null);
+        return appendTo;
     }
 
     private void guessEncoding(DicomObject dcmObj) throws IOException {
@@ -220,15 +266,6 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return ElementDictionary.vrOf(tag, dcmObj != null ? dcmObj.getPrivateCreator(tag) : null);
     }
 
-    private int readInt() throws IOException {
-        if (cache.loadFromStream(pos + 4, in) < pos+4)
-            throw new EOFException();
-
-        int value = input.intAt(pos);
-        pos += 4;
-        return value;
-    }
-
     static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
         new DicomReader(input, pos).parse(dcmObj, length);
     }
@@ -245,10 +282,13 @@ public class DicomReader implements DicomInputHandler, Closeable {
                         dcmObj, tag, vr, input.stringAt(pos, valueLength, SpecificCharacterSet.UTF_8)));
                 pos += valueLength;
             } else if (vr == VR.SQ) {
-                if (!parseItems(new DicomSequence(dcmObj, tag)))
+                if (!parseItems(new DicomSequence(dcmObj, tag)
+                        .streamPosition(pos - (input.encoding.explicitVR ? 12 : 8))
+                        .valueLength(valueLength)))
                     return false;
             } else if (valueLength == -1) {
-                if (!parseDataFragments(new DataFragments(dcmObj, tag, vr)))
+                if (!parseDataFragments(new DataFragments(dcmObj, tag, vr)
+                        .streamPosition(pos - (input.encoding.explicitVR ? 12 : 8))))
                     return false;
             } else {
                 if (!parseCommonElement(input.dicomElement(dcmObj, tag, vr, pos, valueLength)))
@@ -277,24 +317,15 @@ public class DicomReader implements DicomInputHandler, Closeable {
     }
 
     private boolean parseCommonElement(DicomElement dcmElm) throws IOException {
-        boolean bulkData = bulkDataPredicate.test(dcmElm);
-        if (bulkData && bulkDataURIProducer != null) {
-            dcmElm = new BulkDataElement(dcmElm.containedBy(), tag, vr, bulkDataURIProducer.apply(this));
-        }
-        if (!handler.startElement(dcmElm, !(bulkData && bulkDataURIProducer == null)))
+        if (!handler.startElement(dcmElm, bulkDataPredicate.test(dcmElm)))
             return false;
 
-        if (bulkData) {
-            cache.skipBytes(pos - headerLength, headerLength, in, null);
-            cache.skipBytes(pos, valueLength, in, bulkDataSpoolStream);
-            bulkDataSpoolStreamPos += valueLength;
-        }
         pos += valueLength;
         return handler.endElement(dcmElm);
     }
 
     private boolean parseItems(DicomSequence dcmElm) throws IOException {
-        return handler.startElement(dcmElm, true)
+        return handler.startElement(dcmElm, false)
                 && parseItems0(dcmElm)
                 && handler.endElement(dcmElm);
     }
@@ -367,19 +398,9 @@ public class DicomReader implements DicomInputHandler, Closeable {
 
     private boolean parseDataFragments(DataFragments fragments) throws IOException {
         boolean bulkData = bulkDataPredicate.test(fragments);
-        DicomElement dcmElm = bulkData && bulkDataURIProducer != null
-                ? new BulkDataElement(fragments.containedBy(), tag, vr, bulkDataURIProducer.apply(this))
-                : fragments;
-        if (!handler.startElement(dcmElm, !(bulkData && bulkDataURIProducer == null)))
+        if (!handler.startElement(fragments, bulkData))
             return false;
 
-        if (bulkData) {
-            cache.skipBytes(pos - headerLength, headerLength, in, null);
-        }
-        return parseDataFragments(fragments, bulkData) && handler.endElement(dcmElm);
-    }
-
-    private boolean parseDataFragments(DataFragments dcmElm, boolean bulkData) throws IOException {
         while (readHeader(null, false)
                 && !isDelimitationItem(Tag.SequenceDelimitationItem)) {
             if (tag != Tag.Item)
@@ -388,7 +409,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
             if (bulkData) {
                 cache.skipBytes(pos - headerLength, headerLength + valueLength, in, bulkDataSpoolStream);
                 bulkDataSpoolStreamPos += headerLength + valueLength;
-            } else if (dcmElm != null && !handler.dataFragment(input.dataFragment(dcmElm, pos, valueLength))) {
+            } else if (fragments != null && !handler.dataFragment(input.dataFragment(fragments, pos, valueLength))) {
                 return false;
             }
 
@@ -398,7 +419,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
             cache.skipBytes(pos - headerLength, headerLength, in, bulkDataSpoolStream);
             bulkDataSpoolStreamPos += headerLength;
         }
-        return true;
+        return handler.endElement(fragments);
     }
 
     private boolean isDelimitationItem(int delimitationItemTag) throws DicomParseException {
@@ -442,9 +463,20 @@ public class DicomReader implements DicomInputHandler, Closeable {
     }
 
     @Override
-    public boolean startElement(DicomElement dcmElm, boolean include) {
-        if (include)
-            dcmElm.containedBy().add(dcmElm);
+    public boolean startElement(DicomElement dcmElm, boolean bulkData) throws IOException {
+        if (bulkData) {
+            if (bulkDataURIProducer != null) {
+                dcmElm = new BulkDataElement(dcmElm.containedBy(), tag, vr, bulkDataURIProducer.apply(this));
+                dcmElm.containedBy().add(dcmElm);
+            }
+            cache.skipBytes(pos - headerLength, headerLength, in, null);
+            if (valueLength > 0) {
+                cache.skipBytes(pos, valueLength, in, bulkDataSpoolStream);
+                bulkDataSpoolStreamPos += valueLength;
+            }
+            return true;
+        }
+        dcmElm.containedBy().add(dcmElm);
         return true;
     }
 

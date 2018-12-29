@@ -9,7 +9,7 @@ import java.io.IOException;
 class StringElement extends BaseDicomElement {
 
     private final String value;
-    private EncodedValue encodedValue;
+    private byte[] encodedValue;
 
     StringElement(DicomObject parent, int tag, VR vr, String value) {
         super(parent, tag, vr);
@@ -58,18 +58,17 @@ class StringElement extends BaseDicomElement {
 
     @Override
     public int valueLength() {
-        SpecificCharacterSet cs = dicomObject.specificCharacterSet();
-        EncodedValue encodedValue = this.encodedValue;
-        if (encodedValue == null || !encodedValue.specificCharacterSet.equals(cs))
-            this.encodedValue = encodedValue = new EncodedValue(cs, cs.encode(value, vr.type.delimiters()));
+        byte[] encodedValue = this.encodedValue;
+        if (encodedValue == null)
+            this.encodedValue = encodedValue = dicomObject.specificCharacterSet().encode(value, vr.type.delimiters());
 
-        return (encodedValue.value.length + 1) & ~1;
+        return (encodedValue.length + 1) & ~1;
     }
 
     @Override
     public void writeTo(DicomWriter dicomWriter) throws IOException {
         int vallen = valueLength();
-        byte[] value = encodedValue.value;
+        byte[] value = encodedValue;
         dicomWriter.writeHeader(tag, vr, vallen);
         dicomWriter.getOutputStream().write(value, 0, value.length);
         if ((value.length & 1) != 0)
@@ -79,15 +78,5 @@ class StringElement extends BaseDicomElement {
     @Override
     public void purgeEncodedValue() {
         encodedValue = null;
-    }
-
-    private static class EncodedValue {
-        final SpecificCharacterSet specificCharacterSet;
-        final byte[] value;
-
-        private EncodedValue(SpecificCharacterSet specificCharacterSet, byte[] value) {
-            this.specificCharacterSet = specificCharacterSet;
-            this.value = value;
-        }
     }
 }

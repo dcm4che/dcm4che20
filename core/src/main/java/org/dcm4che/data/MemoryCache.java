@@ -84,6 +84,13 @@ class MemoryCache {
         return inflaterInputStream;
     }
 
+    void flushBefore(long pos) {
+        int index = blockIndex(pos - skippedBytes(pos));
+        while (index-- > 0)
+            if (blocks.set(index, null) == null)
+                break;
+    }
+
     byte byteAt(long pos) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
@@ -268,7 +275,7 @@ class MemoryCache {
         return len;
     }
 
-    private static class SkippedBytes {
+   private static class SkippedBytes {
         final long pos;
         long len;
 

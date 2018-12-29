@@ -73,8 +73,22 @@ class DicomInput {
         }
 
         @Override
+        public long getStreamPosition() {
+            return valuePos - (!encoding.explicitVR || vr.shortValueLength ? 8 : 12);
+        }
+
+        @Override
+        protected StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
+            appendTo.append(' ').append('[');
+            if (vr.type.appendValue(DicomInput.this, valuePos, valueLen, dicomObject.specificCharacterSet(),
+                    appendTo, maxLength).length() < maxLength) appendTo.append(']');
+            return appendTo;
+        }
+
+        @Override
         public String stringValue(int index, String defaultValue) {
-            return vr.type.stringValue(DicomInput.this, valuePos, valueLen, index, dicomObject.specificCharacterSet(), defaultValue);
+            return vr.type.stringValue(DicomInput.this, valuePos, valueLen, index,
+                    dicomObject.specificCharacterSet(), defaultValue);
         }
 
         @Override
@@ -154,5 +168,14 @@ class DicomInput {
         public void writeTo(OutputStream out) throws IOException {
             cache.writeBytesTo(valuePos, valueLen, out);
         }
-   }
+
+        @Override
+        public StringBuilder promptTo(StringBuilder appendTo, int maxLength) {
+            appendTo.append(">(FFFE,E000) #").append(valueLen).append(' ').append('[');
+            if (dataFragments.vr.type.appendValue(DicomInput.this, valuePos, valueLen, null,
+                    appendTo, maxLength).length() < maxLength)
+                appendTo.append(']');
+            return appendTo;
+        }
+    }
 }

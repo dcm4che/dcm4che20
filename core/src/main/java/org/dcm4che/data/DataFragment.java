@@ -13,4 +13,6 @@ public interface DataFragment {
     int valueLength();
 
     void writeTo(OutputStream out) throws IOException;
+
+    StringBuilder promptTo(StringBuilder appendTo, int maxLength);
 }
