@@ -80,20 +80,19 @@ class DicomInput {
         @Override
         protected StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
             appendTo.append(' ').append('[');
-            if (vr.type.appendValue(DicomInput.this, valuePos, valueLen, dicomObject.specificCharacterSet(),
+            if (vr.type.appendValue(DicomInput.this, valuePos, valueLen, dicomObject,
                     appendTo, maxLength).length() < maxLength) appendTo.append(']');
             return appendTo;
         }
 
         @Override
         public String stringValue(int index, String defaultValue) {
-            return vr.type.stringValue(DicomInput.this, valuePos, valueLen, index,
-                    dicomObject.specificCharacterSet(), defaultValue);
+            return vr.type.stringValue(DicomInput.this, valuePos, valueLen, index, dicomObject, defaultValue);
         }
 
         @Override
         public String[] stringValues() {
-            return vr.type.stringValues(DicomInput.this, valuePos, valueLen, dicomObject.specificCharacterSet());
+            return vr.type.stringValues(DicomInput.this, valuePos, valueLen, dicomObject);
         }
 
         @Override

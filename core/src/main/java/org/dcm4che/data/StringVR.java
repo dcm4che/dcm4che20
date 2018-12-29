@@ -2,7 +2,7 @@ package org.dcm4che.data;
 
 import org.dcm4che.util.StringUtils;
 
-import java.util.function.UnaryOperator;
+import java.util.function.Function;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -16,30 +16,30 @@ enum StringVR implements VRType {
     DS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
     DT("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
     IS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    LO("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, UnaryOperator.identity()),
-    LT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, UnaryOperator.identity()),
-    PN("\\^=", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, UnaryOperator.identity()),
-    SH("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, UnaryOperator.identity()),
-    ST("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, UnaryOperator.identity()),
+    LO("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
+    LT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet),
+    PN("\\^=", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
+    SH("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
+    ST("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet),
     TM("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
     UC("\\", VM.MULTI, StringUtils.Trim.TRAILING, StringVR::ascii),
     UI("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
     UR("", VM.SINGLE, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    UT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, UnaryOperator.identity());
+    UT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet);
 
     private final String delimiters;
     private final VM vm;
     private final StringUtils.Trim trim;
-    private final UnaryOperator<SpecificCharacterSet> asciiOrCS;
+    private final Function<DicomObject,SpecificCharacterSet> asciiOrCS;
 
-    StringVR(String delimiters, VM vm, StringUtils.Trim trim, UnaryOperator<SpecificCharacterSet> asciiOrCS) {
+    StringVR(String delimiters, VM vm, StringUtils.Trim trim, Function<DicomObject,SpecificCharacterSet> asciiOrCS) {
         this.delimiters = delimiters;
         this.vm = vm;
         this.trim = trim;
         this.asciiOrCS = asciiOrCS;
     }
 
-    private static SpecificCharacterSet ascii(SpecificCharacterSet cs) {
+    private static SpecificCharacterSet ascii(DicomObject dicomObject) {
         return SpecificCharacterSet.getDefaultCharacterSet();
     }
 
@@ -49,10 +49,10 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public StringBuilder appendValue(DicomInput input, long valuePos, int valueLen, SpecificCharacterSet cs,
+    public StringBuilder appendValue(DicomInput input, long valuePos, int valueLen, DicomObject dcmobj,
                                      StringBuilder appendTo, int maxLength) {
         if (valueLen > 0) {
-            String str = input.stringAt(valuePos, Math.min(valueLen, maxLength << 1),  cs);
+            String str = input.stringAt(valuePos, Math.min(valueLen, maxLength << 1), asciiOrCS.apply(dcmobj));
             int remaining = maxLength - appendTo.length();
             int len = str.length();
             if (len > remaining)
@@ -65,14 +65,14 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public String stringValue(DicomInput input, long valuePos, int valueLen, int index, SpecificCharacterSet cs,
+    public String stringValue(DicomInput input, long valuePos, int valueLen, int index, DicomObject dcmobj,
                               String defaultValue) {
-        return stringValue(input.stringAt(valuePos, valueLen, cs), index, defaultValue);
+        return stringValue(input.stringAt(valuePos, valueLen, asciiOrCS.apply(dcmobj)), index, defaultValue);
     }
 
     @Override
-    public String[] stringValues(DicomInput input, long valuePos, int valueLen, SpecificCharacterSet cs) {
-        return stringValues(input.stringAt(valuePos, valueLen, cs));
+    public String[] stringValues(DicomInput input, long valuePos, int valueLen, DicomObject dcmobj) {
+        return stringValues(input.stringAt(valuePos, valueLen, asciiOrCS.apply(dcmobj)));
     }
 
     @Override

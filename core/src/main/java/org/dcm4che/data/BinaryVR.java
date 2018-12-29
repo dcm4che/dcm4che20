@@ -211,7 +211,7 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public StringBuilder appendValue(DicomInput input, long valpos, int vallen, SpecificCharacterSet cs,
+    public StringBuilder appendValue(DicomInput input, long valpos, int vallen, DicomObject dcmobj,
                                      StringBuilder appendTo, int maxLength) {
         int n = vallen / bytes;
         for (int index = 0; index < n; index++) {
@@ -227,7 +227,7 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public String stringValue(DicomInput input, long valpos, int vallen, int index, SpecificCharacterSet cs,
+    public String stringValue(DicomInput input, long valpos, int vallen, int index, DicomObject dcmobj,
                               String defaultValue) {
         return (vallen / bytes) > index
                 ? dicomInputToString.apply(input, valpos + (index * bytes))
@@ -235,7 +235,7 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public String[] stringValues(DicomInput input, long valpos, int vallen, SpecificCharacterSet cs) {
+    public String[] stringValues(DicomInput input, long valpos, int vallen, DicomObject dcmobj) {
         String[] a = new String[vallen / bytes];
         for (int i = 0; i < a.length; i++) {
             a[i] = dicomInputToString.apply(input, valpos + (i * bytes));

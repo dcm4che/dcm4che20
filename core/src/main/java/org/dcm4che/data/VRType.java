@@ -9,17 +9,17 @@ interface VRType {
         throw new UnsupportedOperationException();
     }
 
-    default StringBuilder appendValue(DicomInput dicomInput, long valuePos, int valueLen, SpecificCharacterSet cs,
+    default StringBuilder appendValue(DicomInput dicomInput, long valuePos, int valueLen, DicomObject dcmobj,
                                       StringBuilder appendTo, int maxLength) {
         return appendTo;
     }
 
-    default String stringValue(DicomInput input, long valuePos, int valueLen, int index, SpecificCharacterSet cs,
+    default String stringValue(DicomInput input, long valuePos, int valueLen, int index,  DicomObject dcmobj,
                                String defaultValue) {
         return defaultValue;
     }
 
-    default String[] stringValues(DicomInput input, long valuePos, int valueLen, SpecificCharacterSet cs) {
+    default String[] stringValues(DicomInput input, long valuePos, int valueLen, DicomObject dcmobj) {
         return DicomElement.EMPTY_STRINGS;
     }
 
