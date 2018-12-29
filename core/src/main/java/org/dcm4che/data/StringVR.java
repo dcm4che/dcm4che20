@@ -9,23 +9,12 @@ import java.util.function.Function;
  * @since Jul 2018
  */
 enum StringVR implements VRType {
-    AE("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    AS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    CS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    DA("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    DS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    DT("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    IS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    LO("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
-    LT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet),
+    ASCII("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
+    STRING("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
+    TEXT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet),
     PN("\\^=", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
-    SH("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
-    ST("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet),
-    TM("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
     UC("\\", VM.MULTI, StringUtils.Trim.TRAILING, StringVR::ascii),
-    UI("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    UR("", VM.SINGLE, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    UT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet);
+    UR("", VM.SINGLE, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii);
 
     private final String delimiters;
     private final VM vm;
