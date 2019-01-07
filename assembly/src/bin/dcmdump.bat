@@ -45,4 +45,4 @@ set MP=%MP%;%DCM4CHE_HOME%\lib\%MAIN_JAR%
 set MP=%MP%;%DCM4CHE_HOME%\lib\dcm4che-core-${project.version}.jar
 set MP=%MP%;%DCM4CHE_HOME%\lib\picocli-${picocli.version}.jar
 
-"%JAVA%" %JAVA_OPTS% -p "%MP%" %MAIN_MODULE%/%MAIN_CLASS% %ARGS%
+"%JAVA%" %JAVA_OPTS% -p "%MP%" -m %MAIN_MODULE%/%MAIN_CLASS% %ARGS%
