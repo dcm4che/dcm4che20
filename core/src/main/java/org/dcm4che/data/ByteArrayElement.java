@@ -60,7 +60,7 @@ class ByteArrayElement extends BaseDicomElement {
     }
 
     @Override
-    public void writeTo(DicomWriter writer) throws IOException {
+    public void writeTo(DicomOutputStream writer) throws IOException {
         int vallen = valueLength();
         writer.writeHeader(tag, vr, vallen);
         if (writer.getEncoding().byteOrder == ByteOrder.LITTLE_ENDIAN || vr.type.toggleByteOrder() == null) {

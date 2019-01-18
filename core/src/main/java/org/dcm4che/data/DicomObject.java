@@ -101,7 +101,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
                 if (localRef == null) {
                     this.elements = localRef = new ArrayList<>();
                     try {
-                        DicomReader.parse(this, dicomInput, dicomInputPos, dicomInputLen);
+                        DicomInputStream.parse(this, dicomInput, dicomInputPos, dicomInputLen);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -423,7 +423,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
-        DicomWriter writer = new DicomWriter(new OutputStream() {
+        DicomOutputStream writer = new DicomOutputStream(new OutputStream() {
             @Override
             public void write(byte[] b, int off, int len) throws IOException {
                 out.write(b, off, len);
@@ -440,7 +440,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        new DicomReader(new InputStream() {
+        new DicomInputStream(new InputStream() {
             @Override
             public int read(byte[] b, int off, int len) throws IOException {
                 return in.read(b, off, len);

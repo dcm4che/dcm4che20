@@ -1,6 +1,5 @@
 package org.dcm4che.data;
 
-import org.dcm4che.data.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;

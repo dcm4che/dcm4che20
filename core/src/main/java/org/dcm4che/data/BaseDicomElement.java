@@ -40,7 +40,7 @@ class BaseDicomElement implements DicomElement {
     }
 
     @Override
-    public void writeTo(DicomWriter writer) throws IOException {
+    public void writeTo(DicomOutputStream writer) throws IOException {
         writer.writeHeader(tag, vr, 0);
     }
 

@@ -41,7 +41,7 @@ public class DcmDump implements Callable<DcmDump> {
 
     @Override
     public DcmDump call() throws Exception {
-        try (DicomReader reader = new DicomReader(Files.newInputStream(file))) {
+        try (DicomInputStream reader = new DicomInputStream(Files.newInputStream(file))) {
             reader.withInputHandler(new DumpInputHandler(reader));
             reader.readDataSet();
         }
@@ -49,10 +49,10 @@ public class DcmDump implements Callable<DcmDump> {
     }
 
     private class DumpInputHandler extends FilterDicomInputHandler {
-        private final DicomReader reader;
+        private final DicomInputStream reader;
         private int count;
 
-        public DumpInputHandler(DicomReader reader) {
+        public DumpInputHandler(DicomInputStream reader) {
             super(reader);
             this.reader = reader;
         }

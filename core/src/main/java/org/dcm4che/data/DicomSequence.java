@@ -79,7 +79,7 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
     }
 
     @Override
-    public void writeTo(DicomWriter writer) throws IOException {
+    public void writeTo(DicomOutputStream writer) throws IOException {
         writer.writeSequence(this);
     }
 }

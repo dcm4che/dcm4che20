@@ -25,7 +25,7 @@ public class BulkDataElement extends BaseDicomElement {
     }
 
     @Override
-    public void writeTo(DicomWriter writer) throws IOException {
+    public void writeTo(DicomOutputStream writer) throws IOException {
         if (writer.getEncoding() == DicomEncoding.SERIALIZE)
             writer.serialize(this);
         else
@@ -40,7 +40,7 @@ public class BulkDataElement extends BaseDicomElement {
         return "big".equals(cut("endian=")) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
     }
 
-    private void transferTo(DicomWriter writer) throws IOException {
+    private void transferTo(DicomOutputStream writer) throws IOException {
         int vallen = valueLength();
         ByteOrder byteOrder = byteOrder();
         ToggleByteOrder toggleByteOrder = writer.getEncoding().byteOrder != byteOrder
@@ -106,7 +106,7 @@ public class BulkDataElement extends BaseDicomElement {
         }
     }
 
-    private void transferDataFragments(InputStream in, ByteOrder byteOrder, DicomWriter writer,
+    private void transferDataFragments(InputStream in, ByteOrder byteOrder, DicomOutputStream writer,
                                        ToggleByteOrder toggleByteOrder) throws IOException {
         byte[] b = writer.swapBuffer();
         in.readNBytes(b, 0, 8);

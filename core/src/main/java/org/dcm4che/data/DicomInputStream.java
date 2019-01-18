@@ -13,7 +13,7 @@ import java.util.function.Predicate;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-public class DicomReader implements DicomInputHandler, Closeable {
+public class DicomInputStream extends InputStream implements DicomInputHandler {
     private final MemoryCache cache;
     private InputStream in;
     private DicomInput input;
@@ -35,12 +35,12 @@ public class DicomReader implements DicomInputHandler, Closeable {
     private OutputStream bulkDataSpoolStream;
     private long bulkDataSpoolStreamPos;
 
-    public DicomReader(InputStream in) {
+    public DicomInputStream(InputStream in) {
         this.cache = new MemoryCache();
         this.in = in;
     }
 
-    private DicomReader(DicomInput input, long pos) {
+    private DicomInputStream(DicomInput input, long pos) {
         this.input = input;
         this.pos = pos;
         this.cache = input.cache;
@@ -50,7 +50,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return input != null ? input.encoding : null;
     }
 
-    public DicomReader withEncoding(DicomEncoding encoding) throws IOException {
+    public DicomInputStream withEncoding(DicomEncoding encoding) throws IOException {
         input = new DicomInput(cache, encoding);
         if (input.encoding.deflated) {
             in = cache.inflate(pos, in);
@@ -58,7 +58,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return this;
     }
 
-    public DicomReader withLimit(int limit) throws IOException {
+    public DicomInputStream withLimit(int limit) throws IOException {
         if (limit <= 0)
             throw new IllegalArgumentException("limit: " + limit);
 
@@ -66,33 +66,33 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return this;
     }
 
-    public DicomReader withParseItems(Predicate<DicomElement> parseItemsPredicate) {
+    public DicomInputStream withParseItems(Predicate<DicomElement> parseItemsPredicate) {
         this.parseItemsPredicate = Objects.requireNonNull(parseItemsPredicate);
         return this;
     }
 
-    public DicomReader withParseItemsLazy(int seqTag) {
+    public DicomInputStream withParseItemsLazy(int seqTag) {
         this.parseItemsPredicate = x -> x.tag() != seqTag;
         return this;
     }
 
-    public DicomReader withBulkData(Predicate<DicomElement> bulkDataPredicate) {
+    public DicomInputStream withBulkData(Predicate<DicomElement> bulkDataPredicate) {
         this.bulkDataPredicate = Objects.requireNonNull(bulkDataPredicate);
         return this;
     }
 
-    public DicomReader withBulkDataURIProducer(URIProducer bulkDataURIProducer) {
+    public DicomInputStream withBulkDataURIProducer(URIProducer bulkDataURIProducer) {
         this.bulkDataURIProducer = Objects.requireNonNull(bulkDataURIProducer);
         return this;
     }
 
-    public DicomReader withBulkDataURI(Path sourcePath) {
+    public DicomInputStream withBulkDataURI(Path sourcePath) {
         this.sourcePath = Objects.requireNonNull(sourcePath);
-        this.bulkDataURIProducer = DicomReader::bulkDataSourcePathURI;
+        this.bulkDataURIProducer = DicomInputStream::bulkDataSourcePathURI;
         return this;
     }
 
-    public DicomReader withInputHandler(DicomInputHandler handler) {
+    public DicomInputStream withInputHandler(DicomInputHandler handler) {
         this.handler = Objects.requireNonNull(handler);
         return this;
     }
@@ -101,14 +101,48 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return handler;
     }
 
-    public DicomReader spoolBulkData(PathSupplier bulkDataSpoolPathSupplier) {
+    public DicomInputStream spoolBulkData(PathSupplier bulkDataSpoolPathSupplier) {
         this.bulkDataSpoolPathSupplier = Objects.requireNonNull(bulkDataSpoolPathSupplier);
-        this.bulkDataURIProducer = DicomReader::bulkDataSpoolPathURI;
+        this.bulkDataURIProducer = DicomInputStream::bulkDataSpoolPathURI;
         return this;
     }
 
     public long getStreamPosition() {
         return pos;
+    }
+
+    @Override
+    public int read() throws IOException {
+        if (cache.loadFromStream(pos + 1, in) == pos)
+            return -1;
+
+        return cache.byteAt(pos++);
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        Objects.checkFromIndexSize(off, len, b.length);
+        if (len == 0) {
+            return 0;
+        }
+        int read = (int) (cache.loadFromStream(pos + len, in) - pos);
+        if (read == 0)
+            return -1;
+
+        cache.copyBytesTo(pos, b, off, read);
+        pos += read;
+        return read;
+    }
+
+    @Override
+    public void close() throws IOException {
+        try {
+            if (bulkDataSpoolStream != null)
+                bulkDataSpoolStream.close();
+        } finally {
+            if (in != null)
+                in.close();
+        }
     }
 
     public DicomObject readFileMetaInformation() throws IOException {
@@ -267,7 +301,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
     }
 
     static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
-        new DicomReader(input, pos).parse(dcmObj, length);
+        new DicomInputStream(input, pos).parse(dcmObj, length);
     }
 
     private boolean parse(DicomObject dcmObj, int length) throws IOException {
@@ -492,16 +526,6 @@ public class DicomReader implements DicomInputHandler, Closeable {
         return true;
     }
 
-    @Override
-    public void close() throws IOException {
-        try {
-            if (bulkDataSpoolStream != null)
-                bulkDataSpoolStream.close();
-        } finally {
-            in.close();
-        }
-    }
-
     public static boolean isBulkData(DicomElement el) {
         switch (el.tag()) {
             case Tag.PixelData:
@@ -529,7 +553,7 @@ public class DicomReader implements DicomInputHandler, Closeable {
 
     @FunctionalInterface
     public interface URIProducer {
-        String apply(DicomReader reader) throws IOException;
+        String apply(DicomInputStream reader) throws IOException;
     }
 
     @FunctionalInterface

@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-class DicomReaderTest {
+class DicomInputStreamTest {
 
     private static final byte[] IVR_LE = {0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0};
     private static final byte[] EVR_LE = {8, 0, 0, 0, 'U', 'L', 4, 0, 0, 0, 0, 0};
@@ -93,7 +93,7 @@ class DicomReaderTest {
     void readCommandSet() throws IOException {
         DicomObject cmd;
         try (InputStream in = new ByteArrayInputStream(C_ECHO_RQ)) {
-            cmd = new DicomReader(in).readCommandSet();
+            cmd = new DicomInputStream(in).readCommandSet();
         }
         assertNotNull(cmd);
         assertEquals(48, cmd.getInt(Tag.CommandField, -1));
@@ -204,31 +204,31 @@ class DicomReaderTest {
 
     static DicomEncoding readDataSet(String name) throws IOException {
         try (InputStream in = resourceAsStream(name)) {
-            DicomReader reader = new DicomReader(in);
-            reader.readDataSet();
-            return reader.getEncoding();
+            DicomInputStream dis = new DicomInputStream(in);
+            dis.readDataSet();
+            return dis.getEncoding();
         }
     }
 
     static DicomEncoding readDataSet(byte[] b) throws IOException {
         try (InputStream in = new ByteArrayInputStream(b)) {
-            DicomReader reader = new DicomReader(in);
-            reader.readDataSet();
-            return reader.getEncoding();
+            DicomInputStream dis = new DicomInputStream(in);
+            dis.readDataSet();
+            return dis.getEncoding();
         }
     }
 
     static DicomObject parse(InputStream in, DicomEncoding encoding) throws IOException {
-        try (DicomReader reader = new DicomReader(in).withEncoding(encoding)) {
-            return reader.readDataSet();
+        try (DicomInputStream dis = new DicomInputStream(in).withEncoding(encoding)) {
+            return dis.readDataSet();
         }
     }
 
     static DicomObject parseLazy(byte[] b, DicomEncoding encoding, int seqTag) throws IOException {
-        try (DicomReader reader = new DicomReader(new ByteArrayInputStream(b))
+        try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(b))
                 .withEncoding(encoding)
                 .withParseItemsLazy(seqTag)) {
-            return reader.readDataSet();
+            return dis.readDataSet();
         }
     }
 
@@ -254,28 +254,28 @@ class DicomReaderTest {
     }
 
     static DicomObject parseWithoutBulkData() throws IOException {
-        try (DicomReader reader = new DicomReader(resourceAsStream("waveform_overlay_pixeldata.dcm"))
+        try (DicomInputStream dis = new DicomInputStream(resourceAsStream("waveform_overlay_pixeldata.dcm"))
                 .withEncoding(DicomEncoding.EVR_LE)
-                .withBulkData(DicomReader::isBulkData)) {
-            return reader.readDataSet();
+                .withBulkData(DicomInputStream::isBulkData)) {
+            return dis.readDataSet();
         }
     }
 
     static DicomObject parseWithBulkDataURI(Path sourcePath) throws IOException {
-        try (DicomReader reader = new DicomReader(Files.newInputStream(sourcePath))
+        try (DicomInputStream dis = new DicomInputStream(Files.newInputStream(sourcePath))
                 .withEncoding(DicomEncoding.EVR_LE)
-                .withBulkData(DicomReader::isBulkData)
+                .withBulkData(DicomInputStream::isBulkData)
                 .withBulkDataURI(sourcePath)) {
-            return reader.readDataSet();
+            return dis.readDataSet();
         }
     }
 
     static DicomObject parseSpoolBulkData(Path spoolPath) throws IOException {
-        try (DicomReader reader = new DicomReader(resourceAsStream("waveform_overlay_pixeldata.dcm"))
+        try (DicomInputStream dis = new DicomInputStream(resourceAsStream("waveform_overlay_pixeldata.dcm"))
                 .withEncoding(DicomEncoding.EVR_LE)
-                .withBulkData(DicomReader::isBulkData)
+                .withBulkData(DicomInputStream::isBulkData)
                 .spoolBulkData(() -> spoolPath)) {
-            return reader.readDataSet();
+            return dis.readDataSet();
         }
     }
 

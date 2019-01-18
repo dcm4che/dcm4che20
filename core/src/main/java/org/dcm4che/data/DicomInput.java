@@ -131,7 +131,7 @@ class DicomInput {
         }
 
         @Override
-        public void writeTo(DicomWriter dicomWriter) throws IOException {
+        public void writeTo(DicomOutputStream dicomWriter) throws IOException {
             dicomWriter.writeHeader(tag, vr, valueLen);
             if (encoding.byteOrder == dicomWriter.getEncoding().byteOrder || vr.type.toggleByteOrder() == null) {
                 cache.writeBytesTo(valuePos, valueLen, dicomWriter.getOutputStream());

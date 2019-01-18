@@ -17,7 +17,7 @@ import java.util.zip.DeflaterOutputStream;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-public class DicomWriter implements Closeable {
+public class DicomOutputStream implements Closeable {
 
     private static final int BUFFER_LENGTH = 0x2000;
     private OutputStream out;
@@ -29,7 +29,7 @@ public class DicomWriter implements Closeable {
     private final byte[] header = new byte[12];
     private byte[] swapBuffer;
 
-    public DicomWriter(OutputStream out) {
+    public DicomOutputStream(OutputStream out) {
         this.out = Objects.requireNonNull(out);
     }
 
@@ -37,7 +37,7 @@ public class DicomWriter implements Closeable {
         return encoding;
     }
 
-    public DicomWriter withEncoding(DicomEncoding encoding) {
+    public DicomOutputStream withEncoding(DicomEncoding encoding) {
         this.encoding = Objects.requireNonNull(encoding);
         if (encoding.deflated) {
             out = new DeflaterOutputStream(out, new Deflater(Deflater.DEFAULT_COMPRESSION, true));
@@ -49,7 +49,7 @@ public class DicomWriter implements Closeable {
         return includeGroupLength;
     }
 
-    public DicomWriter withIncludeGroupLength(boolean includeGroupLength) {
+    public DicomOutputStream withIncludeGroupLength(boolean includeGroupLength) {
         this.includeGroupLength = includeGroupLength;
         return this;
     }
@@ -58,7 +58,7 @@ public class DicomWriter implements Closeable {
         return itemLengthEncoding;
     }
 
-    public DicomWriter withItemLengthEncoding(LengthEncoding itemLengthEncoding) {
+    public DicomOutputStream withItemLengthEncoding(LengthEncoding itemLengthEncoding) {
         this.itemLengthEncoding = Objects.requireNonNull(itemLengthEncoding);
         return this;
     }
@@ -67,7 +67,7 @@ public class DicomWriter implements Closeable {
         return sequenceLengthEncoding;
     }
 
-    public DicomWriter withSequenceLengthEncoding(LengthEncoding sequenceLengthEncoding) {
+    public DicomOutputStream withSequenceLengthEncoding(LengthEncoding sequenceLengthEncoding) {
         this.sequenceLengthEncoding = Objects.requireNonNull(sequenceLengthEncoding);
         return this;
     }
@@ -99,7 +99,7 @@ public class DicomWriter implements Closeable {
         out.write(header, 0, headerLength);
     }
 
-    public DicomWriter writeFileMetaInformation(DicomObject fmi) throws IOException {
+    public DicomOutputStream writeFileMetaInformation(DicomObject fmi) throws IOException {
         if (encoding != null)
             throw new IllegalStateException("encoding already initialized: " + encoding);
 

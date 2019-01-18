@@ -231,11 +231,11 @@ class VRTest {
 
     private static byte[] toBytes(DicomObject dcmObj, DicomEncoding encoding) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        new DicomWriter(out).withEncoding(encoding).writeDataSet(dcmObj);
+        new DicomOutputStream(out).withEncoding(encoding).writeDataSet(dcmObj);
         return out.toByteArray();
     }
 
     private static DicomObject parseDicomObject(byte[] b, DicomEncoding encoding) throws IOException {
-        return new DicomReader(new ByteArrayInputStream(b)).withEncoding(encoding).readDataSet();
+        return new DicomInputStream(new ByteArrayInputStream(b)).withEncoding(encoding).readDataSet();
     }
 }

@@ -20,7 +20,7 @@ public interface DicomElement {
 
     int valueLength();
 
-    void writeTo(DicomWriter dicomWriter) throws IOException;
+    void writeTo(DicomOutputStream dicomWriter) throws IOException;
 
     default String stringValue(int index, String defaultValue) { return defaultValue; }
 
