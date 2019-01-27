@@ -14,13 +14,14 @@
     <module>dict</module>
     <module>tool</module>
     <module>assembly</module>
+    <module>xml</module>
   </modules>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
-    <picocli.version>3.7.0</picocli.version>
+    <picocli.version>3.9.0</picocli.version>
   </properties>
 
   <build>

@@ -66,13 +66,11 @@ class StringElement extends BaseDicomElement {
     }
 
     @Override
-    public void writeTo(DicomOutputStream dicomWriter) throws IOException {
-        int vallen = valueLength();
+    public void writeValueTo(DicomOutputStream dos) throws IOException {
         byte[] value = encodedValue;
-        dicomWriter.writeHeader(tag, vr, vallen);
-        dicomWriter.getOutputStream().write(value, 0, value.length);
+        dos.write(value, 0, value.length);
         if ((value.length & 1) != 0)
-            dicomWriter.getOutputStream().write(vr.paddingByte);
+            dos.write(vr.paddingByte);
     }
 
     @Override

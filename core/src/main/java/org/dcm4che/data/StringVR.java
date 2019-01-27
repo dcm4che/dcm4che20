@@ -2,6 +2,8 @@ package org.dcm4che.data;
 
 import org.dcm4che.util.StringUtils;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -75,6 +77,11 @@ enum StringVR implements VRType {
     }
 
     @Override
+    public Iterator<String> iterateStringValues(DicomElement dcmElm) {
+        return List.of(dcmElm.stringValues()).iterator();
+    }
+
+    @Override
     public DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, String val) {
         if (val.isEmpty()) {
             return VRType.super.elementOf(dcmObj, tag, vr);
@@ -128,7 +135,7 @@ enum StringVR implements VRType {
 
             @Override
             String join(VR vr, String[] ss) {
-                return StringUtils.join(ss, '\\');
+                return StringUtils.join(ss, 0, ss.length, '\\');
             }
         };
 

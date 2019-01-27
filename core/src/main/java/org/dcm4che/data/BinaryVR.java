@@ -3,6 +3,8 @@ package org.dcm4che.data;
 import org.dcm4che.util.StringUtils;
 import org.dcm4che.util.TagUtils;
 
+import java.util.Iterator;
+
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
@@ -233,6 +235,24 @@ enum BinaryVR implements VRType {
             a[i] = bytesToString.apply(value, i * bytes);
         }
         return a;
+    }
+
+    @Override
+    public Iterator<String> iterateStringValues(DicomElement dcmElm) {
+        int vm = dcmElm.valueLength() / bytes;
+        return new Iterator<>() {
+            int index = 0;
+
+            @Override
+            public boolean hasNext() {
+                return index < vm;
+            }
+
+            @Override
+            public String next() {
+                return dcmElm.stringValue(index++, "");
+            }
+        };
     }
 
     @Override

@@ -5,22 +5,20 @@ package org.dcm4che.data;
  * @since Jul 2018
  */
 public enum DicomEncoding {
-    IVR_LE(false, ByteOrder.LITTLE_ENDIAN, false, -1),
-    EVR_LE(true, ByteOrder.LITTLE_ENDIAN, false, -1),
-    EVR_BE(true, ByteOrder.BIG_ENDIAN, false, -1),
-    DEFL_EVR_LE(true, ByteOrder.LITTLE_ENDIAN, true, -1),
-    SERIALIZE(true, ByteOrder.LITTLE_ENDIAN, false, 0x7fff);
+    IVR_LE(false, ByteOrder.LITTLE_ENDIAN, false),
+    EVR_LE(true, ByteOrder.LITTLE_ENDIAN, false),
+    EVR_BE(true, ByteOrder.BIG_ENDIAN, false),
+    DEFL_EVR_LE(true, ByteOrder.LITTLE_ENDIAN, true),
+    SERIALIZE(true, ByteOrder.LITTLE_ENDIAN, false);
 
     public final boolean explicitVR;
     public final ByteOrder byteOrder;
     public final boolean deflated;
-    public final int vrCodeMask;
 
-    DicomEncoding(boolean explicitVR, ByteOrder byteOrder, boolean deflated, int vrCodeMask) {
+    DicomEncoding(boolean explicitVR, ByteOrder byteOrder, boolean deflated) {
         this.explicitVR = explicitVR;
         this.byteOrder = byteOrder;
         this.deflated = deflated;
-        this.vrCodeMask = vrCodeMask;
     }
 
     public static DicomEncoding of(String tsuid) {

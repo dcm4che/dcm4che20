@@ -33,10 +33,10 @@ class StringUtilsTest {
 
     @Test
     void join() {
-        assertNull(StringUtils.join(null, DELIM));
-        assertEquals("", StringUtils.join(StringUtils.EMPTY_STRINGS, DELIM));
-        assertEquals("A", StringUtils.join(ONE, DELIM));
-        assertEquals(JOINED, StringUtils.join(ARRAY, DELIM));
+        assertNull(StringUtils.join(null, 0, 0, DELIM));
+        assertEquals("", StringUtils.join(StringUtils.EMPTY_STRINGS, 0, 0, DELIM));
+        assertEquals("A", StringUtils.join(ONE, 0, 1, DELIM));
+        assertEquals(JOINED, StringUtils.join(ARRAY, 0, ARRAY.length, DELIM));
     }
 
     @Test

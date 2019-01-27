@@ -1,6 +1,9 @@
 package org.dcm4che.data;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -20,11 +23,19 @@ public interface DicomElement {
 
     int valueLength();
 
-    void writeTo(DicomOutputStream dicomWriter) throws IOException;
+    default int valueLength(DicomOutputStream dos) { return valueLength(); }
+
+    default boolean isEmpty() { return valueLength() == 0; }
+
+    void writeValueTo(DicomOutputStream dos) throws IOException;
 
     default String stringValue(int index, String defaultValue) { return defaultValue; }
 
     default String[] stringValues() { return EMPTY_STRINGS; }
+
+    default Iterator<String> iterateStringValues() {
+        return vr().type.iterateStringValues(this);
+    }
 
     default int intValue(int index, int defaultValue) { return defaultValue; }
 

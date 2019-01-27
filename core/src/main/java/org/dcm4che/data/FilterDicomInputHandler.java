@@ -16,28 +16,28 @@ public class FilterDicomInputHandler implements DicomInputHandler {
     }
 
     @Override
-    public boolean startElement(DicomElement dcmElm, boolean bulkData) throws IOException {
-        return handler.startElement(dcmElm, bulkData);
+    public boolean startElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
+        return handler.startElement(dis, dcmElm, bulkData);
     }
 
     @Override
-    public boolean endElement(DicomElement dcmElm) {
-        return handler.endElement(dcmElm);
+    public boolean endElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
+        return handler.endElement(dis, dcmElm, bulkData);
     }
 
     @Override
-    public boolean startItem(DicomObject dcmObj) {
-        return handler.startItem(dcmObj);
+    public boolean startItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+        return handler.startItem(dis, dcmObj);
     }
 
     @Override
-    public boolean endItem(DicomObject dcmObj) {
-        return handler.endItem(dcmObj);
+    public boolean endItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+        return handler.endItem(dis, dcmObj);
     }
 
     @Override
-    public boolean dataFragment(DataFragment dataFragment) throws IOException {
-        return handler.dataFragment(dataFragment);
+    public boolean dataFragment(DicomInputStream dis, DataFragment dataFragment) throws IOException {
+        return handler.dataFragment(dis, dataFragment);
     }
 
 }

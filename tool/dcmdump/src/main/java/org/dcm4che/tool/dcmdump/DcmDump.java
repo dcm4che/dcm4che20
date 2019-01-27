@@ -24,16 +24,17 @@ import java.util.concurrent.Callable;
         optionListHeading = "%nOptions:%n",
         showDefaultValues = true,
         footerHeading = "%nExample:%n",
-        footer = { "$ dcmdump image.dcm", "Dump DICOM file image.dcm to standard output" }
+        footer = { "$ dcmdump image.dcm", "Dump DICOM file image.dcm to standard output." }
 )
-public class DcmDump implements Callable<DcmDump> {
+public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
 
-    @CommandLine.Parameters(description = "DICOM file to dump")
+    @CommandLine.Parameters(description = "DICOM input file to be dumped.")
     Path file;
 
     @CommandLine.Option(names = { "-w", "--width" },
             description = "Set output width to <cols>.")
-    int cols = 78;
+    int cols = 80;
+    int count;
 
     public static void main(String[] args) {
         CommandLine.call(new DcmDump(), args);
@@ -41,79 +42,71 @@ public class DcmDump implements Callable<DcmDump> {
 
     @Override
     public DcmDump call() throws Exception {
-        try (DicomInputStream reader = new DicomInputStream(Files.newInputStream(file))) {
-            reader.withInputHandler(new DumpInputHandler(reader));
-            reader.readDataSet();
+        try (DicomInputStream dis = new DicomInputStream(Files.newInputStream(file))) {
+            dis.withInputHandler(this);
+            dis.readDataSet();
         }
         return this;
     }
 
-    private class DumpInputHandler extends FilterDicomInputHandler {
-        private final DicomInputStream reader;
-        private int count;
 
-        public DumpInputHandler(DicomInputStream reader) {
-            super(reader);
-            this.reader = reader;
+    @Override
+    public boolean startElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
+        if (count++ == 0 && dcmElm.getStreamPosition() != 0) {
+            System.out.println(dis.promptFilePreambleTo(toPrompt(0), cols));
         }
-
-        @Override
-        public boolean startElement(DicomElement dcmElm, boolean bulkData) throws IOException {
-            if (count++ == 0 && dcmElm.getStreamPosition() != 0) {
-                System.out.println(reader.promptFilePreambleTo(toPrompt(0), cols));
-            }
-            int tag = dcmElm.tag();
-            VR vr = dcmElm.vr();
-            if (tag == Tag.TransferSyntaxUID || tag == Tag.SpecificCharacterSet || TagUtils.isPrivateCreator(tag)) {
-                dcmElm.containedBy().setString(tag, vr, dcmElm.stringValues());
-            }
-            System.out.println(reader.promptTo(dcmElm, toPrompt(dcmElm.getStreamPosition()), cols));
-            return true;
+        System.out.println(dis.promptTo(dcmElm, toPrompt(dcmElm.getStreamPosition()), cols));
+        int tag = dcmElm.tag();
+        VR vr = dcmElm.vr();
+        if (tag == Tag.TransferSyntaxUID || tag == Tag.SpecificCharacterSet || TagUtils.isPrivateCreator(tag)) {
+            dcmElm.containedBy().setString(tag, vr, dcmElm.stringValues());
         }
+        return true;
+    }
 
-        private StringBuilder toPrompt(long streamPosition) {
-            return new StringBuilder().append(streamPosition).append(':').append(' ');
-        }
+    private StringBuilder toPrompt(long streamPosition) {
+        return new StringBuilder().append(streamPosition).append(':').append(' ');
+    }
 
-        @Override
-        public boolean endElement(DicomElement dcmElm) {
-            int valueLength = dcmElm.valueLength();
-            if (valueLength == -1) {
-                System.out.println(
-                        dcmElm.containedBy()
-                                .appendNestingLevel(
-                                        toPrompt(reader.getStreamPosition() - 8))
-                                .append("(FFFE,E0DD) #0 SequenceDelimitationItem"));
-            }
-            return true;
-        }
-
-        @Override
-        public boolean startItem(DicomObject dcmObj) {
+    @Override
+    public boolean endElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) {
+        int valueLength = dcmElm.valueLength();
+        if (valueLength == -1) {
             System.out.println(
-                    dcmObj.appendNestingLevel(
-                            toPrompt(reader.getStreamPosition() - 8))
-                            .append("(FFFE,E000) #").append(dcmObj.getItemLength())
-                            .append(" Item #").append(dcmObj.containedBy().size() + 1));
-            return super.startItem(dcmObj);
+                    dcmElm.containedBy()
+                            .appendNestingLevel(
+                                    toPrompt(dis.getStreamPosition() - 8))
+                            .append("(FFFE,E0DD) #0 SequenceDelimitationItem"));
         }
+        return true;
+    }
 
-        @Override
-        public boolean endItem(DicomObject dcmObj) {
-            if (dcmObj.getItemLength() == -1) {
-                System.out.println(
-                        dcmObj.appendNestingLevel(toPrompt(reader.getStreamPosition() - 8))
-                                .append("(FFFE,E00D) #0 ItemDelimitationItem"));
-            }
-            return true;
-        }
+    @Override
+    public boolean startItem(DicomInputStream dis, DicomObject dcmObj) {
+        System.out.println(
+                dcmObj.appendNestingLevel(
+                        toPrompt(dis.getStreamPosition() - 8))
+                        .append("(FFFE,E000) #").append(dcmObj.getItemLength())
+                        .append(" Item #").append(dcmObj.containedBy().size() + 1));
+        dcmObj.containedBy().addItem(dcmObj);
+        return true;
+    }
 
-        @Override
-        public boolean dataFragment(DataFragment dataFragment) throws IOException {
+    @Override
+    public boolean endItem(DicomInputStream dis, DicomObject dcmObj) {
+        if (dcmObj.getItemLength() == -1) {
             System.out.println(
-                    reader.promptTo(dataFragment, toPrompt(reader.getStreamPosition() - 8), cols));
-            return true;
+                    dcmObj.appendNestingLevel(toPrompt(dis.getStreamPosition() - 8))
+                            .append("(FFFE,E00D) #0 ItemDelimitationItem"));
         }
+        return true;
+    }
+
+    @Override
+    public boolean dataFragment(DicomInputStream dis, DataFragment dataFragment) throws IOException {
+        System.out.println(
+                dis.promptTo(dataFragment, toPrompt(dis.getStreamPosition() - 8), cols));
+        return true;
     }
 }
 

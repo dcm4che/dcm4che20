@@ -1,5 +1,8 @@
 package org.dcm4che.data;
 
+import java.util.Collections;
+import java.util.Iterator;
+
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
@@ -37,6 +40,10 @@ interface VRType {
 
     default String[] stringValues(String value) {
         return DicomElement.EMPTY_STRINGS;
+    }
+
+    default Iterator<String> iterateStringValues(DicomElement dcmElm) {
+        return Collections.emptyIterator();
     }
 
     default int intValue(DicomInput input, long valuePos, int valueLen, int index, int defaultValue) {

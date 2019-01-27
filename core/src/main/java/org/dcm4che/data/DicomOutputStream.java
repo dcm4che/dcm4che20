@@ -3,8 +3,10 @@ package org.dcm4che.data;
 import org.dcm4che.util.TagUtils;
 
 import java.io.Closeable;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.IntPredicate;
@@ -17,11 +19,10 @@ import java.util.zip.DeflaterOutputStream;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-public class DicomOutputStream implements Closeable {
+public class DicomOutputStream extends OutputStream {
 
     private static final int BUFFER_LENGTH = 0x2000;
     private OutputStream out;
-
     private DicomEncoding encoding;
     private boolean includeGroupLength;
     private LengthEncoding itemLengthEncoding = LengthEncoding.UNDEFINED_OR_ZERO;
@@ -73,6 +74,21 @@ public class DicomOutputStream implements Closeable {
     }
 
     @Override
+    public void write(int b) throws IOException {
+        out.write(b);
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        out.write(b, off, len);
+    }
+
+    @Override
+    public void flush() throws IOException {
+        out.flush();
+    }
+
+    @Override
     public void close() throws IOException {
         out.close();
     }
@@ -96,7 +112,7 @@ public class DicomOutputStream implements Closeable {
                 headerLength = 12;
             }
         }
-        out.write(header, 0, headerLength);
+        write(header, 0, headerLength);
     }
 
     public DicomOutputStream writeFileMetaInformation(DicomObject fmi) throws IOException {
@@ -112,7 +128,7 @@ public class DicomOutputStream implements Closeable {
         b[129] = 'I';
         b[130] = 'C';
         b[131] = 'M';
-        out.write(b);
+        write(b);
         encoding = DicomEncoding.EVR_LE;
         boolean includeGroupLength0 = includeGroupLength;
         try {
@@ -153,13 +169,16 @@ public class DicomOutputStream implements Closeable {
 
     private void write(DicomObject dcmObj) throws IOException {
         for (DicomElement element : dcmObj) {
-            if (includeGroupLength || !TagUtils.isGroupLength(element.tag()))
-                element.writeTo(this);
+            int tag = element.tag();
+            if (includeGroupLength || !TagUtils.isGroupLength(tag)) {
+                int valueLength = element.valueLength(this);
+                writeHeader(tag, element.vr(), valueLength);
+                element.writeValueTo(this);
+                if (valueLength == -1) {
+                    writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
+                }
+            }
         }
-    }
-
-    OutputStream getOutputStream() {
-        return out;
     }
 
     byte[] swapBuffer() {
@@ -169,37 +188,13 @@ public class DicomOutputStream implements Closeable {
         return swapBuffer;
     }
 
-    void writeSequence(DicomSequence seq) throws IOException {
-        boolean undefinedLength = sequenceLengthEncoding.undefined.test(seq.size());
-        writeHeader(seq.tag(), seq.vr(), undefinedLength ? -1 : seq.itemStream().mapToInt(this::lengthOf).sum());
-        for (DicomObject item : seq) {
-            writeItem(item);
-        }
-        if (undefinedLength) {
-            writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
-        }
-    }
-
-    private void writeItem(DicomObject dcmobj) throws IOException {
+    void writeItem(DicomObject dcmobj) throws IOException {
         boolean undefinedLength = itemLengthEncoding.undefined.test(dcmobj.size());
         writeHeader(Tag.Item, VR.NONE, undefinedLength ? -1 : dcmobj.getItemLength());
         write(dcmobj);
         if (undefinedLength) {
             writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
         }
-    }
-
-    void serialize(BulkDataElement bulkData) throws IOException {
-        byte[] header = this.header;
-        ByteOrder byteOrder = encoding.byteOrder;
-        byteOrder.tagToBytes(bulkData.tag(), header, 0);
-        int vrCode = bulkData.vr().code;
-        header[4] = (byte) ((vrCode | 0x8000) >>> 8);
-        header[5] = (byte) vrCode;
-        byte[] encodedURI = SpecificCharacterSet.UTF_8.encode(bulkData.bulkDataURI(), null);
-        byteOrder.shortToBytes(encodedURI.length, header, 6);
-        out.write(header, 0, 8);
-        out.write(encodedURI);
     }
 
     private int calculateLengthOf(DicomElement el) {
@@ -250,12 +245,19 @@ public class DicomOutputStream implements Closeable {
         return len;
     }
 
-    private int lengthOf(DicomObject item) {
+    int lengthOf(DicomObject item) {
         return 8 + itemLengthEncoding.adjustLength.applyAsInt(item.getItemLength());
     }
 
+    void writeUTF(String s) throws IOException {
+        byte[] b = s.getBytes(StandardCharsets.UTF_8);
+        ByteOrder.LITTLE_ENDIAN.shortToBytes(b.length, header, 0);
+        write(header, 0, 2);
+        write(b);
+    }
+
     public enum LengthEncoding {
-        UNDEFINED_OR_ZERO(false, x -> x > 0, x -> x > 0 ? x + 8 : x),
+        UNDEFINED_OR_ZERO(false, x -> x != 0, x -> x != 0 ? x + 8 : x),
         UNDEFINED(false, x -> true, x -> x + 8),
         EXPLICIT(true, x -> false, x -> x);
 

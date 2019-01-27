@@ -60,12 +60,10 @@ public class DataFragments extends BaseDicomElement implements Iterable<DataFrag
     }
 
     @Override
-    public void writeTo(DicomOutputStream writer) throws IOException {
-        writer.writeHeader(tag, vr, -1);
+    public void writeValueTo(DicomOutputStream dos) throws IOException {
         for (DataFragment item : items) {
-            writer.writeHeader(Tag.Item, VR.NONE, item.valueLength());
-            item.writeTo(writer.getOutputStream());
+            dos.writeHeader(Tag.Item, VR.NONE, item.valueLength());
+            item.writeTo(dos);
         }
-        writer.writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
     }
 }

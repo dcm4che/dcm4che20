@@ -60,18 +60,16 @@ class ByteArrayElement extends BaseDicomElement {
     }
 
     @Override
-    public void writeTo(DicomOutputStream writer) throws IOException {
-        int vallen = valueLength();
-        writer.writeHeader(tag, vr, vallen);
-        if (writer.getEncoding().byteOrder == ByteOrder.LITTLE_ENDIAN || vr.type.toggleByteOrder() == null) {
-            writer.getOutputStream().write(value, 0, value.length);
+    public void writeValueTo(DicomOutputStream dos) throws IOException {
+        if (dos.getEncoding().byteOrder == ByteOrder.LITTLE_ENDIAN || vr.type.toggleByteOrder() == null) {
+            dos.write(value, 0, value.length);
             if ((value.length & 1) != 0)
-                writer.getOutputStream().write(0);
+                dos.write(0);
         } else {
-            byte[] b = writer.swapBuffer();
+            byte[] b = dos.swapBuffer();
             System.arraycopy(value, 0, b, 0, value.length);
             vr.type.toggleByteOrder().swapBytes(b, value.length);
-            writer.getOutputStream().write(b, 0, value.length);
+            dos.write(b, 0, value.length);
         }
     }
 

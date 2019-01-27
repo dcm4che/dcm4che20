@@ -9,20 +9,13 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.dcm4che.tool</groupId>
-  <artifactId>dcm4che-tool-parent</artifactId>
-  <packaging>pom</packaging>
-
-  <modules>
-    <module>dcmdump</module>
-    <module>dcm2xml</module>
-  </modules>
+  <artifactId>dcm4che-xml</artifactId>
 
   <dependencies>
     <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>${picocli.version}</version>
+      <groupId>org.dcm4che</groupId>
+      <artifactId>dcm4che-core</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 </project>

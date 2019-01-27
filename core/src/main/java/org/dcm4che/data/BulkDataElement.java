@@ -8,6 +8,9 @@ import java.net.URI;
  * @since Aug 2018
  */
 public class BulkDataElement extends BaseDicomElement {
+
+    static final int MAGIC_LEN = 0xfbfb;
+
     private final String uri;
 
     public BulkDataElement(DicomObject dicomObject, int tag, VR vr, String uri) {
@@ -20,16 +23,21 @@ public class BulkDataElement extends BaseDicomElement {
         return parseInt("length=", -1);
     }
 
+    @Override
+    public int valueLength(DicomOutputStream dos) {
+        return dos.getEncoding() == DicomEncoding.SERIALIZE ? MAGIC_LEN : valueLength();
+    }
+
     public String bulkDataURI() {
         return uri;
     }
 
     @Override
-    public void writeTo(DicomOutputStream writer) throws IOException {
-        if (writer.getEncoding() == DicomEncoding.SERIALIZE)
-            writer.serialize(this);
+    public void writeValueTo(DicomOutputStream dos) throws IOException {
+        if (dos.getEncoding() == DicomEncoding.SERIALIZE)
+            dos.writeUTF(uri);
         else
-            transferTo(writer);
+            transferTo(dos);
     }
 
     int offset() {
@@ -40,25 +48,24 @@ public class BulkDataElement extends BaseDicomElement {
         return "big".equals(cut("endian=")) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
     }
 
-    private void transferTo(DicomOutputStream writer) throws IOException {
+    private void transferTo(DicomOutputStream dos) throws IOException {
         int vallen = valueLength();
         ByteOrder byteOrder = byteOrder();
-        ToggleByteOrder toggleByteOrder = writer.getEncoding().byteOrder != byteOrder
+        ToggleByteOrder toggleByteOrder = dos.getEncoding().byteOrder != byteOrder
                 ? vr.type.toggleByteOrder()
                 : null;
-        byte[] buf = writer.swapBuffer();
-        writer.writeHeader(tag, vr, vallen);
+        byte[] buf = dos.swapBuffer();
         try (InputStream in = URI.create(uri).toURL().openStream()) {
             skipNBytes(in, offset());
             if (vallen == -1) {
                 PushbackInputStream pushback = new PushbackInputStream(in, 4);
                 if (peekTag(pushback, byteOrder, buf) == Tag.Item) {
-                    transferDataFragments(pushback, byteOrder, writer, toggleByteOrder);
+                    transferDataFragments(pushback, byteOrder, dos, toggleByteOrder);
                 } else {
-                    transfer(pushback, writer.getOutputStream(), toggleByteOrder, writer.swapBuffer());
+                    transfer(pushback, dos, toggleByteOrder, dos.swapBuffer());
                 }
             } else {
-                transferNBytes(in, writer.getOutputStream(), vallen, toggleByteOrder, writer.swapBuffer());
+                transferNBytes(in, dos, vallen, toggleByteOrder, dos.swapBuffer());
             }
         }
     }
@@ -106,21 +113,20 @@ public class BulkDataElement extends BaseDicomElement {
         }
     }
 
-    private void transferDataFragments(InputStream in, ByteOrder byteOrder, DicomOutputStream writer,
+    private void transferDataFragments(InputStream in, ByteOrder byteOrder, DicomOutputStream dos,
                                        ToggleByteOrder toggleByteOrder) throws IOException {
-        byte[] b = writer.swapBuffer();
+        byte[] b = dos.swapBuffer();
         in.readNBytes(b, 0, 8);
         while (byteOrder.bytesToTag(b, 0) == Tag.Item) {
             int itemLen = byteOrder.bytesToInt(b, 4);
-            writer.writeHeader(Tag.Item, VR.NONE, itemLen);
-            transferNBytes(in, writer.getOutputStream(), itemLen, toggleByteOrder, b);
+            dos.writeHeader(Tag.Item, VR.NONE, itemLen);
+            transferNBytes(in, dos, itemLen, toggleByteOrder, b);
             in.readNBytes(b, 0, 8);
         }
         if (byteOrder.bytesToTag(b, 0) != Tag.SequenceDelimitationItem
                 || byteOrder.bytesToInt(b, 4) != 0) {
             throw new IOException("Invalid Item Sequence @ " + uri);
         }
-        writer.writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
     }
 
     private String cut(String name) {

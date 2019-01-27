@@ -131,13 +131,12 @@ class DicomInput {
         }
 
         @Override
-        public void writeTo(DicomOutputStream dicomWriter) throws IOException {
-            dicomWriter.writeHeader(tag, vr, valueLen);
-            if (encoding.byteOrder == dicomWriter.getEncoding().byteOrder || vr.type.toggleByteOrder() == null) {
-                cache.writeBytesTo(valuePos, valueLen, dicomWriter.getOutputStream());
+        public void writeValueTo(DicomOutputStream dos) throws IOException {
+            if (encoding.byteOrder == dos.getEncoding().byteOrder || vr.type.toggleByteOrder() == null) {
+                cache.writeBytesTo(valuePos, valueLen, dos);
             } else {
-                cache.writeSwappedBytesTo(valuePos, valueLen, dicomWriter.getOutputStream(),
-                        vr.type.toggleByteOrder(), dicomWriter.swapBuffer());
+                cache.writeSwappedBytesTo(valuePos, valueLen, dos,
+                        vr.type.toggleByteOrder(), dos.swapBuffer());
             }
         }
     }

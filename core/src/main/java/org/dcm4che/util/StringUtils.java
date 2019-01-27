@@ -112,18 +112,18 @@ public class StringUtils {
         return ss;
     }
 
-    public static String join(String[] ss, char delim) {
+    public static String join(String[] ss, int off, int len, char delim) {
         if (ss == null)
             return null;
 
-        if (ss.length == 0)
+        if (len == 0)
             return "";
 
-        if (ss.length == 1)
-            return Objects.requireNonNullElse(ss[0], "");
+        if (len == 1)
+            return Objects.requireNonNullElse(ss[off], "");
 
-        StringBuilder sb = new StringBuilder(Objects.requireNonNullElse(ss[0], ""));
-        for (int i = 1; i < ss.length; i++)
+        StringBuilder sb = new StringBuilder(Objects.requireNonNullElse(ss[off], ""));
+        for (int i = off + 1; i < len; i++)
             sb.append(delim).append(Objects.requireNonNullElse(ss[i], ""));
 
         return sb.toString();

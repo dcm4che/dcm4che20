@@ -274,7 +274,7 @@ class DicomInputStreamTest {
         try (DicomInputStream dis = new DicomInputStream(resourceAsStream("waveform_overlay_pixeldata.dcm"))
                 .withEncoding(DicomEncoding.EVR_LE)
                 .withBulkData(DicomInputStream::isBulkData)
-                .spoolBulkData(() -> spoolPath)) {
+                .spoolBulkDataTo(spoolPath)) {
             return dis.readDataSet();
         }
     }

@@ -39,14 +39,12 @@ class BaseDicomElement implements DicomElement {
         return 0;
     }
 
-    @Override
-    public void writeTo(DicomOutputStream writer) throws IOException {
-        writer.writeHeader(tag, vr, 0);
+    public void writeValueTo(DicomOutputStream dos) throws IOException {
     }
 
     @Override
     public String toString() {
-        return promptTo(new StringBuilder(), 78).toString();
+        return promptTo(new StringBuilder(), 80).toString();
     }
 
     @Override

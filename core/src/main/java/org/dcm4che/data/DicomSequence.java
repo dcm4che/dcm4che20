@@ -36,6 +36,7 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
         return items.size();
     }
 
+    @Override
     public boolean isEmpty() {
         return items.isEmpty();
     }
@@ -43,6 +44,12 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
     @Override
     public int valueLength() {
         return valueLength;
+    }
+
+    @Override
+    public int valueLength(DicomOutputStream dos) {
+        return dos.getSequenceLengthEncoding().undefined.test(size()) ? -1
+                : itemStream().mapToInt(dos::lengthOf).sum();
     }
 
     DicomSequence valueLength(int valueLength) {
@@ -79,7 +86,9 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
     }
 
     @Override
-    public void writeTo(DicomOutputStream writer) throws IOException {
-        writer.writeSequence(this);
+    public void writeValueTo(DicomOutputStream dos) throws IOException {
+        for (DicomObject item : items) {
+            dos.writeItem(item);
+        }
     }
 }

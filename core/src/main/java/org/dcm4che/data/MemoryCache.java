@@ -84,13 +84,6 @@ class MemoryCache {
         return inflaterInputStream;
     }
 
-    void flushBefore(long pos) {
-        int index = blockIndex(pos - skippedBytes(pos));
-        while (index-- > 0)
-            if (blocks.set(index, null) == null)
-                break;
-    }
-
     byte byteAt(long pos) {
         pos -= skippedBytes(pos);
         byte[] b = blocks.get(blockIndex(pos));
@@ -212,7 +205,7 @@ class MemoryCache {
         byte[] b = blocks.get(blockIndex(pos1));
         int off = blockOffset(b, pos1);
         if (out != null) {
-            out.write(b, off, skip < 0 ? len : b.length - off);
+            out.write(b, off, skip <= 0 ? len : b.length - off);
         }
         if (skip > 0) {
             if (eof)
@@ -224,7 +217,7 @@ class MemoryCache {
                 transferTo(in, out, skip);
 
             length += skip;
-        } else {
+        } else if (skip < 0) {
             System.arraycopy(b, off + len, b, off, (int) -skip);
             off -= skip;
         }

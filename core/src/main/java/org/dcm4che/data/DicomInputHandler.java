@@ -7,23 +7,23 @@ import java.io.IOException;
  * @since Jul 2018
  */
 public interface DicomInputHandler {
-    default boolean startElement(DicomElement dcmElm, boolean bulkData) throws IOException {
+    default boolean startElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
         return true;
     }
 
-    default boolean endElement(DicomElement dcmElm) {
+    default boolean endElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
         return true;
     }
 
-    default boolean startItem(DicomObject dcmObj) {
+    default boolean startItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
         return true;
     }
 
-    default boolean endItem(DicomObject dcmObj) {
+    default boolean endItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
         return true;
     }
 
-    default boolean dataFragment(DataFragment dataFragment) throws IOException {
+    default boolean dataFragment(DicomInputStream dis, DataFragment dataFragment) throws IOException {
         return true;
     }
 }
