@@ -36,9 +36,12 @@
       <outputDirectory>/lib</outputDirectory>
       <includes>
         <include>org.dcm4che:dcm4che-core</include>
+        <include>org.dcm4che:dcm4che-json</include>
         <include>org.dcm4che:dcm4che-xml</include>
-        <include>org.dcm4che.tool:dcm4che-tool-dcmdump</include>
+        <include>org.dcm4che.tool:dcm4che-tool-dcm2json</include>
         <include>org.dcm4che.tool:dcm4che-tool-dcm2xml</include>
+        <include>org.dcm4che.tool:dcm4che-tool-dcmdump</include>
+        <include>org.glassfish:javax.json</include>
         <include>info.picocli:picocli</include>
       </includes>
       <useProjectArtifact>false</useProjectArtifact>

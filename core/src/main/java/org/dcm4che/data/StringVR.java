@@ -2,32 +2,45 @@ package org.dcm4che.data;
 
 import org.dcm4che.util.StringUtils;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.function.Function;
+import java.util.function.*;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
 enum StringVR implements VRType {
-    ASCII("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii),
-    STRING("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
-    TEXT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet),
-    PN("\\^=", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet),
-    UC("\\", VM.MULTI, StringUtils.Trim.TRAILING, StringVR::ascii),
-    UR("", VM.SINGLE, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii);
+    ASCII("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
+            null, null),
+    STRING("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet,
+            null, null),
+    TEXT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet,
+            null, null),
+    DS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
+            StringVR::parseDoubleAsInt, Double::parseDouble),
+    IS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
+            Integer::parseInt, StringVR::parseIntAsDouble),
+    PN("\\^=", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet,
+            null, null),
+    UC("\\", VM.MULTI, StringUtils.Trim.TRAILING, StringVR::ascii,
+            null, null),
+    UR("", VM.SINGLE, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
+            null, null);
 
     private final String delimiters;
     private final VM vm;
     private final StringUtils.Trim trim;
     private final Function<DicomObject,SpecificCharacterSet> asciiOrCS;
+    private final ToIntFunction<String> stringToInt;
+    private final ToDoubleFunction<String> stringToDouble;
 
-    StringVR(String delimiters, VM vm, StringUtils.Trim trim, Function<DicomObject,SpecificCharacterSet> asciiOrCS) {
+    StringVR(String delimiters, VM vm, StringUtils.Trim trim, Function<DicomObject, SpecificCharacterSet> asciiOrCS,
+            ToIntFunction<String> stringToInt, ToDoubleFunction<String> stringToDouble) {
         this.delimiters = delimiters;
         this.vm = vm;
         this.trim = trim;
         this.asciiOrCS = asciiOrCS;
+        this.stringToInt = stringToInt;
+        this.stringToDouble = stringToDouble;
     }
 
     private static SpecificCharacterSet ascii(DicomObject dicomObject) {
@@ -77,8 +90,31 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public Iterator<String> iterateStringValues(DicomElement dcmElm) {
-        return List.of(dcmElm.stringValues()).iterator();
+    public <E extends Throwable> void forEach(DicomElement dcmElm, StringValueConsumer<E> action) throws E {
+        String[] values = dcmElm.stringValues();
+        for (int i = 0; i < values.length;) {
+            action.accept(values[i], ++i);
+        }
+    }
+
+    @Override
+    public void forEach(DicomElement dcmElm, IntConsumer action) {
+        if (stringToInt == null)
+            return;
+
+        for (String s : dcmElm.stringValues()) {
+            action.accept(stringToInt.applyAsInt(s));
+        }
+    }
+
+    @Override
+    public void forEach(DicomElement dcmElm, DoubleConsumer action) {
+        if (stringToDouble == null)
+            return;
+
+        for (String s : dcmElm.stringValues()) {
+            action.accept(stringToDouble.applyAsDouble(s));
+        }
     }
 
     @Override
@@ -95,6 +131,14 @@ enum StringVR implements VRType {
             return VRType.super.elementOf(dcmObj, tag, vr);
         }
         return elementOf(dcmObj, tag, vr, vm.join(vr, vals));
+    }
+
+    private static double parseIntAsDouble(String s) {
+        return Integer.parseInt(s);
+    }
+
+    private static int parseDoubleAsInt(String s) {
+        return (int) Double.parseDouble(s);
     }
 
     enum VM {

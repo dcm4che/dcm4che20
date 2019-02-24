@@ -2,6 +2,8 @@ package org.dcm4che.data;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.function.DoubleConsumer;
+import java.util.function.IntConsumer;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -42,9 +44,11 @@ interface VRType {
         return DicomElement.EMPTY_STRINGS;
     }
 
-    default Iterator<String> iterateStringValues(DicomElement dcmElm) {
-        return Collections.emptyIterator();
-    }
+    default <E extends Throwable> void forEach(DicomElement dcmElm, StringValueConsumer<E> action) throws E {}
+
+    default void forEach(DicomElement dcmElm, IntConsumer action) {}
+
+    default void forEach(DicomElement dcmElm, DoubleConsumer action) {}
 
     default int intValue(DicomInput input, long valuePos, int valueLen, int index, int defaultValue) {
         return defaultValue;

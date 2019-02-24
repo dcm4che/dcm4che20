@@ -3,7 +3,8 @@ package org.dcm4che.data;
 import org.dcm4che.util.StringUtils;
 import org.dcm4che.util.TagUtils;
 
-import java.util.Iterator;
+import java.util.function.DoubleConsumer;
+import java.util.function.IntConsumer;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -238,21 +239,24 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public Iterator<String> iterateStringValues(DicomElement dcmElm) {
-        int vm = dcmElm.valueLength() / bytes;
-        return new Iterator<>() {
-            int index = 0;
+    public <E extends Throwable> void forEach(DicomElement dcmElm, StringValueConsumer<E> action) throws E {
+        for (int i = 0, n = dcmElm.valueLength() / bytes; i < n;) {
+            action.accept(dcmElm.stringValue(i, ""), ++i);
+        }
+    }
 
-            @Override
-            public boolean hasNext() {
-                return index < vm;
-            }
+    @Override
+    public void forEach(DicomElement dcmElm, IntConsumer action) {
+        for (int i = 0, n = dcmElm.valueLength() / bytes; i < n; i++) {
+            action.accept(dcmElm.intValue(i, 0));
+        }
+    }
 
-            @Override
-            public String next() {
-                return dcmElm.stringValue(index++, "");
-            }
-        };
+    @Override
+    public void forEach(DicomElement dcmElm, DoubleConsumer action) {
+        for (int i = 0, n = dcmElm.valueLength() / bytes; i < n; i++) {
+            action.accept(dcmElm.doubleValue(i, 0));
+        }
     }
 
     @Override

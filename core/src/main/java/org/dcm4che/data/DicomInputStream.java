@@ -5,10 +5,7 @@ import org.dcm4che.util.TagUtils;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Predicate;
 
 /**
@@ -232,12 +229,8 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         return appendTo;
     }
 
-    public Iterator<String> iterateStringValues(DicomElement dcmElm) throws IOException {
-        if (vr == VR.SQ || valueLength <= 0)
-            return Collections.emptyIterator();
-
+    public void loadValueFromStream() throws IOException {
         cache.loadFromStream(pos + valueLength, in);
-        return dcmElm.iterateStringValues();
     }
 
     public void writeValueTo(DicomElement dcmElm, DicomOutputStream dos) throws IOException {

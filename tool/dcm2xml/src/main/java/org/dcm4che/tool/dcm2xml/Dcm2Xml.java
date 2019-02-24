@@ -70,7 +70,7 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
 
     @CommandLine.Option(names = { "--inline-bulkdata" },
             description = "Include bulkdata directly in XML output; by default, only references to bulkdata are included.")
-    boolean withBulkData;
+    boolean inlineBulkData;
 
     @CommandLine.Option(names = { "--bulkdata" },
             description = {
@@ -102,7 +102,7 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
         handler.startDocument();
         try (DicomInputStream dis = new DicomInputStream(stdin ? System.in : Files.newInputStream(file))
                 .withInputHandler(handler)) {
-            if (!withBulkData) {
+            if (!inlineBulkData) {
                 dis.withBulkData(DicomInputStream::isBulkData);
                 if (!noBulkData)
                     if (stdin)

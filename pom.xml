@@ -10,17 +10,18 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>assembly</module>
     <module>core</module>
     <module>dict</module>
+    <module>json</module>
     <module>tool</module>
-    <module>assembly</module>
     <module>xml</module>
   </modules>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
+    <maven.compiler.release>11</maven.compiler.release>
+    <javax.json.version>1.1.4</javax.json.version>
     <picocli.version>3.9.0</picocli.version>
   </properties>
 

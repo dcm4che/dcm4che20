@@ -1,9 +1,8 @@
 package org.dcm4che.data;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.function.DoubleConsumer;
+import java.util.function.IntConsumer;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -33,10 +32,6 @@ public interface DicomElement {
 
     default String[] stringValues() { return EMPTY_STRINGS; }
 
-    default Iterator<String> iterateStringValues() {
-        return vr().type.iterateStringValues(this);
-    }
-
     default int intValue(int index, int defaultValue) { return defaultValue; }
 
     default int[] intValues() { return EMPTY_INTS; }
@@ -48,6 +43,18 @@ public interface DicomElement {
     default double doubleValue(int index, double defaultValue) { return defaultValue; }
 
     default double[] doubleValues() { return EMPTY_DOUBLES; }
+
+    default void forEach(StringValueConsumer action) {
+        vr().type.forEach(this, action);
+    }
+
+    default void forEach(IntConsumer action) {
+        vr().type.forEach(this, action);
+    }
+
+    default void forEach(DoubleConsumer action) {
+        vr().type.forEach(this, action);
+    }
 
     default void trimToSize() {}
 

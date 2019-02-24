@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Iterator;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -64,15 +63,20 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
 
     @Override
     public boolean startElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
+        int tag = dcmElm.tag();
+        if (TagUtils.isPrivateCreator(tag) || tag == Tag.TransferSyntaxUID || tag == Tag.SpecificCharacterSet) {
+            dis.loadValueFromStream();
+            dcmElm.containedBy().add(dcmElm);
+        }
         if (bulkData) {
             bulkDataURI = dis.bulkDataURI();
             dis.skipBulkData();
-            if (bulkDataURI == null)
-                return true;
         } else {
             bulkDataURI = null;
         }
-        int tag = dcmElm.tag();
+        if (exclude(tag, bulkData))
+            return true;
+
         VR vr = dcmElm.vr();
         String privateCreator = dcmElm.containedBy().getPrivateCreator(tag);
         if (privateCreator != null) {
@@ -90,25 +94,14 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
             startElement("DicomAttribute");
             if (bulkData) {
                 writeBulkData();
-            } else switch (vr) {
-                case SQ:
-                    break;
-                case OB:
-                case OD:
-                case OF:
-                case OL:
-                case OW:
-                    writeInlineBinary(dis, dcmElm);
-                    break;
-                default:
-                    writeValues(vr, dis.iterateStringValues(dcmElm));
-                    break;
+            } else if (vr.jsonType == VR.JSONType.BASE64) {
+                writeInlineBinary(dis, dcmElm);
+            } else {
+                dis.loadValueFromStream();
+                dcmElm.forEach(vr == VR.PN ? this::writePN : this::writeValue);
             }
         } catch (SAXException e) {
             throw new IOException(e);
-        }
-        if (TagUtils.isPrivateCreator(tag) || tag == Tag.TransferSyntaxUID || tag == Tag.SpecificCharacterSet) {
-            dcmElm.containedBy().setString(tag, vr, dcmElm.stringValues());
         }
         return true;
     }
@@ -123,37 +116,25 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         if (inlineBinary == null)
             inlineBinary = new InlineBinary();
 
-        if (dcmElm.valueLength() == -1) {
-            return;
-        }
-        dis.writeValueTo(dcmElm, inlineBinary.dos);
-        inlineBinary.finish();
-        endElement("InlineBinary");
+        if (dcmElm.valueLength() != -1)
+            dis.skipBytes(0, dcmElm.valueLength(), inlineBinary);
     }
 
-    private void writeValues(VR vr, Iterator<String> iter) throws SAXException {
-        int n = 0;
-        while (iter.hasNext()) {
-            writeValue(vr, iter.next(), ++n);
-        }
-    }
-
-    private void writeValue(VR vr, String s, int num) throws SAXException {
-        addAttribute("number", Integer.toString(num));
-        if (vr == VR.PN)
-            writePN(PersonName.parse(s));
-        else
-            writeElement("Value", s);
+    private void writeValue(String s, int number) throws SAXException {
+        addAttribute("number", Integer.toString(number));
+        writeElement("Value", s);
     }
 
     @Override
     public boolean endElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
+        if (exclude(dcmElm.tag(), bulkData))
+            return true;
+
         try {
-            if (bulkData) {
-                if (bulkDataURI == null)
-                    return true;
-            } else if (dcmElm.valueLength() == -1 && dcmElm.vr() != VR.SQ) {
-                dis.skipBytes(-8, 8, inlineBinary);
+            if (!bulkData && dcmElm.vr().jsonType == VR.JSONType.BASE64) {
+                if (dcmElm.valueLength() == -1)
+                    dis.skipBytes(-8, 8, inlineBinary);
+                inlineBinary.finish();
                 endElement("InlineBinary");
             }
             endElement("DicomAttribute");
@@ -161,6 +142,10 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
             throw new IOException(e);
         }
         return true;
+    }
+
+    public boolean exclude(int tag, boolean bulkData) {
+        return bulkData ? bulkDataURI == null : TagUtils.isGroupLength(tag) || TagUtils.isPrivateCreator(tag);
     }
 
     @Override
@@ -176,7 +161,7 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
 
     @Override
     public boolean endItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
-       try {
+        try {
             endElement("Item");
         } catch (SAXException e) {
             throw new IOException(e);
@@ -221,9 +206,10 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         }
     }
 
-    private void writePN(PersonName pn) throws SAXException {
+    private void writePN(String s, int number) throws SAXException {
+        PersonName pn = PersonName.parse(s);
         if (!pn.isEmpty()) {
-            startElement("PersonName");
+            startElement("PersonName", "number", Integer.toString(number));
             writePNGroup("Alphabetic", pn.alphabetic);
             writePNGroup("Ideographic", pn.ideographic);
             writePNGroup("Phonetic", pn.phonetic);
@@ -243,16 +229,15 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         }
     }
 
-    private class InlineBinary extends OutputStream{
+    private class InlineBinary extends OutputStream {
         final byte[] src = new byte[BASE64_CHUNK_LENGTH];
         final byte[] dst = new byte[BUFFER_LENGTH];
         final Base64.Encoder base64Encoder = Base64.getEncoder();
-        final DicomOutputStream dos = new DicomOutputStream(this).withEncoding(DicomEncoding.EVR_LE);
-        int count;
+        int pos;
 
         @Override
         public void write(int b) throws IOException {
-            src[count++] = (byte) b;
+            src[pos++] = (byte) b;
             encodeIfFull();
         }
 
@@ -260,9 +245,9 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         public void write(byte[] b, int off, int len) throws IOException {
             int n;
             while (len > 0) {
-                n = Math.min(len, BASE64_CHUNK_LENGTH - count);
-                System.arraycopy(b, off, src, count, n);
-                count += n;
+                n = Math.min(len, BASE64_CHUNK_LENGTH - pos);
+                System.arraycopy(b, off, src, pos, n);
+                pos += n;
                 off += n;
                 len -= n;
                 encodeIfFull();
@@ -270,12 +255,12 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         }
 
         void finish() throws IOException {
-            if (count > 0)
-                encode(Arrays.copyOf(src, count));
+            if (pos > 0)
+                encode(Arrays.copyOf(src, pos));
         }
 
         private void encodeIfFull() throws IOException {
-            if (count == BASE64_CHUNK_LENGTH)
+            if (pos == BASE64_CHUNK_LENGTH)
                 encode(src);
         }
 
@@ -289,7 +274,7 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
             } catch (SAXException e) {
                 throw new IOException(e);
             }
-            count = 0;
+            pos = 0;
         }
     }
 }

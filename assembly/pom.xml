@@ -62,7 +62,7 @@
     </dependency>
     <dependency>
       <groupId>org.dcm4che.tool</groupId>
-      <artifactId>dcm4che-tool-dcmdump</artifactId>
+      <artifactId>dcm4che-tool-dcm2json</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -71,9 +71,9 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>${picocli.version}</version>
+      <groupId>org.dcm4che.tool</groupId>
+      <artifactId>dcm4che-tool-dcmdump</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 

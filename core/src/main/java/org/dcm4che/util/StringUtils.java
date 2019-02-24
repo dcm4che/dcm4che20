@@ -98,7 +98,7 @@ public class StringUtils {
             return new String[] { trim.substring(s, 0, length) };
 
         int count = 2;
-        while ((index = s.lastIndexOf(delim, index - 1)) > 0) {
+        while ((index = s.lastIndexOf(delim, index - 1)) >= 0) {
             count++;
         }
         String[] ss = new String[count];
