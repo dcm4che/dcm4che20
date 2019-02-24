@@ -59,6 +59,7 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
         int tag = dcmElm.tag();
         VR vr = dcmElm.vr();
         if (tag == Tag.TransferSyntaxUID || tag == Tag.SpecificCharacterSet || TagUtils.isPrivateCreator(tag)) {
+            dis.loadValueFromStream();
             dcmElm.containedBy().setString(tag, vr, dcmElm.stringValues());
         }
         return true;

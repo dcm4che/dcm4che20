@@ -200,10 +200,13 @@ class MemoryCache {
     }
 
     void skipBytes(long pos, int len, InputStream in, OutputStream out) throws IOException {
-        long skip = pos + len - length;
+        int skip = (int) (pos + len - length);
         long pos1 = pos - skippedBytes(pos);
-        byte[] b = blocks.get(blockIndex(pos1));
+        int index = blockIndex(pos1);
+        byte[] b = blocks.get(index);
         int off = blockOffset(b, pos1);
+        byte[] src = blocks.get(blocks.size() - 1);
+        int srcPos = blockOffset(src, pos1 + len);
         if (out != null) {
             out.write(b, off, skip <= 0 ? len : b.length - off);
         }
@@ -218,7 +221,15 @@ class MemoryCache {
 
             length += skip;
         } else if (skip < 0) {
-            System.arraycopy(b, off + len, b, off, (int) -skip);
+            int len1;
+            while ((len1 = b.length - off) < -skip) {
+                System.arraycopy(src, srcPos, b, off, len1);
+                srcPos += len1;
+                skip += len1;
+                off = 0;
+                b = blocks.get(++index);
+            }
+            System.arraycopy(src, srcPos, b, off, -skip);
             off -= skip;
         }
         if (!eof) {
