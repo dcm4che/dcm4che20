@@ -342,7 +342,7 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         pos += 2;
         cache.loadFromStream(pos + valueLength, in);
         dcmObj.add(new BulkDataElement(
-                dcmObj, tag, vr, input.stringAt(pos, valueLength, SpecificCharacterSet.UTF_8)));
+                dcmObj, tag, vr, input.stringAt(pos, valueLength, SpecificCharacterSet.UTF_8), null));
         pos += valueLength;
     }
 
@@ -516,7 +516,7 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         if (bulkData) {
             String bulkDataURI = bulkDataURI();
             if (bulkDataURI != null) {
-                dcmElm = new BulkDataElement(dcmElm.containedBy(), tag, vr, bulkDataURI);
+                dcmElm = new BulkDataElement(dcmElm.containedBy(), tag, vr, bulkDataURI, null);
                 dcmElm.containedBy().add(dcmElm);
             }
             skipBulkData();

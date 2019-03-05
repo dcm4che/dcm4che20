@@ -85,7 +85,10 @@ class MemoryCache {
     }
 
     byte byteAt(long pos) {
-        pos -= skippedBytes(pos);
+        return byteAt1(pos - skippedBytes(pos));
+    }
+
+    private byte byteAt1(long pos) {
         byte[] b = blocks.get(blockIndex(pos));
         return b[blockOffset(b, pos)];
     }
@@ -100,7 +103,7 @@ class MemoryCache {
         int offset = blockOffset(b, pos);
         return (offset + 1 < b.length)
                 ? byteOrder.bytesToShort(b, offset)
-                : byteOrder.bytesToShort(byteAt(pos), byteAt(pos + 1));
+                : byteOrder.bytesToShort(byteAt1(pos), byteAt1(pos + 1));
     }
 
     int ushortAt(long pos, ByteOrder byteOrder) {
@@ -113,7 +116,7 @@ class MemoryCache {
         int offset = blockOffset(b, pos);
         return (offset + 3 < b.length)
                 ? byteOrder.bytesToInt(b, offset)
-                : byteOrder.bytesToInt(byteAt(pos), byteAt(pos + 1), byteAt(pos + 2), byteAt(pos + 3));
+                : byteOrder.bytesToInt(byteAt1(pos), byteAt1(pos + 1), byteAt1(pos + 2), byteAt1(pos + 3));
     }
 
     long uintAt(long pos, ByteOrder byteOrder) {
@@ -126,7 +129,7 @@ class MemoryCache {
         int offset = blockOffset(b, pos);
         return (offset + 3 < b.length)
                 ? byteOrder.bytesToTag(b, offset)
-                : byteOrder.bytesToTag(byteAt(pos), byteAt(pos + 1), byteAt(pos + 2), byteAt(pos + 3));
+                : byteOrder.bytesToTag(byteAt1(pos), byteAt1(pos + 1), byteAt1(pos + 2), byteAt1(pos + 3));
     }
 
     long longAt(long pos, ByteOrder byteOrder) {
@@ -135,8 +138,8 @@ class MemoryCache {
         int offset = blockOffset(b, pos);
         return (offset + 7 < b.length)
                 ? byteOrder.bytesToLong(b, offset)
-                : byteOrder.bytesToLong(byteAt(pos), byteAt(pos + 1), byteAt(pos + 2), byteAt(pos + 3),
-                                byteAt(pos + 4), byteAt(pos + 5), byteAt(pos + 6), byteAt(pos + 7));
+                : byteOrder.bytesToLong(byteAt1(pos), byteAt1(pos + 1), byteAt1(pos + 2), byteAt1(pos + 3),
+                                byteAt1(pos + 4), byteAt1(pos + 5), byteAt1(pos + 6), byteAt1(pos + 7));
     }
 
     String stringAt(long pos, int len, SpecificCharacterSet cs) {

@@ -1,7 +1,7 @@
 package org.dcm4che.tool.dcm2json;
 
 import org.dcm4che.data.DicomInputStream;
-import org.dcm4che.json.DicomJsonGeneratorAdaptor;
+import org.dcm4che.json.JsonWriter;
 import picocli.CommandLine;
 
 import javax.json.Json;
@@ -25,7 +25,7 @@ import java.util.concurrent.Callable;
         descriptionHeading = "%n",
         description = {
                 "The dcm2json utility converts the contents of a DICOM file (file format or raw data set) to " +
-                "JSON (JavaScript Object Notation). The output refers to the DICOM JSON Model', which is " +
+                "JSON (JavaScript Object Notation). The output refers to the 'DICOM JSON Model', which is " +
                 "found in DICOM Part 18 Section F." },
         parameterListHeading = "%nParameters:%n",
         optionListHeading = "%nOptions:%n",
@@ -71,7 +71,7 @@ public class Dcm2Json implements Callable<Dcm2Json> {
         try (JsonGenerator gen = createGenerator(System.out);
              DicomInputStream dis = new DicomInputStream(stdin ? System.in : Files.newInputStream(file))) {
             gen.writeStartObject();
-            dis.withInputHandler(new DicomJsonGeneratorAdaptor(gen, System.out));
+            dis.withInputHandler(new JsonWriter(gen, System.out));
             if (!inlineBulkData) {
                 dis.withBulkData(DicomInputStream::isBulkData);
                 if (!noBulkData)

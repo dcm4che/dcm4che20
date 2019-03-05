@@ -320,7 +320,9 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public DicomElement setNull(String privateCreator, int tag, VR vr) {
-        return setNull(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr);
+        return setNull(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag,
+                vr);
     }
 
     public DicomElement setBytes(int tag, VR vr, byte[] val) {
@@ -328,7 +330,9 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public DicomElement setBytes(String privateCreator, int tag, VR vr, byte[] val) {
-        return setBytes(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, val);
+        return setBytes(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag,
+                vr, val);
     }
 
     public DicomElement setInt(int tag, VR vr, int... vals) {
@@ -336,7 +340,9 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public DicomElement setInt(String privateCreator, int tag, VR vr, int... vals) {
-        return setInt(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
+        return setInt(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag,
+                vr, vals);
     }
 
     public DicomElement setFloat(int tag, VR vr, float... vals) {
@@ -344,7 +350,9 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public DicomElement setFloat(String privateCreator, int tag, VR vr, float... vals) {
-        return setFloat(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
+        return setFloat(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag,
+                vr, vals);
     }
 
     public DicomElement setDouble(int tag, VR vr, double... vals) {
@@ -364,19 +372,25 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public DicomElement setString(String privateCreator, int tag, VR vr, String val) {
-        return setString(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, val);
+        return setString(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag,
+                vr, val);
     }
 
     public DicomElement setString(String privateCreator, int tag, VR vr, String... vals) {
-        return setString(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, vals);
+        return setString(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag,
+                vr, vals);
     }
 
-    public DicomElement setBulkData(int tag, VR vr, String uri) {
-        return add(new BulkDataElement(this, tag, vr, uri));
+    public DicomElement setBulkData(int tag, VR vr, String uri, String uuid) {
+        return add(new BulkDataElement(this, tag, vr, uri, uuid));
     }
 
-    public DicomElement setBulkData(String privateCreator, int tag, VR vr, String uri) {
-        return setBulkData(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag), vr, uri);
+    public DicomElement setBulkData(String privateCreator, int tag, VR vr, String uri, String uuid) {
+        return setBulkData(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag,
+                vr, uri, uuid);
     }
 
     public DicomSequence newDicomSequence(int tag) {
@@ -385,8 +399,9 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return seq;
     }
 
-    public DicomElement newDicomSequence(String privateCreator, int tag) {
-        return newDicomSequence(TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag));
+    public DicomSequence newDicomSequence(String privateCreator, int tag) {
+        return newDicomSequence(
+                privateCreator != null ? TagUtils.toPrivateTag(creatorTag(privateCreator, tag, true), tag) : tag);
     }
 
     private static int binarySearch(List<DicomElement> l, int tag) {

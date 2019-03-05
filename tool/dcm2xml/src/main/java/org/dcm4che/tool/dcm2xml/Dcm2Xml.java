@@ -1,7 +1,7 @@
 package org.dcm4che.tool.dcm2xml;
 
 import org.dcm4che.data.DicomInputStream;
-import org.dcm4che.xml.DicomContentHandlerAdapter;
+import org.dcm4che.xml.SAXWriter;
 import picocli.CommandLine;
 
 import javax.xml.transform.OutputKeys;
@@ -29,7 +29,7 @@ import java.util.concurrent.Callable;
         version = "dcm2xml 6.0.0",
         descriptionHeading = "%n",
         description = { "The dcm2xml utility converts the contents of a DICOM file (file format or raw data set) to " +
-                "XML (Extensible Markup Language) according the \"Native DICOM Model\" which is specified for the " +
+                "XML (Extensible Markup Language) according the 'Native DICOM Model' which is specified for the " +
                 "DICOM Application Hosting service found in DICOM part 19." },
         parameterListHeading = "%nParameters:%n",
         optionListHeading = "%nOptions:%n",
@@ -96,7 +96,7 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
         t.setOutputProperty(OutputKeys.INDENT, indent ? "yes" : "no");
         t.setOutputProperty(OutputKeys.VERSION, xml11 ? XML_1_1 : XML_1_0);
         th.setResult(new StreamResult(System.out));
-        DicomContentHandlerAdapter handler = new DicomContentHandlerAdapter(th)
+        SAXWriter handler = new SAXWriter(th)
                 .withIncludeKeyword(!noKeyword)
                 .withIncludeNamespaceDeclaration(includeNamespaceDeclaration);
         handler.startDocument();

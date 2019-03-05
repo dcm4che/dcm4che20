@@ -136,9 +136,9 @@ class DicomOutputStreamTest {
         DicomSequence seq = data.newDicomSequence(Tag.WaveformSequence);
         DicomObject item = new DicomObject();
         seq.addItem(item);
-        item.setBulkData(Tag.WaveformData, VR.OW, baseURL + "#offset=32&length=256");
-        data.setBulkData(Tag.OverlayData, VR.OW, baseURL + "#offset=300&length=256");
-        data.setBulkData(Tag.PixelData, VR.OB, baseURL + "#offset=568");
+        item.setBulkData(Tag.WaveformData, VR.OW, baseURL + "#offset=32&length=256", null);
+        data.setBulkData(Tag.OverlayData, VR.OW, baseURL + "#offset=300&length=256", null);
+        data.setBulkData(Tag.PixelData, VR.OB, baseURL + "#offset=568", null);
         data.setNull(Tag.DataSetTrailingPadding, VR.OB);
         assertArrayEquals(resourceAsBytes("waveform_overlay_pixeldata.dcm"),
                 writeDataset(DicomEncoding.EVR_LE, false,

@@ -41,6 +41,7 @@
         <include>org.dcm4che.tool:dcm4che-tool-dcm2json</include>
         <include>org.dcm4che.tool:dcm4che-tool-dcm2xml</include>
         <include>org.dcm4che.tool:dcm4che-tool-dcmdump</include>
+        <include>org.dcm4che.tool:dcm4che-tool-xml2dcm</include>
         <include>org.glassfish:javax.json</include>
         <include>info.picocli:picocli</include>
       </includes>

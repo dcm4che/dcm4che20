@@ -67,94 +67,57 @@ public class SpecificCharacterSet {
             if (code == null || code.isEmpty())
                 return SpecificCharacterSet.DEFAULT.codecs[0];
 
-            switch(last2digits(code)) {
-                case 0:
-                    if (code.equals("ISO_IR 100") || code.equals("ISO 2022 IR 100"))
-                        return Codec.ISO_8859_1;
-                    break;
-                case 1:
-                    if (code.equals("ISO_IR 101") || code.equals("ISO 2022 IR 101"))
-                        return Codec.ISO_8859_2;
-                    break;
-                case 6:
-                    if (code.equals("ISO 2022 IR 6"))
-                        return SpecificCharacterSet.DEFAULT.codecs[0];
-                    break;
-                case 9:
-                    if (code.equals("ISO_IR 109") || code.equals("ISO 2022 IR 109"))
-                        return Codec.ISO_8859_3;
-                    break;
-                case 10:
-                    if (code.equals("ISO_IR 110") || code.equals("ISO 2022 IR 110"))
-                        return Codec.ISO_8859_4;
-                    break;
-                case 13:
-                    if (code.equals("ISO_IR 13") || code.equals("ISO 2022 IR 13"))
-                        return Codec.JIS_X_201;
-                    break;
-                case 26:
-                    if (code.equals("ISO_IR 126") || code.equals("ISO 2022 IR 126"))
-                        return Codec.ISO_8859_7;
-                    break;
-                case 27:
-                    if (code.equals("ISO_IR 127") || code.equals("ISO 2022 IR 127"))
-                        return Codec.ISO_8859_6;
-                    break;
-                case 30:
-                    if (code.equals("GB18030"))
-                        return Codec.GB18030;
-                    break;
-                case 31:
-                    if (code.equals("GBK"))
-                        return Codec.GB18030;
-                    break;
-                case 38:
-                    if (code.equals("ISO_IR 138") || code.equals("ISO 2022 IR 138"))
-                        return Codec.ISO_8859_8;
-                    break;
-                case 44:
-                    if (code.equals("ISO_IR 144") || code.equals("ISO 2022 IR 144"))
-                        return Codec.ISO_8859_5;
-                    break;
-                case 48:
-                    if (code.equals("ISO_IR 148") || code.equals("ISO 2022 IR 148"))
-                        return Codec.ISO_8859_9;
-                    break;
-                case 49:
-                    if (code.equals("ISO 2022 IR 149"))
-                        return Codec.KS_X_1001;
-                    break;
-                case 58:
-                    if (code.equals("ISO 2022 IR 58"))
-                        return Codec.GB2312;
-                    break;
-                case 59:
-                    if (code.equals("ISO 2022 IR 159"))
-                        return Codec.JIS_X_212;
-                    break;
-                case 66:
-                    if (code.equals("ISO_IR 166") || code.equals("ISO 2022 IR 166"))
-                        return Codec.TIS_620;
-                    break;
-                case 87:
-                    if (code.equals("ISO 2022 IR 87"))
-                        return Codec.JIS_X_208;
-                    break;
-                case 92:
-                    if (code.equals("ISO_IR 192"))
-                        return Codec.UTF_8;
-                    break;
+            switch(code) {
+                case "ISO 2022 IR 6":
+                    return SpecificCharacterSet.DEFAULT.codecs[0];
+                case "ISO_IR 100":
+                case "ISO 2022 IR 100":
+                    return Codec.ISO_8859_1;
+                case "ISO_IR 101":
+                case "ISO 2022 IR 101":
+                    return Codec.ISO_8859_2;
+                case "ISO_IR 109":
+                case "ISO 2022 IR 109":
+                    return Codec.ISO_8859_3;
+                case "ISO_IR 110":
+                case "ISO 2022 IR 110":
+                    return Codec.ISO_8859_4;
+                case "ISO_IR 144":
+                case "ISO 2022 IR 144":
+                    return Codec.ISO_8859_5;
+                case "ISO_IR 127":
+                case "ISO 2022 IR 127":
+                    return Codec.ISO_8859_6;
+                case "ISO_IR 126":
+                case "ISO 2022 IR 126":
+                    return Codec.ISO_8859_7;
+                case "ISO_IR 138":
+                case "ISO 2022 IR 138":
+                    return Codec.ISO_8859_8;
+                case "ISO_IR 148":
+                case "ISO 2022 IR 148":
+                    return Codec.ISO_8859_9;
+                case "ISO_IR 13":
+                case "ISO 2022 IR 13":
+                    return Codec.JIS_X_201;
+                case "ISO_IR 166":
+                case "ISO 2022 IR 166":
+                    return Codec.TIS_620;
+                case "ISO 2022 IR 87":
+                    return Codec.JIS_X_208;
+                case "ISO 2022 IR 159":
+                    return Codec.JIS_X_212;
+                case "ISO 2022 IR 149":
+                    return Codec.KS_X_1001;
+                case "ISO 2022 IR 58":
+                    return Codec.GB2312;
+                case "ISO_IR 192":
+                    return Codec.UTF_8;
+                case "GB18030":
+                case "GBK":
+                    return Codec.GB18030;
             }
             return SpecificCharacterSet.DEFAULT.codecs[0];
-        }
-
-        private static int last2digits(String code) {
-            int len = code.length();
-            if (len < 2)
-                return -1;
-            char ch1 = code.charAt(len-1);
-            char ch2 = code.charAt(len-2);
-            return (ch2 & 15) * 10 + (ch1 & 15);
         }
 
         public byte[] encode(String val) {

@@ -17,6 +17,7 @@
     <module>dcmdump</module>
     <module>dcm2xml</module>
     <module>dcm2json</module>
+    <module>xml2dcm</module>
   </modules>
 
   <dependencies>

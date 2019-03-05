@@ -68,7 +68,7 @@ class DicomObjectTest {
         DicomSequence seq = data.newDicomSequence(Tag.WaveformSequence);
         DicomObject item = new DicomObject();
         seq.addItem(item);
-        item.setBulkData(Tag.WaveformData, VR.OW, BULK_DATA_URI);
+        item.setBulkData(Tag.WaveformData, VR.OW, BULK_DATA_URI, null);
         data = deserialize(serialize(data));
         DicomElement elm = data.get(Tag.WaveformSequence);
         assertTrue(elm instanceof DicomSequence);

@@ -15,7 +15,7 @@ import java.util.Base64;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jan 2019
  */
-public class DicomContentHandlerAdapter implements DicomInputHandler {
+public class SAXWriter implements DicomInputHandler {
     private static final String NAMESPACE = "http://dicom.nema.org/PS3.19/models/NativeDICOM";
     private static final int BASE64_CHUNK_LENGTH = 256 * 3;
     private static final int BUFFER_LENGTH = 256 * 4;
@@ -29,7 +29,7 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
     private InlineBinary inlineBinary;
     private String bulkDataURI;
 
-    public DicomContentHandlerAdapter(ContentHandler handler) {
+    public SAXWriter(ContentHandler handler) {
         this.handler = handler;
     }
 
@@ -37,7 +37,7 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         return includeKeyword;
     }
 
-    public DicomContentHandlerAdapter withIncludeKeyword(boolean includeKeyword) {
+    public SAXWriter withIncludeKeyword(boolean includeKeyword) {
         this.includeKeyword = includeKeyword;
         return this;
     }
@@ -46,7 +46,7 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         return namespace == NAMESPACE;
     }
 
-    public DicomContentHandlerAdapter withIncludeNamespaceDeclaration(boolean includeNameSpaceDeclaration) {
+    public SAXWriter withIncludeNamespaceDeclaration(boolean includeNameSpaceDeclaration) {
         this.namespace = includeNameSpaceDeclaration ? NAMESPACE : "";
         return this;
     }
@@ -232,7 +232,6 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
     private class InlineBinary extends OutputStream {
         final byte[] src = new byte[BASE64_CHUNK_LENGTH];
         final byte[] dst = new byte[BUFFER_LENGTH];
-        final Base64.Encoder base64Encoder = Base64.getEncoder();
         int pos;
 
         @Override
@@ -265,7 +264,7 @@ public class DicomContentHandlerAdapter implements DicomInputHandler {
         }
 
         private void encode(byte[] src) throws IOException {
-            int length = base64Encoder.encode(src, dst);
+            int length = Base64.getEncoder().encode(src, dst);
             for (int i = 0; i < length; i++) {
                 ch[i] = (char) dst[i];
             }

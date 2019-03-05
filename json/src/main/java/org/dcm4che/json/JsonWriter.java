@@ -14,7 +14,7 @@ import java.util.function.IntConsumer;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jan 2019
  */
-public class DicomJsonGeneratorAdaptor implements DicomInputHandler {
+public class JsonWriter implements DicomInputHandler {
 
     private static final int BASE64_CHUNK_LENGTH = 256 * 3;
     private static final int BUFFER_LENGTH = 256 * 4;
@@ -27,7 +27,7 @@ public class DicomJsonGeneratorAdaptor implements DicomInputHandler {
     private String bulkDataURI;
     private InlineBinary inlineBinary;
 
-    public DicomJsonGeneratorAdaptor(JsonGenerator gen, OutputStream out) {
+    public JsonWriter(JsonGenerator gen, OutputStream out) {
         this.gen = gen;
         this.out = out;
     }
@@ -154,7 +154,6 @@ public class DicomJsonGeneratorAdaptor implements DicomInputHandler {
     private class InlineBinary extends OutputStream {
         final byte[] src = new byte[BASE64_CHUNK_LENGTH];
         final byte[] dst = new byte[BUFFER_LENGTH];
-        final Base64.Encoder base64Encoder = Base64.getEncoder();
         int pos;
 
         @Override
@@ -187,7 +186,7 @@ public class DicomJsonGeneratorAdaptor implements DicomInputHandler {
         }
 
         private void encode(byte[] src) throws IOException {
-            int length = base64Encoder.encode(src, dst);
+            int length = Base64.getEncoder().encode(src, dst);
             out.write(dst, 0, length);
             pos = 0;
         }
