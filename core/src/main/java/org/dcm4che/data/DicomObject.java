@@ -475,6 +475,30 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return sb;
     }
 
+    public DicomObject createFileMetaInformation(String tsuid) {
+        return createFileMetaInformation(getString(Tag.SOPInstanceUID), getString(Tag.SOPClassUID), tsuid);
+    }
+
+    public static DicomObject createFileMetaInformation(String iuid,
+            String cuid, String tsuid) {
+        if (iuid == null || iuid.isEmpty())
+            throw new IllegalArgumentException("Missing SOP Instance UID");
+        if (cuid == null || cuid.isEmpty())
+            throw new IllegalArgumentException("Missing SOP Class UID");
+        if (tsuid == null || tsuid.isEmpty())
+            throw new IllegalArgumentException("Missing Transfer Syntax UID");
+
+        DicomObject fmi = new DicomObject();
+        fmi.setBytes(Tag.FileMetaInformationVersion, VR.OB,
+                new byte[]{ 0, 1 });
+        fmi.setString(Tag.MediaStorageSOPClassUID, VR.UI, cuid);
+        fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, iuid);
+        fmi.setString(Tag.TransferSyntaxUID, VR.UI, tsuid);
+        fmi.setString(Tag.ImplementationClassUID, VR.UI, Implementation.getClassUID());
+        fmi.setString(Tag.ImplementationVersionName, VR.SH, Implementation.getVersionName());
+        return fmi;
+    }
+
     private static class PrivateCreator {
         final int tag;
         final String value;

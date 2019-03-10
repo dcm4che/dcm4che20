@@ -1,13 +1,13 @@
-package org.dcm4che.tool.xml2dcm;
+package org.dcm4che.tool.json2dcm;
 
 import org.dcm4che.data.DicomEncoding;
 import org.dcm4che.data.DicomObject;
 import org.dcm4che.data.DicomOutputStream;
 import org.dcm4che.data.Tag;
-import org.dcm4che.xml.SAXReader;
+import org.dcm4che.json.JSONReader;
 import picocli.CommandLine;
 
-import java.io.InputStream;
+import javax.json.Json;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -17,27 +17,27 @@ import java.util.concurrent.Callable;
  * @since Mar 2019
  */
 @CommandLine.Command(
-        name = "xml2dcm",
+        name = "json2dcm",
         mixinStandardHelpOptions = true,
-        version = "xml2dcm 6.0.0",
+        version = "json2dcm 6.0.0",
         descriptionHeading = "%n",
-        description = {"The xml2dcm utility converts the contents of an XML (Extensible Markup Language) document " +
-                "to DICOM file or data set. The XML document is expected to be valid according the 'Native DICOM " +
-                "Model' which is specified for the DICOM Application Hosting service found in DICOM part 19."},
+        description = {"The json2dcm utility converts the contents of a JSON (JavaScript Object Notation) file to " +
+                "DICOM file or data set. The input refers to the 'DICOM JSON Model', which is found in DICOM Part 18 " +
+                "Section F."},
         parameterListHeading = "%nParameters:%n",
         optionListHeading = "%nOptions:%n",
         showDefaultValues = true,
         footerHeading = "%nExample:%n",
         footer = {
-                "$ xml2dcm dataset.xml dataset.dcm",
-                "Convert XML document dataset.xml to DICOM file dataset.dcm"}
+                "$ json2dcm dataset.json dataset.dcm",
+                "Convert JSON file dataset.json to DICOM file dataset.dcm"}
 )
-public class Xml2Dcm implements Callable<Xml2Dcm> {
+public class Json2Dcm implements Callable<Json2Dcm> {
 
     @CommandLine.Parameters(
-            description = "XML input filename to be converted (stdin: '-- -').",
+            description = "JSON input filename to be converted (stdin: '-- -').",
             index = "0")
-    Path xmlfile;
+    Path jsonfile;
 
     @CommandLine.Parameters(
             description = "DICOM output filename.",
@@ -45,7 +45,7 @@ public class Xml2Dcm implements Callable<Xml2Dcm> {
     Path dcmfile;
 
     @CommandLine.Option(names = {"-F", "--no-fmi"},
-            description = "Ignore File Meta Information from XML file.")
+            description = "Ignore File Meta Information from JSON file.")
     boolean nofmi;
 
     @CommandLine.Option(names = {"-f", "--fmi"},
@@ -77,16 +77,17 @@ public class Xml2Dcm implements Callable<Xml2Dcm> {
     DicomOutputStream.LengthEncoding itemLengthEncoding = DicomOutputStream.LengthEncoding.UNDEFINED_OR_ZERO;
 
     public static void main(String[] args) {
-        CommandLine.call(new Xml2Dcm(), args);
+        CommandLine.call(new Json2Dcm(), args);
     }
 
     @Override
-    public Xml2Dcm call() throws Exception {
-        boolean stdin = xmlfile.toString().equals("-");
+    public Json2Dcm call() throws Exception {
+        boolean stdin = jsonfile.toString().equals("-");
         DicomObject fmi;
         DicomObject dcmobj = new DicomObject();
-        try (InputStream in = stdin ? System.in : Files.newInputStream(xmlfile)) {
-            fmi = SAXReader.parse(in, dcmobj);
+        try (JSONReader reader =
+                     new JSONReader(Json.createParser(stdin ? System.in : Files.newInputStream(jsonfile)))) {
+            fmi = reader.readDataset(dcmobj);
         }
         if (dicomEncoding == null) {
             dicomEncoding =  fmi != null

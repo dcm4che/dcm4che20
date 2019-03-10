@@ -14,7 +14,7 @@ import java.util.function.IntConsumer;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jan 2019
  */
-public class JsonWriter implements DicomInputHandler {
+public class JSONWriter implements DicomInputHandler {
 
     private static final int BASE64_CHUNK_LENGTH = 256 * 3;
     private static final int BUFFER_LENGTH = 256 * 4;
@@ -27,7 +27,7 @@ public class JsonWriter implements DicomInputHandler {
     private String bulkDataURI;
     private InlineBinary inlineBinary;
 
-    public JsonWriter(JsonGenerator gen, OutputStream out) {
+    public JSONWriter(JsonGenerator gen, OutputStream out) {
         this.gen = gen;
         this.out = out;
     }
@@ -127,17 +127,26 @@ public class JsonWriter implements DicomInputHandler {
             inlineBinary.finish();
             out.write('"');
         }
+        if (dcmElm.vr() == VR.SQ && !dcmElm.isEmpty()) {
+            gen.writeEnd();
+        }
         gen.writeEnd();
         return true;
     }
 
     @Override
     public boolean startItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+        if (dcmObj.containedBy().isEmpty()) {
+            gen.writeStartArray("Value");
+        }
+        gen.writeStartObject();
+        dcmObj.containedBy().addItem(dcmObj);
         return true;
     }
 
     @Override
     public boolean endItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+        gen.writeEnd();
         return true;
     }
 

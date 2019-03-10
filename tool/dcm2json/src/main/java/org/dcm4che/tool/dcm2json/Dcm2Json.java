@@ -1,7 +1,7 @@
 package org.dcm4che.tool.dcm2json;
 
 import org.dcm4che.data.DicomInputStream;
-import org.dcm4che.json.JsonWriter;
+import org.dcm4che.json.JSONWriter;
 import picocli.CommandLine;
 
 import javax.json.Json;
@@ -71,7 +71,7 @@ public class Dcm2Json implements Callable<Dcm2Json> {
         try (JsonGenerator gen = createGenerator(System.out);
              DicomInputStream dis = new DicomInputStream(stdin ? System.in : Files.newInputStream(file))) {
             gen.writeStartObject();
-            dis.withInputHandler(new JsonWriter(gen, System.out));
+            dis.withInputHandler(new JSONWriter(gen, System.out));
             if (!inlineBulkData) {
                 dis.withBulkData(DicomInputStream::isBulkData);
                 if (!noBulkData)
