@@ -21,7 +21,7 @@ import java.util.concurrent.Callable;
 @CommandLine.Command(
         name = "dcm2json",
         mixinStandardHelpOptions = true,
-        version = "dcm2json 6.0.0",
+        versionProvider = Dcm2Json.ModuleVersionProvider.class,
         descriptionHeading = "%n",
         description = {
                 "The dcm2json utility converts the contents of a DICOM file (file format or raw data set) to " +
@@ -37,6 +37,12 @@ import java.util.concurrent.Callable;
                 "to the pixel data in image.dcm" }
 )
 public class Dcm2Json implements Callable<Dcm2Json> {
+
+    static class ModuleVersionProvider implements CommandLine.IVersionProvider {
+        public String[] getVersion() throws Exception {
+            return new String[]{Dcm2Json.class.getModule().getDescriptor().rawVersion().orElse("6")};
+        }
+    }
 
     @CommandLine.Parameters(description = "DICOM input filename to be converted. Use '-- -' to read from standard input.")
     Path file;

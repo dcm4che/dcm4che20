@@ -26,7 +26,7 @@ import java.util.concurrent.Callable;
 @CommandLine.Command(
         name = "dcm2xml",
         mixinStandardHelpOptions = true,
-        version = "dcm2xml 6.0.0",
+        versionProvider = Dcm2Xml.ModuleVersionProvider.class,
         descriptionHeading = "%n",
         description = { "The dcm2xml utility converts the contents of a DICOM file (file format or raw data set) to " +
                 "XML (Extensible Markup Language) according the 'Native DICOM Model' which is specified for the " +
@@ -41,6 +41,12 @@ import java.util.concurrent.Callable;
                         "to the pixel data in image.dcm" }
 )
 public class Dcm2Xml implements Callable<Dcm2Xml> {
+
+    static class ModuleVersionProvider implements CommandLine.IVersionProvider {
+        public String[] getVersion() throws Exception {
+            return new String[]{Dcm2Xml.class.getModule().getDescriptor().rawVersion().orElse("6")};
+        }
+    }
 
     private static final String XML_1_0 = "1.0";
     private static final String XML_1_1 = "1.1";

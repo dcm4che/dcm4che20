@@ -494,8 +494,8 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         fmi.setString(Tag.MediaStorageSOPClassUID, VR.UI, cuid);
         fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, iuid);
         fmi.setString(Tag.TransferSyntaxUID, VR.UI, tsuid);
-        fmi.setString(Tag.ImplementationClassUID, VR.UI, Implementation.getClassUID());
-        fmi.setString(Tag.ImplementationVersionName, VR.SH, Implementation.getVersionName());
+        fmi.setString(Tag.ImplementationClassUID, VR.UI, Implementation.CLASS_UID);
+        fmi.setString(Tag.ImplementationVersionName, VR.SH, Implementation.VERSION_NAME);
         return fmi;
     }
 

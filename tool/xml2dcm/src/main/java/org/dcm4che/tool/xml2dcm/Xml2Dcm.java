@@ -19,7 +19,7 @@ import java.util.concurrent.Callable;
 @CommandLine.Command(
         name = "xml2dcm",
         mixinStandardHelpOptions = true,
-        version = "xml2dcm 6.0.0",
+        versionProvider = Xml2Dcm.ModuleVersionProvider.class,
         descriptionHeading = "%n",
         description = {"The xml2dcm utility converts the contents of an XML (Extensible Markup Language) document " +
                 "to DICOM file or data set. The XML document is expected to be valid according the 'Native DICOM " +
@@ -33,6 +33,12 @@ import java.util.concurrent.Callable;
                 "Convert XML document dataset.xml to DICOM file dataset.dcm"}
 )
 public class Xml2Dcm implements Callable<Xml2Dcm> {
+
+    static class ModuleVersionProvider implements CommandLine.IVersionProvider {
+        public String[] getVersion() throws Exception {
+            return new String[]{Xml2Dcm.class.getModule().getDescriptor().rawVersion().orElse("6")};
+        }
+    }
 
     @CommandLine.Parameters(
             description = "XML input filename to be converted (stdin: '-- -').",

@@ -16,7 +16,7 @@ import java.util.concurrent.Callable;
 @CommandLine.Command(
         name = "dcmdump",
         mixinStandardHelpOptions = true,
-        version = "dcmdump 6.0.0",
+        versionProvider = DcmDump.ModuleVersionProvider.class,
         descriptionHeading = "%n",
         description = "The dcmdump utility dumps the contents of a DICOM file (file format or raw data set) " +
                 "to standard output in textual form.",
@@ -28,12 +28,19 @@ import java.util.concurrent.Callable;
 )
 public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
 
+    static class ModuleVersionProvider implements CommandLine.IVersionProvider {
+        public String[] getVersion() throws Exception {
+            return new String[]{DcmDump.class.getModule().getDescriptor().rawVersion().orElse("6")};
+        }
+    }
+
     @CommandLine.Parameters(description = "DICOM input file to be dumped.")
     Path file;
 
     @CommandLine.Option(names = { "-w", "--width" },
             description = "Set output width to <cols>.")
     int cols = 80;
+
     int count;
 
     public static void main(String[] args) {

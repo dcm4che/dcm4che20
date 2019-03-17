@@ -4,7 +4,6 @@
 # -------------------------------------------------------------------------
 
 MAIN_MODULE=org.dcm4che.tool.dcmdump
-MAIN_CLASS=org.dcm4che.tool.dcmdump.DcmDump
 MAIN_JAR=dcm4che-tool-dcmdump-${project.version}.jar
 
 DIRNAME="`dirname "$0"`"
@@ -49,4 +48,4 @@ if $cygwin; then
 fi
 
 # Execute the JVM
-exec "$JAVA" $JAVA_OPTS -p "$MP" -m $MAIN_MODULE/$MAIN_CLASS "$@"
+exec "$JAVA" $JAVA_OPTS -p "$MP" -m $MAIN_MODULE "$@"

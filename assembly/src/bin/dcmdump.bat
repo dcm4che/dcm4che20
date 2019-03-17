@@ -7,7 +7,6 @@ if not "%ECHO%" == ""  echo %ECHO%
 if "%OS%" == "Windows_NT"  setlocal
 
 set MAIN_MODULE=org.dcm4che.tool.dcmdump
-set MAIN_CLASS=org.dcm4che.tool.dcmdump.DcmDump
 set MAIN_JAR=dcm4che-tool-dcmdump-${project.version}.jar
 
 set DIRNAME=.\
@@ -45,4 +44,4 @@ set MP=%MP%;%DCM4CHE_HOME%\lib\%MAIN_JAR%
 set MP=%MP%;%DCM4CHE_HOME%\lib\dcm4che-core-${project.version}.jar
 set MP=%MP%;%DCM4CHE_HOME%\lib\picocli-${picocli.version}.jar
 
-"%JAVA%" %JAVA_OPTS% -p "%MP%" -m %MAIN_MODULE%/%MAIN_CLASS% %ARGS%
+"%JAVA%" %JAVA_OPTS% -p "%MP%" -m %MAIN_MODULE% %ARGS%

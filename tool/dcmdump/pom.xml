@@ -18,4 +18,38 @@
       <version>${project.version}</version>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.6.0</version>
+        <executions>
+          <execution>
+            <id>add-version-to-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>jar</executable>
+              <workingDirectory>${project.build.directory}</workingDirectory>
+              <arguments>
+                <argument>--update</argument>
+                <argument>--verbose</argument>
+                <argument>--module-version</argument>
+                <argument>${project.version}</argument>
+                <argument>--file</argument>
+                <argument>${project.build.finalName}.jar</argument>
+                <argument>--main-class</argument>
+                <argument>org.dcm4che.tool.dcmdump.DcmDump</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>

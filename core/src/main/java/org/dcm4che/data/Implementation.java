@@ -43,20 +43,12 @@ package org.dcm4che.data;
  */
 public class Implementation {
 
-    private static final String IMPL_CLASS_UID = "1.2.40.0.13.1.3";
-    private static final String IMPL_VERS_NAME = versionName();
-    private static String versionName() {
-        StringBuilder sb = new StringBuilder(16);
-        sb.append("dcm4che-").append(Implementation.class.getPackage().getImplementationVersion());
-        return sb.substring(0, Math.min(16, sb.length()));
-    }
-
-    public static String getClassUID() {
-        return IMPL_CLASS_UID;
-    }
-
-    public static String getVersionName() {
-        return IMPL_VERS_NAME;
+    public static final String CLASS_UID;
+    public static final String VERSION_NAME;
+    static  {
+        String version = Implementation.class.getModule().getDescriptor().rawVersion().orElse("6");
+        CLASS_UID = "1.2.40.0.13.1.3.0." + version;
+        VERSION_NAME = "dcm4che@" + version;
     }
 
 }

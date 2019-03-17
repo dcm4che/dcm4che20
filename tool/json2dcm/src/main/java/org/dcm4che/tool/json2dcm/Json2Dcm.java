@@ -19,7 +19,7 @@ import java.util.concurrent.Callable;
 @CommandLine.Command(
         name = "json2dcm",
         mixinStandardHelpOptions = true,
-        version = "json2dcm 6.0.0",
+        versionProvider = Json2Dcm.ModuleVersionProvider.class,
         descriptionHeading = "%n",
         description = {"The json2dcm utility converts the contents of a JSON (JavaScript Object Notation) file to " +
                 "DICOM file or data set. The input refers to the 'DICOM JSON Model', which is found in DICOM Part 18 " +
@@ -33,6 +33,12 @@ import java.util.concurrent.Callable;
                 "Convert JSON file dataset.json to DICOM file dataset.dcm"}
 )
 public class Json2Dcm implements Callable<Json2Dcm> {
+
+    static class ModuleVersionProvider implements CommandLine.IVersionProvider {
+        public String[] getVersion() throws Exception {
+            return new String[]{Json2Dcm.class.getModule().getDescriptor().rawVersion().orElse("6")};
+        }
+    }
 
     @CommandLine.Parameters(
             description = "JSON input filename to be converted (stdin: '-- -').",

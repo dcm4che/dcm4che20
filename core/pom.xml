@@ -10,7 +10,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>dcm4che-core</artifactId>
-  <dependencies>
+
+   <dependencies>
     <dependency>
       <groupId>org.dcm4che</groupId>
       <artifactId>dcm4che-dict</artifactId>
@@ -140,6 +141,35 @@
               <sources>
                 <source>target/generated-java</source>
               </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.6.0</version>
+        <executions>
+          <execution>
+            <id>add-version-to-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>jar</executable>
+              <workingDirectory>${project.build.directory}</workingDirectory>
+              <arguments>
+                <argument>--update</argument>
+                <argument>--verbose</argument>
+                <argument>--module-version</argument>
+                <argument>${project.version}</argument>
+                <argument>--file</argument>
+                <argument>${project.build.finalName}.jar</argument>
+                <!-- workaround for https://bugs.openjdk.java.net/browse/JDK-8210454 -->
+                <argument>--main-class</argument>
+                <argument>org.dcm4che.data.Implementation</argument>
+              </arguments>
             </configuration>
           </execution>
         </executions>
