@@ -1,8 +1,12 @@
 package org.dcm4che.data;
 
+import org.dcm4che.util.OptionalFloat;
 import org.dcm4che.util.StringUtils;
 import org.dcm4che.util.TagUtils;
 
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 
@@ -94,10 +98,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public int intValue(DicomInput input, long valpos, int vallen, int index, int defaultValue) {
+    public OptionalInt intValue(DicomInput input, long valpos, int vallen, int index) {
         return (vallen / bytes) > index
-                ? dicomInputToInt.applyAsInt(input, valpos + (index * bytes))
-                : defaultValue;
+                ? OptionalInt.of(dicomInputToInt.applyAsInt(input, valpos + (index * bytes)))
+                : OptionalInt.empty();
     }
 
     @Override
@@ -110,10 +114,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public int intValue(byte[] value, int index, int defaultValue) {
+    public OptionalInt intValue(byte[] value, int index) {
         return (value.length / bytes) > index
-                ? bytesToInt.applyAsInt(value, index * bytes)
-                : defaultValue;
+                ? OptionalInt.of(bytesToInt.applyAsInt(value, index * bytes))
+                : OptionalInt.empty();
     }
 
     @Override
@@ -126,10 +130,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public float floatValue(DicomInput input, long valpos, int vallen, int index, float defaultValue) {
+    public OptionalFloat floatValue(DicomInput input, long valpos, int vallen, int index) {
         return (vallen / bytes) > index
-                ? dicomInputToFloat.applyAsFloat(input, valpos + (index * bytes))
-                : defaultValue;
+                ? OptionalFloat.of(dicomInputToFloat.applyAsFloat(input, valpos + (index * bytes)))
+                : OptionalFloat.empty();
     }
 
     @Override
@@ -142,10 +146,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public float floatValue(byte[] value, int index, float defaultValue) {
+    public OptionalFloat floatValue(byte[] value, int index) {
         return (value.length / bytes) > index
-                ? bytesToFloat.applyAsFloat(value, index * bytes)
-                : defaultValue;
+                ? OptionalFloat.of(bytesToFloat.applyAsFloat(value, index * bytes))
+                : OptionalFloat.empty();
     }
 
     @Override
@@ -158,10 +162,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public double doubleValue(DicomInput input, long valpos, int vallen, int index, double defaultValue) {
+    public OptionalDouble doubleValue(DicomInput input, long valpos, int vallen, int index) {
         return (vallen / bytes) > index
-                ? dicomInputToDouble.applyAsDouble(input, valpos + (index * bytes))
-                : defaultValue;
+                ? OptionalDouble.of(dicomInputToDouble.applyAsDouble(input, valpos + (index * bytes)))
+                : OptionalDouble.empty();
     }
 
     @Override
@@ -174,10 +178,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public double doubleValue(byte[] value, int index, double defaultValue) {
+    public OptionalDouble doubleValue(byte[] value, int index) {
         return (value.length / bytes) > index
-                ? bytesToDouble.applyAsDouble(value, index * bytes)
-                : defaultValue;
+                ? OptionalDouble.of(bytesToDouble.applyAsDouble(value, index * bytes))
+                : OptionalDouble.empty();
     }
 
     @Override
@@ -206,11 +210,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public String stringValue(DicomInput input, long valpos, int vallen, int index, DicomObject dcmobj,
-                              String defaultValue) {
+    public Optional<String> stringValue(DicomInput input, long valpos, int vallen, int index, DicomObject dcmobj) {
         return (vallen / bytes) > index
-                ? dicomInputToString.apply(input, valpos + (index * bytes))
-                : defaultValue;
+                ? Optional.of(dicomInputToString.apply(input, valpos + (index * bytes)))
+                : Optional.empty();
     }
 
     @Override
@@ -223,10 +226,10 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public String stringValue(byte[] value, int index, String defaultValue) {
+    public Optional<String> stringValue(byte[] value, int index) {
         return (value.length / bytes) > index
-                ? bytesToString.apply(value, index * bytes)
-                : defaultValue;
+                ? Optional.of(bytesToString.apply(value, index * bytes))
+                : Optional.empty();
     }
 
     @Override
@@ -241,21 +244,21 @@ enum BinaryVR implements VRType {
     @Override
     public <E extends Throwable> void forEach(DicomElement dcmElm, StringValueConsumer<E> action) throws E {
         for (int i = 0, n = dcmElm.valueLength() / bytes; i < n;) {
-            action.accept(dcmElm.stringValue(i, ""), ++i);
+            action.accept(dcmElm.stringValue(i).orElse(""), ++i);
         }
     }
 
     @Override
     public void forEach(DicomElement dcmElm, IntConsumer action) {
         for (int i = 0, n = dcmElm.valueLength() / bytes; i < n; i++) {
-            action.accept(dcmElm.intValue(i, 0));
+            action.accept(dcmElm.intValue(i).orElse(0));
         }
     }
 
     @Override
     public void forEach(DicomElement dcmElm, DoubleConsumer action) {
         for (int i = 0, n = dcmElm.valueLength() / bytes; i < n; i++) {
-            action.accept(dcmElm.doubleValue(i, 0));
+            action.accept(dcmElm.doubleValue(i).orElse(0));
         }
     }
 

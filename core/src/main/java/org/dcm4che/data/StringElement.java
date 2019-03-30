@@ -1,6 +1,11 @@
 package org.dcm4che.data;
 
+import org.dcm4che.util.OptionalFloat;
+
 import java.io.IOException;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -17,8 +22,8 @@ class StringElement extends BaseDicomElement {
     }
 
     @Override
-    public String stringValue(int index, String defaultValue) {
-        return vr.type.stringValue(value, index, defaultValue);
+    public Optional<String> stringValue(int index) {
+        return vr.type.stringValue(value, index);
     }
 
     @Override
@@ -27,8 +32,8 @@ class StringElement extends BaseDicomElement {
     }
 
     @Override
-    public int intValue(int index, int defaultValue) {
-        return vr.type.intValue(value, index, defaultValue);
+    public OptionalInt intValue(int index) {
+        return vr.type.intValue(value, index);
     }
 
     @Override
@@ -37,8 +42,8 @@ class StringElement extends BaseDicomElement {
     }
 
     @Override
-    public float floatValue(int index, float defaultValue) {
-        return vr.type.floatValue(value, index, defaultValue);
+    public OptionalFloat floatValue(int index) {
+        return vr.type.floatValue(value, index);
     }
 
     @Override
@@ -47,8 +52,8 @@ class StringElement extends BaseDicomElement {
     }
 
     @Override
-    public double doubleValue(int index, double defaultValue) {
-        return vr.type.doubleValue(value, index, defaultValue);
+    public OptionalDouble doubleValue(int index) {
+        return vr.type.doubleValue(value, index);
     }
 
     @Override

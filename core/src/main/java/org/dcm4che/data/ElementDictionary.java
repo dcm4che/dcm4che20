@@ -1,5 +1,6 @@
 package org.dcm4che.data;
 
+import java.util.Optional;
 import java.util.ServiceLoader;
 
 /**
@@ -21,8 +22,8 @@ public abstract class ElementDictionary {
         return StandardElementDictionary.INSTANCE;
     }
 
-    public static ElementDictionary elementDictionaryOf(String privateCreator) {
-        return privateCreator == null ? StandardElementDictionary.INSTANCE
+    public static ElementDictionary elementDictionaryOf(Optional<String> privateCreator) {
+        return !privateCreator.isPresent() ? StandardElementDictionary.INSTANCE
                 : loader.stream()
                 .map(ServiceLoader.Provider::get)
                 .filter(x -> privateCreator.equals(x.getPrivateCreator()))
@@ -36,15 +37,15 @@ public abstract class ElementDictionary {
         }
     }
 
-    public static VR vrOf(int tag, String privateCreator) {
+    public static VR vrOf(int tag, Optional<String> privateCreator) {
         return elementDictionaryOf(privateCreator).vrOf(tag);
     }
 
-    public static String keywordOf(int tag, String privateCreator) {
+    public static String keywordOf(int tag, Optional<String> privateCreator) {
         return elementDictionaryOf(privateCreator).keywordOf(tag);
     }
 
-    public static int tagForKeyword(String keyword, String privateCreatorID) {
+    public static int tagForKeyword(String keyword, Optional<String> privateCreatorID) {
         return elementDictionaryOf(privateCreatorID).tagForKeyword(keyword);
     }
 

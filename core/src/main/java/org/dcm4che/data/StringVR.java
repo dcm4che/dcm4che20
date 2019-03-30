@@ -2,6 +2,7 @@ package org.dcm4che.data;
 
 import org.dcm4che.util.StringUtils;
 
+import java.util.Optional;
 import java.util.function.*;
 
 /**
@@ -69,9 +70,8 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public String stringValue(DicomInput input, long valuePos, int valueLen, int index, DicomObject dcmobj,
-                              String defaultValue) {
-        return stringValue(input.stringAt(valuePos, valueLen, asciiOrCS.apply(dcmobj)), index, defaultValue);
+    public Optional<String> stringValue(DicomInput input, long valuePos, int valueLen, int index, DicomObject dcmobj) {
+        return stringValue(input.stringAt(valuePos, valueLen, asciiOrCS.apply(dcmobj)), index);
     }
 
     @Override
@@ -80,8 +80,8 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public String stringValue(String value, int index, String defaultValue) {
-        return vm.cut(value, index, trim, defaultValue);
+    public Optional<String> stringValue(String value, int index) {
+        return vm.cut(value, index, trim);
     }
 
     @Override
@@ -144,10 +144,10 @@ enum StringVR implements VRType {
     enum VM {
         SINGLE {
             @Override
-            String cut(String s, int index, StringUtils.Trim trim, String defaultValue) {
+            Optional<String> cut(String s, int index, StringUtils.Trim trim) {
                 return index == 0
-                        ? StringUtils.requireNonEmptyElse(StringUtils.trim(s, trim), defaultValue)
-                        : defaultValue;
+                        ? StringUtils.optionalOf(StringUtils.trim(s, trim))
+                        : Optional.empty();
             }
 
             @Override
@@ -167,9 +167,8 @@ enum StringVR implements VRType {
         },
         MULTI {
             @Override
-            String cut(String s, int index, StringUtils.Trim trim, String defaultValue) {
-                return StringUtils.requireNonEmptyElse(
-                        StringUtils.cut(s, s.length(), '\\', index, trim), defaultValue);
+            Optional<String> cut(String s, int index, StringUtils.Trim trim) {
+                return StringUtils.optionalOf(StringUtils.cut(s, s.length(), '\\', index, trim));
             }
 
             @Override
@@ -183,7 +182,7 @@ enum StringVR implements VRType {
             }
         };
 
-        abstract String cut(String s, int index, StringUtils.Trim trim, String defaultValue);
+        abstract Optional<String> cut(String s, int index, StringUtils.Trim trim);
 
         abstract String[] split(String s, StringUtils.Trim trim);
 

@@ -15,15 +15,16 @@ public interface DicomInputHandler {
         return true;
     }
 
-    default boolean startItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+    default boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
         return true;
     }
 
-    default boolean endItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+    default boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
         return true;
     }
 
-    default boolean dataFragment(DicomInputStream dis, DataFragment dataFragment) throws IOException {
+    default boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment)
+            throws IOException {
         return true;
     }
 }

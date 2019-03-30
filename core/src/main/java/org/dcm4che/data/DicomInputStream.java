@@ -38,7 +38,7 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         this.in = in;
     }
 
-    private DicomInputStream(DicomInput input, long pos) {
+    DicomInputStream(DicomInput input, long pos) {
         this.input = input;
         this.pos = pos;
         this.cache = input.cache;
@@ -161,11 +161,10 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         handler.startElement(this, groupLength, false);
         handler.endElement(this, groupLength, false);
         pos += valueLength;
-        parse(dcmObj, groupLength.intValue(0, -1));
-        String tsuid = dcmObj.getString(Tag.TransferSyntaxUID);
-        if (tsuid == null)
-            throw new DicomParseException("Missing Transfer Syntax UID in File Meta Information");
-
+        parse(dcmObj, groupLength.intValue(0).orElseThrow(
+                () -> new DicomParseException("Missing Group Length in File Meta Information")));
+        String tsuid = dcmObj.getString(Tag.TransferSyntaxUID).orElseThrow(
+                () -> new DicomParseException("Missing Transfer Syntax UID in File Meta Information"));
         withEncoding(DicomEncoding.of(tsuid));
         fmi = dcmObj;
         return fmi;
@@ -303,16 +302,16 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
     }
 
     private VR lookupVR(DicomObject dcmObj) {
-        return ElementDictionary.vrOf(tag, dcmObj != null ? dcmObj.getPrivateCreator(tag) : null);
+        return ElementDictionary.vrOf(tag, dcmObj != null ? dcmObj.getPrivateCreator(tag) : Optional.empty());
     }
 
     static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
         new DicomInputStream(input, pos).parse(dcmObj, length);
     }
 
-    private boolean parse(DicomObject dcmObj, int length) throws IOException {
+    boolean parse(DicomObject dcmObj, int length) throws IOException {
         boolean undefinedLength = length == -1;
-        boolean expectEOF = undefinedLength && dcmObj.containedBy() == null;
+        boolean expectEOF = undefinedLength && !dcmObj.hasParent();
         long endPos = pos + length;
         while ((undefinedLength || pos < endPos)
                 && readHeader(dcmObj, expectEOF)
@@ -395,7 +394,7 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         }
     }
 
-    private boolean parseItems(DicomSequence dcmElm, int length)
+    private boolean parseItems(DicomSequence dcmSeq, int length)
             throws IOException {
         boolean undefinedLength = length == -1;
         long endPos = pos + length;
@@ -405,9 +404,9 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
             if (tag != Tag.Item)
                 throw new DicomParseException("Expected (FFFE,E000) but " + TagUtils.toString(tag));
 
-            if (parseItemsPredicate.test(dcmElm)
-                ? !parseItem(input.item(dcmElm, pos, valueLength, new ArrayList<>()))
-                : !skipItem(input.item(dcmElm, pos, valueLength, null)))
+            if (parseItemsPredicate.test(dcmSeq)
+                ? !parseItem(dcmSeq, input.item(pos, valueLength).initElements())
+                : !skipItem(dcmSeq, input.item(pos, valueLength)))
                 return false;
         }
         return true;
@@ -433,16 +432,16 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         }
     }
 
-    private boolean parseItem(DicomObject dcmObj) throws IOException {
-        return handler.startItem(this, dcmObj)
+    private boolean parseItem(DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+        return handler.startItem(this, dcmSeq, dcmObj)
                 && parse(dcmObj, valueLength)
-                && handler.endItem(this, dcmObj);
+                && handler.endItem(this, dcmSeq, dcmObj);
     }
 
-    private boolean skipItem(DicomObject dcmObj) throws IOException {
-        return handler.startItem(this, dcmObj)
+    private boolean skipItem(DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+        return handler.startItem(this, dcmSeq, dcmObj)
                 && skipItem(valueLength)
-                && handler.endItem(this, dcmObj);
+                && handler.endItem(this, dcmSeq, dcmObj);
     }
 
     private boolean parseDataFragments(DataFragments fragments) throws IOException {
@@ -458,7 +457,8 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
             if (bulkData) {
                 skipBytes(-headerLength, headerLength + valueLength, bulkDataSpoolStream);
                 bulkDataSpoolStreamPos += headerLength + valueLength;
-            } else if (fragments != null && !handler.dataFragment(this, input.dataFragment(fragments, pos, valueLength))) {
+            } else if (fragments != null
+                    && !handler.dataFragment(this, fragments, input.dataFragment(fragments, pos, valueLength))) {
                 return false;
             }
 
@@ -539,14 +539,14 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
     }
 
     @Override
-    public boolean startItem(DicomInputStream dis, DicomObject dcmObj) {
-        dcmObj.containedBy().addItem(dcmObj);
+    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) {
+        dcmSeq.addItem(dcmObj);
         return true;
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragment dataFragment) {
-        dataFragment.containedBy().addDataFragment(dataFragment);
+    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment) {
+        fragments.addDataFragment(dataFragment);
         return true;
     }
 
@@ -571,8 +571,9 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
     }
 
     private static boolean isWaveformSequenceItem(DicomObject item) {
-        DicomSequence seq = item.containedBy();
-        return seq != null && seq.tag() == Tag.WaveformSequence && !seq.containedBy().hasParent();
+        return item.containedBy()
+                .filter(seq -> seq.tag() == Tag.WaveformSequence && !seq.containedBy().hasParent())
+                .isPresent();
     }
 
     @FunctionalInterface

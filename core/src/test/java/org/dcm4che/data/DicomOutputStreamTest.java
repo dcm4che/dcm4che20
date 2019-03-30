@@ -68,8 +68,7 @@ class DicomOutputStreamTest {
         DicomObject dcmObj = new DicomObject();
         dcmObj.newDicomSequence(Tag.ReferencedStudySequence);
         DicomSequence spsSeq = dcmObj.newDicomSequence(Tag.ScheduledProcedureStepSequence);
-        DicomObject spsItem = new DicomObject(spsSeq);
-        spsSeq.addItem(spsItem);
+        spsSeq.addItem(new DicomObject());
         return dcmObj;
     }
 

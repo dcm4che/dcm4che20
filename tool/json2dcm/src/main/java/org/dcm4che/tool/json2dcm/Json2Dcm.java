@@ -1,9 +1,6 @@
 package org.dcm4che.tool.json2dcm;
 
-import org.dcm4che.data.DicomEncoding;
-import org.dcm4che.data.DicomObject;
-import org.dcm4che.data.DicomOutputStream;
-import org.dcm4che.data.Tag;
+import org.dcm4che.data.*;
 import org.dcm4che.json.JSONReader;
 import picocli.CommandLine;
 
@@ -97,7 +94,7 @@ public class Json2Dcm implements Callable<Json2Dcm> {
         }
         if (dicomEncoding == null) {
             dicomEncoding =  fmi != null
-                    ? DicomEncoding.of(fmi.getString(Tag.TransferSyntaxUID))
+                    ? DicomEncoding.of(fmi.getString(Tag.TransferSyntaxUID).get())
                     : DicomEncoding.EVR_LE;
         }
         if (nofmi) {

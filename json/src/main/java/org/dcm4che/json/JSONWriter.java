@@ -135,23 +135,24 @@ public class JSONWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean startItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
-        if (dcmObj.containedBy().isEmpty()) {
+    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+        if (dcmSeq.isEmpty()) {
             gen.writeStartArray("Value");
         }
         gen.writeStartObject();
-        dcmObj.containedBy().addItem(dcmObj);
+        dcmSeq.addItem(dcmObj);
         return true;
     }
 
     @Override
-    public boolean endItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+    public boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
         gen.writeEnd();
         return true;
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragment dataFragment) throws IOException {
+    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment)
+            throws IOException {
         dis.skipBytes(-8, 8 + dataFragment.valueLength(), inlineBinary);
         return true;
     }

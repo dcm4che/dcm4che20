@@ -14,7 +14,7 @@ public class BulkDataElement extends BaseDicomElement {
     private final String uuid;
     private final String uri;
 
-    public BulkDataElement(DicomObject dicomObject, int tag, VR vr, String uri, String uuid) {
+    BulkDataElement(DicomObject dicomObject, int tag, VR vr, String uri, String uuid) {
         super(dicomObject, tag, vr);
         this.uri = uri;
         this.uuid = uuid;

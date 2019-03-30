@@ -47,23 +47,26 @@ public class Dcm2Json implements Callable<Dcm2Json> {
     @CommandLine.Parameters(description = "DICOM input filename to be converted. Use '-- -' to read from standard input.")
     Path file;
 
-    @CommandLine.Option(names = { "-I", "--indent" },
+    @CommandLine.Option(names = { "--pretty" },
             description = "Use additional whitespace in JSON output.")
-    boolean indent;
+    boolean pretty;
+
+    @CommandLine.Option(names = { "-F", "--no-fmi" },
+            description = "Do not include File Meta Information from DICOM file in JSON output.")
+    boolean nofmi;
 
     @CommandLine.Option(names = { "-B", "--no-bulkdata" },
-            description = "Do not include bulkdata in XML output; by default, references to bulkdata are included.")
+            description = "Do not include bulkdata in JSON output; by default, references to bulkdata are included.")
     boolean noBulkData;
 
     @CommandLine.Option(names = { "--inline-bulkdata" },
-            description = "Include bulkdata directly in XML output; by default, only references to bulkdata are included.")
+            description = "Include bulkdata directly in JSON output; by default, only references to bulkdata are included.")
     boolean inlineBulkData;
 
     @CommandLine.Option(names = { "--bulkdata" },
             description = {
-            "Filename to which extracted bulkdata is stored if the DICOM object is read from standard input.",
-            "Default: <random-number>.dcm2json"
-            },
+                    "Filename to which extracted bulkdata is stored if the DICOM object is read from standard input.",
+                    "Default: <random-number>.dcm2json" },
             paramLabel = "file")
     Path blkfile;
 
@@ -76,6 +79,8 @@ public class Dcm2Json implements Callable<Dcm2Json> {
         boolean stdin = file.toString().equals("-");
         try (JsonGenerator gen = createGenerator(System.out);
              DicomInputStream dis = new DicomInputStream(stdin ? System.in : Files.newInputStream(file))) {
+            if (nofmi)
+                dis.readFileMetaInformation();
             gen.writeStartObject();
             dis.withInputHandler(new JSONWriter(gen, System.out));
             if (!inlineBulkData) {
@@ -97,7 +102,7 @@ public class Dcm2Json implements Callable<Dcm2Json> {
     }
 
     private JsonGenerator createGenerator(OutputStream out) {
-        return Json.createGeneratorFactory(indent ? Map.of(JsonGenerator.PRETTY_PRINTING, true) : null)
+        return Json.createGeneratorFactory(pretty ? Map.of(JsonGenerator.PRETTY_PRINTING, true) : null)
                 .createGenerator(out);
     }
 }

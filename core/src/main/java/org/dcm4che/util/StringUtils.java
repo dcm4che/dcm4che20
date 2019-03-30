@@ -1,6 +1,7 @@
 package org.dcm4che.util;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -64,6 +65,10 @@ public class StringUtils {
 
     public static String requireNonEmptyElse(String s, String defaultValue) {
         return s.isEmpty() ? defaultValue : s;
+    }
+
+    public static Optional<String> optionalOf(String s) {
+        return s == null || s.isEmpty() ? Optional.empty() : Optional.of(s);
     }
 
     public static String cut(String s, int length, char delim, int index) {

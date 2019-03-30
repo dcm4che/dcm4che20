@@ -96,7 +96,7 @@ public class Xml2Dcm implements Callable<Xml2Dcm> {
         }
         if (dicomEncoding == null) {
             dicomEncoding =  fmi != null
-                    ? DicomEncoding.of(fmi.getString(Tag.TransferSyntaxUID))
+                    ? DicomEncoding.of(fmi.getString(Tag.TransferSyntaxUID).get())
                     : DicomEncoding.EVR_LE;
         }
         if (nofmi) {

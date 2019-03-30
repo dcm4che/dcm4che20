@@ -2,15 +2,13 @@ package org.dcm4che.data;
 
 import org.dcm4che.util.TagUtils;
 
-import java.io.Closeable;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.IntBinaryOperator;
 import java.util.function.IntPredicate;
-import java.util.function.IntUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
@@ -119,9 +117,8 @@ public class DicomOutputStream extends OutputStream {
         if (encoding != null)
             throw new IllegalStateException("encoding already initialized: " + encoding);
 
-        String tsuid = fmi.getString(Tag.TransferSyntaxUID);
-        if (tsuid == null)
-            throw new IllegalArgumentException("Missing Transfer Syntax UID in File Meta Information");
+        String tsuid = fmi.getString(Tag.TransferSyntaxUID).orElseThrow(
+                () -> new IllegalArgumentException("Missing Transfer Syntax UID in File Meta Information"));
 
         byte[] b = new byte[132];
         b[128] = 'D';
@@ -190,7 +187,7 @@ public class DicomOutputStream extends OutputStream {
 
     void writeItem(DicomObject dcmobj) throws IOException {
         boolean undefinedLength = itemLengthEncoding.undefined.test(dcmobj.size());
-        writeHeader(Tag.Item, VR.NONE, undefinedLength ? -1 : dcmobj.getItemLength());
+        writeHeader(Tag.Item, VR.NONE, undefinedLength ? -1 : dcmobj.calculatedItemLength);
         write(dcmobj);
         if (undefinedLength) {
             writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
@@ -198,23 +195,22 @@ public class DicomOutputStream extends OutputStream {
     }
 
     private int calculateLengthOf(DicomElement el) {
-        int len = (!encoding.explicitVR || el.vr().shortValueLength ? 8 : 12);
+        if (el instanceof DataFragments) {
+            DataFragments dataFragments = (DataFragments) el;
+            return dataFragments.fragmentStream().mapToInt(DataFragment::valueLength).sum()
+                    + dataFragments.size() * 8 + 20;
+        }
+        int headerLength = !encoding.explicitVR || el.vr().shortValueLength ? 8 : 12;
         if (el instanceof DicomSequence) {
             DicomSequence seq = (DicomSequence) el;
-            len += sequenceLengthEncoding.adjustLength.applyAsInt(
-                    seq.isEmpty() ? 0 : seq.itemStream().mapToInt(this::calculateLengthOf).sum());
-        } else if (el instanceof DataFragments) {
-            DataFragments dataFragments = (DataFragments) el;
-            len += dataFragments.fragmentStream().mapToInt(DataFragment::valueLength).sum()
-                    + dataFragments.size() * 8 + 8;
-        } else {
-            len += el.valueLength();
+            return sequenceLengthEncoding.totalLength.applyAsInt(
+                    headerLength, seq.itemStream().mapToInt(this::calculateLengthOf).sum());
         }
-        return len;
+        return headerLength + el.valueLength();
     }
 
     private int calculateLengthOf(DicomObject item) {
-        return 8 + itemLengthEncoding.adjustLength.applyAsInt(calculateItemLength(item));
+        return itemLengthEncoding.totalLength.applyAsInt(8, calculateItemLength(item));
     }
 
     private int calculateItemLength(DicomObject dcmobj) {
@@ -241,12 +237,12 @@ public class DicomOutputStream extends OutputStream {
                 }
             }
         }
-        dcmobj.setItemLength(len);
+        dcmobj.calculatedItemLength = len;
         return len;
     }
 
     int lengthOf(DicomObject item) {
-        return 8 + itemLengthEncoding.adjustLength.applyAsInt(item.getItemLength());
+        return itemLengthEncoding.totalLength.applyAsInt(8, item.calculatedItemLength);
     }
 
     void writeUTF(String s) throws IOException {
@@ -257,18 +253,18 @@ public class DicomOutputStream extends OutputStream {
     }
 
     public enum LengthEncoding {
-        UNDEFINED_OR_ZERO(false, x -> x != 0, x -> x != 0 ? x + 8 : x),
-        UNDEFINED(false, x -> true, x -> x + 8),
-        EXPLICIT(true, x -> false, x -> x);
+        UNDEFINED_OR_ZERO(false, x -> x != 0, (h, x) -> x != 0 ? h + x + 8 : h + x),
+        UNDEFINED(false, x -> true, (h, x) -> h + x + 8),
+        EXPLICIT(true, x -> false, (h, x) -> h + x);
 
         public final boolean explicit;
         public final IntPredicate undefined;
-        public final IntUnaryOperator adjustLength;
+        public final IntBinaryOperator totalLength;
 
-        LengthEncoding(boolean explicit, IntPredicate undefined, IntUnaryOperator adjustLength) {
+        LengthEncoding(boolean explicit, IntPredicate undefined, IntBinaryOperator totalLength) {
             this.explicit = explicit;
             this.undefined = undefined;
-            this.adjustLength = adjustLength;
+            this.totalLength = totalLength;
         }
     }
 

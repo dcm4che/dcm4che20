@@ -62,13 +62,17 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
             description = "Include xmlns='http://dicom.nema.org/PS3.19/models/NativeDICOM' attribute in root element.")
     boolean includeNamespaceDeclaration;
 
-    @CommandLine.Option(names = { "-I", "--indent" },
+    @CommandLine.Option(names = { "--pretty" },
             description = "Use additional whitespace in XML output.")
-    boolean indent;
+    boolean pretty;
 
     @CommandLine.Option(names = { "-K", "--no-keyword" },
             description = "Do not include keyword attribute of DicomAttribute element in XML output.")
     boolean noKeyword;
+
+    @CommandLine.Option(names = { "-F", "--no-fmi" },
+            description = "Do not include File Meta Information from DICOM file in XML output.")
+    boolean nofmi;
 
     @CommandLine.Option(names = { "-B", "--no-bulkdata" },
             description = "Do not include bulkdata in XML output; by default, references to bulkdata are included.")
@@ -80,9 +84,8 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
 
     @CommandLine.Option(names = { "--bulkdata" },
             description = {
-            "Filename to which extracted bulkdata is stored if the DICOM object is read from standard input.",
-            "Default: <random-number>.dcm2xml"
-            },
+                    "Filename to which extracted bulkdata is stored if the DICOM object is read from standard input.",
+                    "Default: <random-number>.dcm2xml" },
             paramLabel = "file")
     Path blkfile;
 
@@ -99,7 +102,7 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
         boolean stdin = file.toString().equals("-");
         TransformerHandler th = getTransformerHandler();
         Transformer t = th.getTransformer();
-        t.setOutputProperty(OutputKeys.INDENT, indent ? "yes" : "no");
+        t.setOutputProperty(OutputKeys.INDENT, pretty ? "yes" : "no");
         t.setOutputProperty(OutputKeys.VERSION, xml11 ? XML_1_1 : XML_1_0);
         th.setResult(new StreamResult(System.out));
         SAXWriter handler = new SAXWriter(th)
@@ -108,6 +111,8 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
         handler.startDocument();
         try (DicomInputStream dis = new DicomInputStream(stdin ? System.in : Files.newInputStream(file))
                 .withInputHandler(handler)) {
+            if (nofmi)
+                dis.readFileMetaInformation();
             if (!inlineBulkData) {
                 dis.withBulkData(DicomInputStream::isBulkData);
                 if (!noBulkData)

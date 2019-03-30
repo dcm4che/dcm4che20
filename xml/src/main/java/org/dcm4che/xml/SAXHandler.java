@@ -9,10 +9,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -21,7 +18,7 @@ import java.util.Objects;
 public class SAXHandler extends DefaultHandler {
     private DicomObject dicomObject;
     private DicomObject fmi;
-    private DicomSequence dicomSequence;
+    private Optional<DicomSequence> dicomSequence = Optional.empty();
     private String privateCreator;
     private int tag;
     private VR vr;
@@ -95,7 +92,7 @@ public class SAXHandler extends DefaultHandler {
                 dicomSequence = dicomObject.containedBy();
                 break;
             case "Item":
-                dicomObject = dicomSequence.containedBy();
+                dicomObject = dicomSequence.get().containedBy();
                 onEndDicomAttribute = SAXHandler::noop;
                 break;
             case "PersonName":
@@ -152,12 +149,11 @@ public class SAXHandler extends DefaultHandler {
     }
 
     private void startItem(Attributes attributes) {
-        if (dicomSequence == null) {
-            dicomSequence = dicomObject.newDicomSequence(privateCreator, tag);
-        }
-        int add = Integer.parseInt(attributes.getValue("number")) - dicomSequence.size();
+        DicomSequence dcmSeq = dicomSequence.orElseGet(() ->
+                (dicomSequence = Optional.of(dicomObject.newDicomSequence(privateCreator, tag))).get());
+        int add = Integer.parseInt(attributes.getValue("number")) - dcmSeq.size();
         while (add-- > 0)
-            dicomSequence.addItem(dicomObject = new DicomObject(dicomSequence));
+            dcmSeq.addItem(dicomObject = new DicomObject());
     }
 
     private void bulkData(Attributes attributes) {
@@ -171,7 +167,7 @@ public class SAXHandler extends DefaultHandler {
         tag = (int) Long.parseLong(attributes.getValue("tag"), 16);
         privateCreator = attributes.getValue("privateCreator");
         vr = VR.valueOf(attributes.getValue("vr"));
-        dicomSequence = null;
+        dicomSequence = Optional.empty();
         onEndDicomAttribute = this::setNull;
         strings.clear();
     }

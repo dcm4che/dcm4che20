@@ -1,6 +1,11 @@
 package org.dcm4che.data;
 
+import org.dcm4che.util.OptionalFloat;
+
 import java.io.IOException;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 
@@ -28,19 +33,19 @@ public interface DicomElement {
 
     void writeValueTo(DicomOutputStream dos) throws IOException;
 
-    default String stringValue(int index, String defaultValue) { return defaultValue; }
+    default Optional<String> stringValue(int index) { return Optional.empty(); }
 
     default String[] stringValues() { return EMPTY_STRINGS; }
 
-    default int intValue(int index, int defaultValue) { return defaultValue; }
+    default OptionalInt intValue(int index) { return OptionalInt.empty(); }
 
     default int[] intValues() { return EMPTY_INTS; }
 
-    default float floatValue(int index, float defaultValue) { return defaultValue; }
+    default OptionalFloat floatValue(int index) { return OptionalFloat.empty(); }
 
     default float[] floatValues() { return EMPTY_FLOATS; }
 
-    default double doubleValue(int index, double defaultValue) { return defaultValue; }
+    default OptionalDouble doubleValue(int index) { return OptionalDouble.empty(); }
 
     default double[] doubleValues() { return EMPTY_DOUBLES; }
 

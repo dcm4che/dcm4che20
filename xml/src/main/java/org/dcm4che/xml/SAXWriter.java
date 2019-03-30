@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Optional;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -78,9 +79,9 @@ public class SAXWriter implements DicomInputHandler {
             return true;
 
         VR vr = dcmElm.vr();
-        String privateCreator = dcmElm.containedBy().getPrivateCreator(tag);
-        if (privateCreator != null) {
-            addAttribute("privateCreator", privateCreator);
+        Optional<String> privateCreator = dcmElm.containedBy().getPrivateCreator(tag);
+        if (privateCreator.isPresent()) {
+            addAttribute("privateCreator", privateCreator.get());
             tag &= 0xffff00ff;
         }
         addAttribute("tag", TagUtils.toHexString(tag));
@@ -149,18 +150,18 @@ public class SAXWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean startItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
         try {
-            startElement("Item", "number", Integer.toString(dcmObj.containedBy().size() + 1));
+            startElement("Item", "number", Integer.toString(dcmSeq.size() + 1));
         } catch (SAXException e) {
             throw new IOException(e);
         }
-        dcmObj.containedBy().addItem(dcmObj);
+        dcmSeq.addItem(dcmObj);
         return true;
     }
 
     @Override
-    public boolean endItem(DicomInputStream dis, DicomObject dcmObj) throws IOException {
+    public boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
         try {
             endElement("Item");
         } catch (SAXException e) {
@@ -170,7 +171,7 @@ public class SAXWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragment dataFragment) throws IOException {
+    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment) throws IOException {
         dis.skipBytes(-8, 8 + dataFragment.valueLength(), inlineBinary);
         return true;
     }

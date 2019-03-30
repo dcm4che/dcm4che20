@@ -14,7 +14,7 @@ public class DataFragments extends BaseDicomElement implements Iterable<DataFrag
     private final ArrayList<DataFragment> items = new ArrayList<>();
     private long streamPosition;
 
-    public DataFragments(DicomObject dicomObject, int tag, VR vr) {
+    DataFragments(DicomObject dicomObject, int tag, VR vr) {
         super(dicomObject, tag, vr);
     }
 

@@ -1,7 +1,10 @@
 package org.dcm4che.data;
 
-import java.util.Collections;
-import java.util.Iterator;
+import org.dcm4che.util.OptionalFloat;
+
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 
@@ -19,25 +22,24 @@ interface VRType {
         return appendTo;
     }
 
-    default String stringValue(DicomInput input, long valuePos, int valueLen, int index,  DicomObject dcmobj,
-                               String defaultValue) {
-        return defaultValue;
+    default Optional<String> stringValue(DicomInput input, long valuePos, int valueLen, int index,  DicomObject dcmobj) {
+        return Optional.empty();
     }
 
     default String[] stringValues(DicomInput input, long valuePos, int valueLen, DicomObject dcmobj) {
         return DicomElement.EMPTY_STRINGS;
     }
 
-    default String stringValue(byte[] value, int index, String defaultValue) {
-        return defaultValue;
+    default Optional<String> stringValue(byte[] value, int index) {
+        return Optional.empty();
     }
 
     default String[] stringValues(byte[] value) {
         return DicomElement.EMPTY_STRINGS;
     }
 
-    default String stringValue(String value, int index, String defaultValue) {
-        return defaultValue;
+    default Optional<String> stringValue(String value, int index) {
+        return Optional.empty();
     }
 
     default String[] stringValues(String value) {
@@ -50,72 +52,72 @@ interface VRType {
 
     default void forEach(DicomElement dcmElm, DoubleConsumer action) {}
 
-    default int intValue(DicomInput input, long valuePos, int valueLen, int index, int defaultValue) {
-        return defaultValue;
+    default OptionalInt intValue(DicomInput input, long valuePos, int valueLen, int index) {
+        return OptionalInt.empty();
     }
 
     default int[] intValues(DicomInput input, long valuePos, int valueLen) {
         return DicomElement.EMPTY_INTS;
     }
 
-    default int intValue(byte[] value, int index, int defaultValue) {
-        return defaultValue;
+    default OptionalInt intValue(byte[] value, int index) {
+        return OptionalInt.empty();
     }
 
     default int[] intValues(byte[] value) {
         return DicomElement.EMPTY_INTS;
     }
 
-    default int intValue(String value, int index, int defaultValue) {
-        return defaultValue;
+    default OptionalInt intValue(String value, int index) {
+        return OptionalInt.empty();
     }
 
     default int[] intValues(String value) {
         return DicomElement.EMPTY_INTS;
     }
 
-    default float floatValue(DicomInput input, long valpos, int vallen, int index, float defaultValue) {
-        return defaultValue;
+    default OptionalFloat floatValue(DicomInput input, long valpos, int vallen, int index) {
+        return OptionalFloat.empty();
     }
 
     default float[] floatValues(DicomInput input, long valpos, int vallen) {
         return DicomElement.EMPTY_FLOATS;
     }
 
-    default float floatValue(byte[] value, int index, float defaultValue) {
-        return defaultValue;
+    default OptionalFloat floatValue(byte[] value, int index) {
+        return OptionalFloat.empty();
     }
 
     default float[] floatValues(byte[] value) {
         return DicomElement.EMPTY_FLOATS;
     }
 
-    default float floatValue(String value, int index, float defaultValue) {
-        return defaultValue;
+    default OptionalFloat floatValue(String value, int index) {
+        return OptionalFloat.empty();
     }
 
     default float[] floatValues(String value) {
         return DicomElement.EMPTY_FLOATS;
     }
 
-    default double doubleValue(DicomInput input, long valpos, int vallen, int index, double defaultValue) {
-        return defaultValue;
+    default OptionalDouble doubleValue(DicomInput input, long valpos, int vallen, int index) {
+        return OptionalDouble.empty();
     }
 
     default double[] doubleValues(DicomInput input, long valpos, int vallen) {
         return DicomElement.EMPTY_DOUBLES;
     }
 
-    default double doubleValue(byte[] value, int index, double defaultValue) {
-        return defaultValue;
+    default OptionalDouble doubleValue(byte[] value, int index) {
+        return OptionalDouble.empty();
     }
 
     default double[] doubleValues(byte[] value) {
         return DicomElement.EMPTY_DOUBLES;
     }
 
-    default double doubleValue(String value, int index, double defaultValue) {
-        return defaultValue;
+    default OptionalDouble doubleValue(String value, int index) {
+        return OptionalDouble.empty();
     }
 
     default double[] doubleValues(String value) {

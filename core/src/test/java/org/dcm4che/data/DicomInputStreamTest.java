@@ -1,5 +1,6 @@
 package org.dcm4che.data;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -10,6 +11,9 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -96,8 +100,8 @@ class DicomInputStreamTest {
             cmd = new DicomInputStream(in).readCommandSet();
         }
         assertNotNull(cmd);
-        assertEquals(48, cmd.getInt(Tag.CommandField, -1));
-        assertEquals(UID.VerificationSOPClass, cmd.getString(Tag.AffectedSOPClassUID));
+        assertEquals(OptionalInt.of(48), cmd.getInt(Tag.CommandField));
+        assertEquals(Optional.of(UID.VerificationSOPClass), cmd.getString(Tag.AffectedSOPClassUID));
     }
 
     @Test
@@ -132,7 +136,8 @@ class DicomInputStreamTest {
 
     @Test
     void parseDataFragments() throws IOException {
-        DicomElement el = parse(resourceAsStream("pixeldata.dcm"), DicomEncoding.EVR_LE).get(Tag.PixelData);
+        DicomElement el = parse(resourceAsStream("pixeldata.dcm"), DicomEncoding.EVR_LE).get(Tag.PixelData)
+                .orElseGet(Assertions::fail);
         assertTrue(el instanceof DataFragments);
         assertEquals(VR.OB, el.vr());
         DataFragment dataFragment = ((DataFragments) el).getDataFragment(1);
@@ -143,14 +148,14 @@ class DicomInputStreamTest {
     @Test
     void withoutBulkData() throws IOException {
         DicomObject data = parseWithoutBulkData();
-        DicomElement seq = data.get(Tag.WaveformSequence);
+        DicomElement seq = data.get(Tag.WaveformSequence).orElseGet(Assertions::fail);
         assertTrue(seq instanceof DicomSequence);
         DicomObject item = ((DicomSequence) seq).getItem(0);
         assertNotNull(item);
-        assertNull(item.get(Tag.WaveformData));
-        assertNull(data.get(Tag.OverlayData));
-        assertNull(data.get(Tag.PixelData));
-        assertNotNull(data.get(Tag.DataSetTrailingPadding));
+        assertTrue(item.get(Tag.WaveformData).isEmpty());
+        assertTrue(data.get(Tag.OverlayData).isEmpty());
+        assertTrue(data.get(Tag.PixelData).isEmpty());
+        assertTrue(data.get(Tag.DataSetTrailingPadding).isPresent());
     }
 
     @Test
@@ -158,46 +163,46 @@ class DicomInputStreamTest {
         URL srcURL = resource("waveform_overlay_pixeldata.dcm");
         Path sourcePath = Paths.get(URI.create(srcURL.toString()));
         DicomObject data = parseWithBulkDataURI(sourcePath);
-        DicomElement seq = data.get(Tag.WaveformSequence);
+        DicomElement seq = data.get(Tag.WaveformSequence).orElseGet(Assertions::fail);
         assertTrue(seq instanceof DicomSequence);
         DicomObject item = ((DicomSequence) seq).getItem(0);
         assertNotNull(item);
-        DicomElement waveformData = item.get(Tag.WaveformData);
+        DicomElement waveformData = item.get(Tag.WaveformData).orElseGet(Assertions::fail);
         assertTrue(waveformData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) waveformData).bulkDataURI()
                 .endsWith("waveform_overlay_pixeldata.dcm#offset=32&length=256"));
-        DicomElement overlayData = data.get(Tag.OverlayData);
+        DicomElement overlayData = data.get(Tag.OverlayData).orElseGet(Assertions::fail);
         assertTrue(overlayData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) overlayData).bulkDataURI()
                 .endsWith("waveform_overlay_pixeldata.dcm#offset=300&length=256"));
-        DicomElement pixelData = data.get(Tag.PixelData);
+        DicomElement pixelData = data.get(Tag.PixelData).orElseGet(Assertions::fail);
         assertTrue(pixelData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) pixelData).bulkDataURI()
                 .endsWith("waveform_overlay_pixeldata.dcm#offset=568"));
-        assertNotNull(data.get(Tag.DataSetTrailingPadding));
+        assertTrue(data.get(Tag.DataSetTrailingPadding).isPresent());
     }
 
     @Test
     void spoolBulkData() throws IOException {
         Path spoolPath = Files.createTempFile(null,".blk");
         DicomObject data = parseSpoolBulkData(spoolPath);
-        DicomElement seg = data.get(Tag.WaveformSequence);
+        DicomElement seg = data.get(Tag.WaveformSequence).orElseGet(Assertions::fail);
         assertTrue(seg instanceof DicomSequence);
         DicomObject item = ((DicomSequence) seg).getItem(0);
         assertNotNull(item);
-        DicomElement waveformData = item.get(Tag.WaveformData);
+        DicomElement waveformData = item.get(Tag.WaveformData).orElseGet(Assertions::fail);
         assertTrue(waveformData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) waveformData).bulkDataURI()
                 .endsWith(".blk#length=256"));
-        DicomElement overlayData = data.get(Tag.OverlayData);
+        DicomElement overlayData = data.get(Tag.OverlayData).orElseGet(Assertions::fail);
         assertTrue(overlayData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) overlayData).bulkDataURI()
                 .endsWith(".blk#offset=256&length=256"));
-        DicomElement pixelData = data.get(Tag.PixelData);
+        DicomElement pixelData = data.get(Tag.PixelData).orElseGet(Assertions::fail);
         assertTrue(pixelData instanceof BulkDataElement);
         assertTrue(((BulkDataElement) pixelData).bulkDataURI()
                 .endsWith(".blk#offset=512"));
-        assertNotNull(data.get(Tag.DataSetTrailingPadding));
+        assertTrue(data.get(Tag.DataSetTrailingPadding).isPresent());
         assertEquals(792, Files.size(spoolPath));
         Files.deleteIfExists(spoolPath);
     }
@@ -233,7 +238,7 @@ class DicomInputStreamTest {
     }
 
     static void parseSequence(byte[] b, DicomEncoding encoding, int tag) throws IOException {
-        DicomElement el = parse(new ByteArrayInputStream(b), encoding).get(tag);
+        DicomElement el = parse(new ByteArrayInputStream(b), encoding).get(tag).orElseGet(Assertions::fail);
         assertTrue(el instanceof DicomSequence);
         assertEquals(VR.SQ, el.vr());
         DicomObject item = ((DicomSequence) el).getItem(0);
@@ -242,15 +247,15 @@ class DicomInputStreamTest {
 
     static void parsePerFrameFunctionalGroupsSequenceLazy(byte[] b, DicomEncoding encoding) throws IOException {
         DicomElement functionalGroupSeq = parseLazy(b, encoding, Tag.PerFrameFunctionalGroupsSequence)
-                .get(Tag.PerFrameFunctionalGroupsSequence);
+                .get(Tag.PerFrameFunctionalGroupsSequence).orElseGet(Assertions::fail);
         assertTrue(functionalGroupSeq instanceof DicomSequence);
         DicomObject functionalGroup = ((DicomSequence) functionalGroupSeq).getItem(0);
         assertNotNull(functionalGroup);
-        DicomElement mrEchoSeq = functionalGroup.get(Tag.MREchoSequence);
+        DicomElement mrEchoSeq = functionalGroup.get(Tag.MREchoSequence).orElseGet(Assertions::fail);
         assertTrue(mrEchoSeq instanceof DicomSequence);
         DicomObject mrEcho = ((DicomSequence) mrEchoSeq).getItem(0);
         assertNotNull(mrEcho);
-        assertEquals(1.4000005722045896, mrEcho.getDouble(Tag.EffectiveEchoTime, 0.0));
+        assertEquals(OptionalDouble.of(1.4000005722045896), mrEcho.getDouble(Tag.EffectiveEchoTime));
     }
 
     static DicomObject parseWithoutBulkData() throws IOException {

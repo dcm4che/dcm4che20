@@ -14,7 +14,7 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
     private long streamPosition = -1L;
     private int valueLength = 0;
 
-    public DicomSequence(DicomObject dcmObj, int tag) {
+    DicomSequence(DicomObject dcmObj, int tag) {
         super(dcmObj, tag, VR.SQ);
     }
 
@@ -25,7 +25,7 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
     }
 
     public void addItem(DicomObject item) {
-        items.add(item);
+        items.add(item.containedBy(this));
     }
 
     public DicomObject getItem(int index) {

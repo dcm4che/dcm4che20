@@ -1,8 +1,13 @@
 package org.dcm4che.data;
 
+import org.dcm4che.util.OptionalFloat;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -54,8 +59,8 @@ class DicomInput {
         return new ParsedDicomElement(dcmObj, tag, vr, valuePos, valueLength);
     }
 
-    DicomObject item(DicomSequence dcmElm, long valuePos, int valueLength, ArrayList<DicomElement> elements) {
-        return new DicomObject(dcmElm, this, valuePos, valueLength, elements);
+    DicomObject item(long valuePos, int valueLength) {
+        return new DicomObject(new ParsedItem(valuePos, valueLength));
     }
 
     DataFragment dataFragment(DataFragments dcmElm, long valuePos, int valueLength) {
@@ -86,8 +91,8 @@ class DicomInput {
         }
 
         @Override
-        public String stringValue(int index, String defaultValue) {
-            return vr.type.stringValue(DicomInput.this, valuePos, valueLen, index, dicomObject, defaultValue);
+        public Optional<String> stringValue(int index) {
+            return vr.type.stringValue(DicomInput.this, valuePos, valueLen, index, dicomObject);
         }
 
         @Override
@@ -101,8 +106,8 @@ class DicomInput {
         }
 
         @Override
-        public int intValue(int index, int defaultValue) {
-            return vr.type.intValue(DicomInput.this, valuePos, valueLen, index, defaultValue);
+        public OptionalInt intValue(int index) {
+            return vr.type.intValue(DicomInput.this, valuePos, valueLen, index);
         }
 
         @Override
@@ -111,8 +116,8 @@ class DicomInput {
         }
 
         @Override
-        public float floatValue(int index, float defaultValue) {
-            return vr.type.floatValue(DicomInput.this, valuePos, valueLen, index, defaultValue);
+        public OptionalFloat floatValue(int index) {
+            return vr.type.floatValue(DicomInput.this, valuePos, valueLen, index);
         }
 
         @Override
@@ -121,8 +126,8 @@ class DicomInput {
         }
 
         @Override
-        public double doubleValue(int index, double defaultValue) {
-            return vr.type.doubleValue(DicomInput.this, valuePos, valueLen, index, defaultValue);
+        public OptionalDouble doubleValue(int index) {
+            return vr.type.doubleValue(DicomInput.this, valuePos, valueLen, index);
         }
 
         @Override
@@ -174,6 +179,20 @@ class DicomInput {
                     appendTo, maxLength).length() < maxLength)
                 appendTo.append(']');
             return appendTo;
+        }
+    }
+
+    class ParsedItem {
+        final long valuePos;
+        final int valueLen;
+
+        ParsedItem(long valuePos, int valueLen) {
+            this.valuePos = valuePos;
+            this.valueLen = valueLen;
+        }
+
+        void parseTo(DicomObject dcmObj) throws IOException {
+            new DicomInputStream(DicomInput.this, valuePos).parse(dcmObj, valueLen);
         }
     }
 }
