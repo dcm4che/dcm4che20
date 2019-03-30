@@ -459,9 +459,8 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public StringBuilder appendNestingLevel(StringBuilder sb) {
-        int count = nestingLevel();
-        while (count-- > 0)
-            sb.append('>');
+        if (dcmSeq != null)
+            dcmSeq.containedBy().appendNestingLevel(sb).append('>');
         return sb;
     }
 

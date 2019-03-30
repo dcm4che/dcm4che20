@@ -91,12 +91,12 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
 
     @Override
     public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) {
+        dcmSeq.addItem(dcmObj);
         System.out.println(
                 dcmObj.appendNestingLevel(
                         toPrompt(dis.getStreamPosition() - 8))
                         .append("(FFFE,E000) #").append(dcmObj.getItemLength().getAsInt())
                         .append(" Item #").append(dcmSeq.size() + 1));
-        dcmSeq.addItem(dcmObj);
         return true;
     }
 
