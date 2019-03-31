@@ -242,21 +242,21 @@ enum BinaryVR implements VRType {
     }
 
     @Override
-    public <E extends Throwable> void forEach(DicomElement dcmElm, StringValueConsumer<E> action) throws E {
+    public <E extends Throwable> void forEachStringValue(DicomElement dcmElm, StringValueConsumer<E> action) throws E {
         for (int i = 0, n = dcmElm.valueLength() / bytes; i < n;) {
             action.accept(dcmElm.stringValue(i).orElse(""), ++i);
         }
     }
 
     @Override
-    public void forEach(DicomElement dcmElm, IntConsumer action) {
+    public void forEachIntValue(DicomElement dcmElm, IntConsumer action) {
         for (int i = 0, n = dcmElm.valueLength() / bytes; i < n; i++) {
             action.accept(dcmElm.intValue(i).orElse(0));
         }
     }
 
     @Override
-    public void forEach(DicomElement dcmElm, DoubleConsumer action) {
+    public void forEachDoubleValue(DicomElement dcmElm, DoubleConsumer action) {
         for (int i = 0, n = dcmElm.valueLength() / bytes; i < n; i++) {
             action.accept(dcmElm.doubleValue(i).orElse(0));
         }

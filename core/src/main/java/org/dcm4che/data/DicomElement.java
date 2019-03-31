@@ -49,16 +49,16 @@ public interface DicomElement {
 
     default double[] doubleValues() { return EMPTY_DOUBLES; }
 
-    default void forEach(StringValueConsumer action) {
-        vr().type.forEach(this, action);
+    default void forEachStringValue(StringValueConsumer action) {
+        vr().type.forEachStringValue(this, action);
     }
 
-    default void forEach(IntConsumer action) {
-        vr().type.forEach(this, action);
+    default void forEachIntValue(IntConsumer action) {
+        vr().type.forEachIntValue(this, action);
     }
 
-    default void forEach(DoubleConsumer action) {
-        vr().type.forEach(this, action);
+    default void forEachDoubleValue(DoubleConsumer action) {
+        vr().type.forEachDoubleValue(this, action);
     }
 
     default void trimToSize() {}

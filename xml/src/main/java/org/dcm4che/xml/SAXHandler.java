@@ -18,7 +18,7 @@ import java.util.*;
 public class SAXHandler extends DefaultHandler {
     private DicomObject dicomObject;
     private DicomObject fmi;
-    private Optional<DicomSequence> dicomSequence = Optional.empty();
+    private DicomSequence dicomSequence;
     private String privateCreator;
     private int tag;
     private VR vr;
@@ -89,10 +89,10 @@ public class SAXHandler extends DefaultHandler {
         switch (qName) {
             case "DicomAttribute":
                 onEndDicomAttribute.run();
-                dicomSequence = dicomObject.containedBy();
+                dicomSequence = dicomObject.containedBy().orElse(null);
                 break;
             case "Item":
-                dicomObject = dicomSequence.get().containedBy();
+                dicomObject = dicomSequence.containedBy();
                 onEndDicomAttribute = SAXHandler::noop;
                 break;
             case "PersonName":
@@ -149,11 +149,11 @@ public class SAXHandler extends DefaultHandler {
     }
 
     private void startItem(Attributes attributes) {
-        DicomSequence dcmSeq = dicomSequence.orElseGet(() ->
-                (dicomSequence = Optional.of(dicomObject.newDicomSequence(privateCreator, tag))).get());
-        int add = Integer.parseInt(attributes.getValue("number")) - dcmSeq.size();
+        if (dicomSequence == null)
+            dicomSequence = dicomObject.newDicomSequence(privateCreator, tag);
+        int add = Integer.parseInt(attributes.getValue("number")) - dicomSequence.size();
         while (add-- > 0)
-            dcmSeq.addItem(dicomObject = new DicomObject());
+            dicomSequence.addItem(dicomObject = new DicomObject());
     }
 
     private void bulkData(Attributes attributes) {
@@ -167,7 +167,7 @@ public class SAXHandler extends DefaultHandler {
         tag = (int) Long.parseLong(attributes.getValue("tag"), 16);
         privateCreator = attributes.getValue("privateCreator");
         vr = VR.valueOf(attributes.getValue("vr"));
-        dicomSequence = Optional.empty();
+        dicomSequence = null;
         onEndDicomAttribute = this::setNull;
         strings.clear();
     }

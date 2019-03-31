@@ -90,7 +90,7 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public <E extends Throwable> void forEach(DicomElement dcmElm, StringValueConsumer<E> action) throws E {
+    public <E extends Throwable> void forEachStringValue(DicomElement dcmElm, StringValueConsumer<E> action) throws E {
         String[] values = dcmElm.stringValues();
         for (int i = 0; i < values.length;) {
             action.accept(values[i], ++i);
@@ -98,7 +98,7 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public void forEach(DicomElement dcmElm, IntConsumer action) {
+    public void forEachIntValue(DicomElement dcmElm, IntConsumer action) {
         if (stringToInt == null)
             return;
 
@@ -108,7 +108,7 @@ enum StringVR implements VRType {
     }
 
     @Override
-    public void forEach(DicomElement dcmElm, DoubleConsumer action) {
+    public void forEachDoubleValue(DicomElement dcmElm, DoubleConsumer action) {
         if (stringToDouble == null)
             return;
 

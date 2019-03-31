@@ -99,7 +99,7 @@ public class SAXWriter implements DicomInputHandler {
                 writeInlineBinary(dis, dcmElm);
             } else {
                 dis.loadValueFromStream();
-                dcmElm.forEach(vr == VR.PN ? this::writePN : this::writeValue);
+                dcmElm.forEachStringValue(vr == VR.PN ? this::writePN : this::writeValue);
             }
         } catch (SAXException e) {
             throw new IOException(e);

@@ -1,13 +1,9 @@
 package org.dcm4che.data;
 
-import org.dcm4che.util.OptionalFloat;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
-import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,14 +30,14 @@ class DicomObjectTest {
         dataset.setInt(0x00091120, VR.US, 0XB);
         dataset.setFloat(0x00091130, VR.FL, 0.2222f);
         dataset.setDouble(0x00091140, VR.FD, 0.22222222);
-        assertEquals(OptionalDouble.of(0.22222222), dataset.getDouble(PRIVATE_CREATOR_B, 0x00090040));
-        assertEquals(OptionalFloat.of(0.2222f), dataset.getFloat(PRIVATE_CREATOR_B, 0x00090030));
-        assertEquals(OptionalInt.of(0XB), dataset.getInt(PRIVATE_CREATOR_B, 0x00090020));
-        assertEquals(Optional.of("B"), dataset.getString(PRIVATE_CREATOR_B, 0x00090010));
-        assertEquals(OptionalDouble.of(0.11111111), dataset.getDouble(PRIVATE_CREATOR_A, 0x00090040));
-        assertEquals(OptionalFloat.of(0.1111f), dataset.getFloat(PRIVATE_CREATOR_A, 0x00090030));
-        assertEquals(OptionalInt.of(0XA), dataset.getInt(PRIVATE_CREATOR_A, 0x00090020));
-        assertEquals(Optional.of("A"), dataset.getString(PRIVATE_CREATOR_A, 0x00090010));
+        assertEquals(0.22222222, dataset.getDouble(PRIVATE_CREATOR_B, 0x00090040).orElseGet(Assertions::fail));
+        assertEquals(0.2222f, dataset.getFloat(PRIVATE_CREATOR_B, 0x00090030).orElseGet(Assertions::fail));
+        assertEquals(0XB, dataset.getInt(PRIVATE_CREATOR_B, 0x00090020).orElseGet(Assertions::fail));
+        assertEquals("B", dataset.getString(PRIVATE_CREATOR_B, 0x00090010).orElseGet(Assertions::fail));
+        assertEquals(0.11111111, dataset.getDouble(PRIVATE_CREATOR_A, 0x00090040).orElseGet(Assertions::fail));
+        assertEquals(0.1111f, dataset.getFloat(PRIVATE_CREATOR_A, 0x00090030).orElseGet(Assertions::fail));
+        assertEquals(0XA, dataset.getInt(PRIVATE_CREATOR_A, 0x00090020).orElseGet(Assertions::fail));
+        assertEquals("A", dataset.getString(PRIVATE_CREATOR_A, 0x00090010).orElseGet(Assertions::fail));
     }
 
     @Test
@@ -55,16 +51,16 @@ class DicomObjectTest {
         dataset.setInt(PRIVATE_CREATOR_B, 0x00090020, VR.US, 0XB);
         dataset.setFloat(PRIVATE_CREATOR_B, 0x00090030, VR.FL, 0.2222f);
         dataset.setDouble(PRIVATE_CREATOR_B, 0x00090040, VR.FD, 0.22222222);
-        assertEquals(Optional.of(PRIVATE_CREATOR_A), dataset.getString(0x00090010));
-        assertEquals(Optional.of(PRIVATE_CREATOR_B), dataset.getString(0x00090011));
-        assertEquals(Optional.of("A"), dataset.getString(0x00091010));
-        assertEquals(OptionalInt.of(0xA), dataset.getInt(0x00091020));
-        assertEquals(OptionalFloat.of(0.1111f), dataset.getFloat(0x00091030));
-        assertEquals(OptionalDouble.of(0.11111111), dataset.getDouble(0x00091040));
-        assertEquals(Optional.of("B"), dataset.getString(0x00091110));
-        assertEquals(OptionalInt.of(0xB), dataset.getInt(0x00091120));
-        assertEquals(OptionalFloat.of(0.2222f), dataset.getFloat(0x00091130));
-        assertEquals(OptionalDouble.of(0.22222222), dataset.getDouble(0x00091140));
+        assertEquals(PRIVATE_CREATOR_A, dataset.getString(0x00090010).orElseGet(Assertions::fail));
+        assertEquals(PRIVATE_CREATOR_B, dataset.getString(0x00090011).orElseGet(Assertions::fail));
+        assertEquals("A", dataset.getString(0x00091010).orElseGet(Assertions::fail));
+        assertEquals(0xA, dataset.getInt(0x00091020).orElseGet(Assertions::fail));
+        assertEquals(0.1111f, dataset.getFloat(0x00091030).orElseGet(Assertions::fail));
+        assertEquals(0.11111111, dataset.getDouble(0x00091040).orElseGet(Assertions::fail));
+        assertEquals("B", dataset.getString(0x00091110).orElseGet(Assertions::fail));
+        assertEquals(0xB, dataset.getInt(0x00091120).orElseGet(Assertions::fail));
+        assertEquals(0.2222f, dataset.getFloat(0x00091130).orElseGet(Assertions::fail));
+        assertEquals(0.22222222, dataset.getDouble(0x00091140).orElseGet(Assertions::fail));
     }
 
     @Test

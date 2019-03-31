@@ -11,9 +11,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -100,8 +97,8 @@ class DicomInputStreamTest {
             cmd = new DicomInputStream(in).readCommandSet();
         }
         assertNotNull(cmd);
-        assertEquals(OptionalInt.of(48), cmd.getInt(Tag.CommandField));
-        assertEquals(Optional.of(UID.VerificationSOPClass), cmd.getString(Tag.AffectedSOPClassUID));
+        assertEquals(48, cmd.getInt(Tag.CommandField).orElseGet(Assertions::fail));
+        assertEquals(UID.VerificationSOPClass, cmd.getString(Tag.AffectedSOPClassUID).orElseGet(Assertions::fail));
     }
 
     @Test
@@ -255,7 +252,7 @@ class DicomInputStreamTest {
         assertTrue(mrEchoSeq instanceof DicomSequence);
         DicomObject mrEcho = ((DicomSequence) mrEchoSeq).getItem(0);
         assertNotNull(mrEcho);
-        assertEquals(OptionalDouble.of(1.4000005722045896), mrEcho.getDouble(Tag.EffectiveEchoTime));
+        assertEquals(1.4000005722045896, mrEcho.getDouble(Tag.EffectiveEchoTime).orElseGet(Assertions::fail));
     }
 
     static DicomObject parseWithoutBulkData() throws IOException {

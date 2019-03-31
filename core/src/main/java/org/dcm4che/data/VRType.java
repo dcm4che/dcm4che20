@@ -46,11 +46,11 @@ interface VRType {
         return DicomElement.EMPTY_STRINGS;
     }
 
-    default <E extends Throwable> void forEach(DicomElement dcmElm, StringValueConsumer<E> action) throws E {}
+    default <E extends Throwable> void forEachStringValue(DicomElement dcmElm, StringValueConsumer<E> action) throws E {}
 
-    default void forEach(DicomElement dcmElm, IntConsumer action) {}
+    default void forEachIntValue(DicomElement dcmElm, IntConsumer action) {}
 
-    default void forEach(DicomElement dcmElm, DoubleConsumer action) {}
+    default void forEachDoubleValue(DicomElement dcmElm, DoubleConsumer action) {}
 
     default OptionalInt intValue(DicomInput input, long valuePos, int valueLen, int index) {
         return OptionalInt.empty();

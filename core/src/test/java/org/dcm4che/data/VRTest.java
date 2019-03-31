@@ -1,16 +1,14 @@
 package org.dcm4che.data;
 
-import org.dcm4che.util.OptionalFloat;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -171,50 +169,50 @@ class VRTest {
         double[] doubles = toDoubles(floats);
         DicomObject dcmObj = new DicomObject();
         dcmObj.setInt(tag, vr, vals);
-        assertArrayEquals(vals, dcmObj.getInts(tag));
-        assertEquals(OptionalInt.of(vals[2]), dcmObj.getInt(tag, 2));
+        assertArrayEquals(vals, dcmObj.getInts(tag).orElseGet(Assertions::fail));
+        assertEquals(vals[2], dcmObj.getInt(tag, 2).orElseGet(Assertions::fail));
         assertArrayEquals(bLE, toBytes(dcmObj, DicomEncoding.IVR_LE));
         dcmObj.setFloat(tag, vr, floats);
-        assertArrayEquals(floats, dcmObj.getFloats(tag));
-        assertEquals(OptionalFloat.of(floats[2]), dcmObj.getFloat(tag, 2));
+        assertArrayEquals(floats, dcmObj.getFloats(tag).orElseGet(Assertions::fail));
+        assertEquals(floats[2], dcmObj.getFloat(tag, 2).orElseGet(Assertions::fail));
         assertArrayEquals(bLE2, toBytes(dcmObj, DicomEncoding.IVR_LE));
         dcmObj.setDouble(tag, vr, doubles);
-        assertArrayEquals(doubles, dcmObj.getDoubles(tag));
-        assertEquals(OptionalDouble.of(doubles[2]), dcmObj.getDouble(tag, 2));
+        assertArrayEquals(doubles, dcmObj.getDoubles(tag).orElseGet(Assertions::fail));
+        assertEquals(doubles[2], dcmObj.getDouble(tag, 2).orElseGet(Assertions::fail));
         assertArrayEquals(bLE2, toBytes(dcmObj, DicomEncoding.IVR_LE));
         dcmObj.setString(tag, vr, strs);
-        assertArrayEquals(strs, dcmObj.getStrings(tag));
-        assertEquals(Optional.of(strs[2]), dcmObj.getString(tag, 2));
+        assertArrayEquals(strs, dcmObj.getStrings(tag).orElseGet(Assertions::fail));
+        assertEquals(strs[2], dcmObj.getString(tag, 2).orElseGet(Assertions::fail));
         assertArrayEquals(bLE2, toBytes(dcmObj, DicomEncoding.IVR_LE));
         assertArrayEquals(bBE2, toBytes(dcmObj, DicomEncoding.EVR_BE));
         dcmObj = parseDicomObject(bLE, DicomEncoding.IVR_LE);
         assertArrayEquals(bLE, toBytes(dcmObj, DicomEncoding.IVR_LE));
         assertArrayEquals(bBE, toBytes(dcmObj, DicomEncoding.EVR_BE));
-        assertArrayEquals(vals, dcmObj.getInts(tag));
-        assertEquals(OptionalInt.of(vals[2]), dcmObj.getInt(tag, 2));
+        assertArrayEquals(vals, dcmObj.getInts(tag).orElseGet(Assertions::fail));
+        assertEquals(vals[2], dcmObj.getInt(tag, 2).orElseGet(Assertions::fail));
         if (bLE2 != bLE) {
             dcmObj = parseDicomObject(bLE2, DicomEncoding.IVR_LE);
         }
-        assertArrayEquals(floats, dcmObj.getFloats(tag));
-        assertEquals(OptionalFloat.of(floats[2]), dcmObj.getFloat(tag, 2));
-        assertArrayEquals(doubles, dcmObj.getDoubles(tag));
-        assertEquals(OptionalDouble.of(doubles[2]), dcmObj.getDouble(tag, 2));
-        assertArrayEquals(strs, dcmObj.getStrings(tag));
-        assertEquals(Optional.of(strs[2]), dcmObj.getString(tag, 2));
+        assertArrayEquals(floats, dcmObj.getFloats(tag).orElseGet(Assertions::fail));
+        assertEquals(floats[2], dcmObj.getFloat(tag, 2).orElseGet(Assertions::fail));
+        assertArrayEquals(doubles, dcmObj.getDoubles(tag).orElseGet(Assertions::fail));
+        assertEquals(doubles[2], dcmObj.getDouble(tag, 2).orElseGet(Assertions::fail));
+        assertArrayEquals(strs, dcmObj.getStrings(tag).orElseGet(Assertions::fail));
+        assertEquals(strs[2], dcmObj.getString(tag, 2).orElseGet(Assertions::fail));
         dcmObj = parseDicomObject(bBE, DicomEncoding.EVR_BE);
         assertArrayEquals(bLE, toBytes(dcmObj, DicomEncoding.IVR_LE));
         assertArrayEquals(bBE, toBytes(dcmObj, DicomEncoding.EVR_BE));
-        assertArrayEquals(vals, dcmObj.getInts(tag));
-        assertEquals(OptionalInt.of(vals[2]), dcmObj.getInt(tag, 2));
+        assertArrayEquals(vals, dcmObj.getInts(tag).orElseGet(Assertions::fail));
+        assertEquals(vals[2], dcmObj.getInt(tag, 2).orElseGet(Assertions::fail));
         if (bBE2 != bBE) {
             dcmObj = parseDicomObject(bBE2, DicomEncoding.EVR_BE);
         }
-        assertArrayEquals(floats, dcmObj.getFloats(tag));
-        assertEquals(OptionalFloat.of(floats[2]), dcmObj.getFloat(tag, 2));
-        assertArrayEquals(doubles, dcmObj.getDoubles(tag));
-        assertEquals(OptionalDouble.of(doubles[2]), dcmObj.getDouble(tag, 2));
-        assertArrayEquals(strs, dcmObj.getStrings(tag));
-        assertEquals(Optional.of(strs[2]), dcmObj.getString(tag, 2));
+        assertArrayEquals(floats, dcmObj.getFloats(tag).orElseGet(Assertions::fail));
+        assertEquals(floats[2], dcmObj.getFloat(tag, 2).orElseGet(Assertions::fail));
+        assertArrayEquals(doubles, dcmObj.getDoubles(tag).orElseGet(Assertions::fail));
+        assertEquals(doubles[2], dcmObj.getDouble(tag, 2).orElseGet(Assertions::fail));
+        assertArrayEquals(strs, dcmObj.getStrings(tag).orElseGet(Assertions::fail));
+        assertEquals(strs[2], dcmObj.getString(tag, 2).orElseGet(Assertions::fail));
     }
 
     private static float[] toFloats(int[] vals) {

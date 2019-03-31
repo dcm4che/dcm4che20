@@ -17,7 +17,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     private volatile DicomSequence dcmSeq;
     private volatile ArrayList<DicomElement> elements;
     private volatile SpecificCharacterSet specificCharacterSet;
-    private PrivateCreator privateCreator;
+    private PrivateCreator lruPrivateCreator;
     int calculatedItemLength;
 
     public DicomObject() {
@@ -122,10 +122,11 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     public SpecificCharacterSet specificCharacterSet() {
-        return specificCharacterSet != null ? specificCharacterSet
-                : dcmSeq != null
-                ? dcmSeq.containedBy().specificCharacterSet()
-                : SpecificCharacterSet.getDefaultCharacterSet();
+        return specificCharacterSet != null
+                ? specificCharacterSet
+                : (specificCharacterSet = dcmSeq != null
+                    ? dcmSeq.containedBy().specificCharacterSet()
+                    : SpecificCharacterSet.getDefaultCharacterSet());
     }
 
     public DicomElement firstElement() {
@@ -165,11 +166,11 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
 
     private OptionalInt creatorTag(String value, int tag, boolean reserve) {
         int gggg0000 = tag & 0xffff0000;
-        PrivateCreator localRef = privateCreator;
-        if (localRef != null && localRef.match(value, gggg0000)
-                && ((localRef.tag & 0xffff0000) == gggg0000)
-                && privateCreator.value.equals(value)) {
-            return OptionalInt.of(localRef.tag);
+        PrivateCreator privateCreator = lruPrivateCreator;
+        if (privateCreator != null && privateCreator.match(value, gggg0000)
+                && ((privateCreator.tag & 0xffff0000) == gggg0000)
+                && lruPrivateCreator.value.equals(value)) {
+            return OptionalInt.of(privateCreator.tag);
         }
         ArrayList<DicomElement> list = elements();
         int creatorTag = gggg0000 | 0x10;
@@ -181,7 +182,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         while (i < list.size() && ((el = list.get(i)).tag() & 0xffffff00) == gggg0000) {
             creatorTag = el.tag();
             if (value.equals(el.stringValue(0).orElse(null))) {
-                privateCreator = new PrivateCreator(el.tag(), el.stringValue(0));
+                lruPrivateCreator = new PrivateCreator(el.tag(), el.stringValue(0));
                 return OptionalInt.of(creatorTag);
             }
             i++;
@@ -190,7 +191,7 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
             return OptionalInt.empty();
 
         list.add(i, new StringElement(this, ++creatorTag, VR.LO, value));
-        privateCreator = new PrivateCreator(creatorTag, Optional.of(value));
+        lruPrivateCreator = new PrivateCreator(creatorTag, Optional.of(value));
         return OptionalInt.of(creatorTag);
     }
 
@@ -219,12 +220,12 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return get(privateCreator, tag).flatMap(el -> el.stringValue(index));
     }
 
-    public String[] getStrings(int tag) {
-        return get(tag).map(DicomElement::stringValues).orElse(DicomElement.EMPTY_STRINGS);
+    public Optional<String[]> getStrings(int tag) {
+        return get(tag).map(DicomElement::stringValues);
     }
 
-    public String[] getStrings(String privateCreator, int tag) {
-        return get(privateCreator, tag).map(DicomElement::stringValues).orElse(DicomElement.EMPTY_STRINGS);
+    public Optional<String[]> getStrings(String privateCreator, int tag) {
+        return get(privateCreator, tag).map(DicomElement::stringValues);
     }
 
     public OptionalInt getInt(int tag) {
@@ -243,12 +244,12 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return get(privateCreator, tag).map(el -> el.intValue(index)).orElse(OptionalInt.empty());
     }
 
-    public int[] getInts(int tag) {
-        return get(tag).map(DicomElement::intValues).orElse(DicomElement.EMPTY_INTS);
+    public Optional<int[]> getInts(int tag) {
+        return get(tag).map(DicomElement::intValues);
     }
 
-    public int[] getInts(String privateCreator, int tag) {
-        return get(privateCreator, tag).map(DicomElement::intValues).orElse(DicomElement.EMPTY_INTS);
+    public Optional<int[]> getInts(String privateCreator, int tag) {
+        return get(privateCreator, tag).map(DicomElement::intValues);
     }
 
     public OptionalFloat getFloat(int tag) {
@@ -267,12 +268,12 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return get(privateCreator, tag).map(el -> el.floatValue(index)).orElse(OptionalFloat.empty());
     }
 
-    public float[] getFloats(int tag) {
-        return get(tag).map(DicomElement::floatValues).orElse(DicomElement.EMPTY_FLOATS);
+    public Optional<float[]> getFloats(int tag) {
+        return get(tag).map(DicomElement::floatValues);
     }
 
-    public float[] getFloats(String privateCreator, int tag) {
-        return get(privateCreator, tag).map(DicomElement::floatValues).orElse(DicomElement.EMPTY_FLOATS);
+    public Optional<float[]> getFloats(String privateCreator, int tag) {
+        return get(privateCreator, tag).map(DicomElement::floatValues);
     }
 
     public OptionalDouble getDouble(int tag) {
@@ -291,12 +292,12 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
         return get(privateCreator, tag).map(el -> el.doubleValue(index)).orElse(OptionalDouble.empty());
     }
 
-    public double[] getDoubles(int tag) {
-        return get(tag).map(DicomElement::doubleValues).orElse(DicomElement.EMPTY_DOUBLES);
+    public Optional<double[]> getDoubles(int tag) {
+        return get(tag).map(DicomElement::doubleValues);
     }
 
-    public double[] getDoubles(String privateCreator, int tag) {
-        return get(privateCreator, tag).map(DicomElement::doubleValues).orElse(DicomElement.EMPTY_DOUBLES);
+    public Optional<double[]> getDoubles(String privateCreator, int tag) {
+        return get(privateCreator, tag).map(DicomElement::doubleValues);
     }
 
     public DicomElement add(DicomElement el) {
@@ -419,11 +420,11 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     }
 
     private PrivateCreator privateCreator(int tag) {
-        PrivateCreator localRef = privateCreator;
-        if (localRef == null || localRef.tag != tag) {
-            privateCreator = localRef = new PrivateCreator(tag, getString(tag));
+        PrivateCreator privateCreator = lruPrivateCreator;
+        if (privateCreator == null || privateCreator.tag != tag) {
+            lruPrivateCreator = privateCreator = new PrivateCreator(tag, getString(tag));
         }
-        return localRef;
+        return privateCreator;
     }
 
     @Override

@@ -61,19 +61,19 @@ public class JSONWriter implements DicomInputHandler {
                 gen.writeStartArray("Value");
                 switch (vr.jsonType) {
                     case PN:
-                        dcmElm.forEach(this::writePN);
+                        dcmElm.forEachStringValue(this::writePN);
                         break;
                     case STRING:
-                        dcmElm.forEach(this::writeString);
+                        dcmElm.forEachStringValue(this::writeString);
                         break;
                     case INT:
-                        dcmElm.forEach((IntConsumer) gen::write);
+                        dcmElm.forEachIntValue((IntConsumer) gen::write);
                         break;
                     case UINT:
-                        dcmElm.forEach(this::writeUInt);
+                        dcmElm.forEachIntValue(this::writeUInt);
                         break;
                     case DOUBLE:
-                        dcmElm.forEach((DoubleConsumer) gen::write);
+                        dcmElm.forEachDoubleValue((DoubleConsumer) gen::write);
                         break;
                 }
                 gen.writeEnd();
