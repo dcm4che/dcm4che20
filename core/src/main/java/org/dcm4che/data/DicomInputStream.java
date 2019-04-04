@@ -405,8 +405,8 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
                 throw new DicomParseException("Expected (FFFE,E000) but " + TagUtils.toString(tag));
 
             if (parseItemsPredicate.test(dcmSeq)
-                ? !parseItem(dcmSeq, input.item(pos, valueLength).initElements())
-                : !skipItem(dcmSeq, input.item(pos, valueLength)))
+                    ? !parseItem(dcmSeq, new DicomObject(input, pos, valueLength, new ArrayList<>()))
+                    : !skipItem(dcmSeq, new DicomObject(input, pos, valueLength, null)))
                 return false;
         }
         return true;

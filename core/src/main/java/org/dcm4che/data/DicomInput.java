@@ -59,10 +59,6 @@ class DicomInput {
         return new ParsedDicomElement(dcmObj, tag, vr, valuePos, valueLength);
     }
 
-    DicomObject item(long valuePos, int valueLength) {
-        return new DicomObject(new ParsedItem(valuePos, valueLength));
-    }
-
     DataFragment dataFragment(DataFragments dcmElm, long valuePos, int valueLength) {
         return new ParsedDataFragment(dcmElm, valuePos, valueLength);
     }
@@ -179,20 +175,6 @@ class DicomInput {
                     appendTo, maxLength).length() < maxLength)
                 appendTo.append(']');
             return appendTo;
-        }
-    }
-
-    class ParsedItem {
-        final long valuePos;
-        final int valueLen;
-
-        ParsedItem(long valuePos, int valueLen) {
-            this.valuePos = valuePos;
-            this.valueLen = valueLen;
-        }
-
-        void parseTo(DicomObject dcmObj) throws IOException {
-            new DicomInputStream(DicomInput.this, valuePos).parse(dcmObj, valueLen);
         }
     }
 }

@@ -13,7 +13,9 @@ import java.util.stream.Stream;
  */
 public class DicomObject implements Iterable<DicomElement>, Externalizable {
 
-    private final DicomInput.ParsedItem parsedItem;
+    private final DicomInput dicomInput;
+    private final long streamPosition;
+    private final int itemLength;
     private volatile DicomSequence dcmSeq;
     private volatile ArrayList<DicomElement> elements;
     private volatile SpecificCharacterSet specificCharacterSet;
@@ -21,29 +23,22 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
     int calculatedItemLength;
 
     public DicomObject() {
-        this(null);
-        initElements();
+        this(null, -1L, -1, new ArrayList<>());
     }
 
-    DicomObject(DicomInput.ParsedItem parsedItem) {
-        this.parsedItem = parsedItem;
+    DicomObject(DicomInput dicomInput, long streamPosition, int itemLength, ArrayList<DicomElement> elements) {
+        this.dicomInput = dicomInput;
+        this.streamPosition = streamPosition;
+        this.itemLength = itemLength;
+        this.elements = elements;
     }
 
-    DicomObject initElements() {
-        elements = new ArrayList<>();
-        return this;
+    public long getStreamPosition() {
+        return streamPosition;
     }
 
-    public OptionalLong getStreamPosition() {
-        return parsedItem != null
-                ? OptionalLong.of(parsedItem.valuePos)
-                : OptionalLong.empty();
-    }
-
-    public OptionalInt getItemLength() {
-        return parsedItem != null
-                ? OptionalInt.of(parsedItem.valueLen)
-                : OptionalInt.empty();
+    public int getItemLength() {
+        return itemLength;
     }
 
     DicomObject containedBy(DicomSequence dcmSeq) {
@@ -107,18 +102,18 @@ public class DicomObject implements Iterable<DicomElement>, Externalizable {
 
     ArrayList<DicomElement> elements() {
         ArrayList<DicomElement> localRef = elements;
-        if (localRef != null)
-            return localRef;
-        synchronized (this) {
-            if ((localRef = elements) != null)
-                return localRef;
-            try {
-                parsedItem.parseTo(initElements());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+        if (localRef == null)
+            synchronized (this) {
+                if ((localRef = elements) != null)
+                    return localRef;
+                try {
+                    elements = localRef = new ArrayList();
+                    new DicomInputStream(dicomInput, streamPosition).parse(this, itemLength);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
-            return elements;
-        }
+        return localRef;
     }
 
     public SpecificCharacterSet specificCharacterSet() {

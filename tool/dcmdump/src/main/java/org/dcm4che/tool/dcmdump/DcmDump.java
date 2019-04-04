@@ -95,14 +95,14 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
         System.out.println(
                 dcmObj.appendNestingLevel(
                         toPrompt(dis.getStreamPosition() - 8))
-                        .append("(FFFE,E000) #").append(dcmObj.getItemLength().getAsInt())
+                        .append("(FFFE,E000) #").append(dcmObj.getItemLength())
                         .append(" Item #").append(dcmSeq.size() + 1));
         return true;
     }
 
     @Override
     public boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) {
-        if (dcmObj.getItemLength().getAsInt() == -1) {
+        if (dcmObj.getItemLength() == -1) {
             System.out.println(
                     dcmObj.appendNestingLevel(toPrompt(dis.getStreamPosition() - 8))
                             .append("(FFFE,E00D) #0 ItemDelimitationItem"));
@@ -111,7 +111,8 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment) throws IOException {
+    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment)
+            throws IOException {
         System.out.println(
                 dis.promptTo(dataFragment, toPrompt(dis.getStreamPosition() - 8), cols));
         return true;
