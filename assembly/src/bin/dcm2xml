@@ -3,7 +3,7 @@
 # dcm2xml  Launcher
 # -------------------------------------------------------------------------
 
-MAIN_MODULE=org.dcm4che6.tool.dcm2xml
+MAIN_MODULE=org.dcm4che.tool.dcm2xml
 MAIN_JAR=dcm4che-tool-dcm2xml-${project.version}.jar
 
 DIRNAME="`dirname "$0"`"

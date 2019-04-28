@@ -3,7 +3,7 @@
 # dcm2json  Launcher
 # -------------------------------------------------------------------------
 
-MAIN_MODULE=org.dcm4che6.tool.dcm2json
+MAIN_MODULE=org.dcm4che.tool.dcm2json
 MAIN_JAR=dcm4che-tool-dcm2json-${project.version}.jar
 
 DIRNAME="`dirname "$0"`"

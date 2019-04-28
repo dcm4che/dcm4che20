@@ -1,7 +1,7 @@
 package org.dcm4che6.tool.json2dcm;
 
-import org.dcm4che6.data.*;
 import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
 import org.dcm4che6.io.DicomEncoding;
 import org.dcm4che6.io.DicomOutputStream;
 import org.dcm4che6.json.JSONReader;

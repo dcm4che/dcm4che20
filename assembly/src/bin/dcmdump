@@ -3,7 +3,7 @@
 # dcmdump  Launcher
 # -------------------------------------------------------------------------
 
-MAIN_MODULE=org.dcm4che6.tool.dcmdump
+MAIN_MODULE=org.dcm4che.tool.dcmdump
 MAIN_JAR=dcm4che-tool-dcmdump-${project.version}.jar
 
 DIRNAME="`dirname "$0"`"

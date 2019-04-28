@@ -67,7 +67,7 @@
                 <include>elements.xml</include>
               </includes>
               <stylesheet>src/main/xsl/Keyword.java.xsl</stylesheet>
-              <outputDir>target/generated-java/org/dcm4che/data</outputDir>
+              <outputDir>target/generated-java/org/dcm4che6/data</outputDir>
               <fileMappers>
                 <fileMapper implementation="org.codehaus.plexus.components.io.filemappers.MergeFileMapper">
                   <targetName>Keyword.java</targetName>
@@ -80,7 +80,7 @@
                 <include>elements.xml</include>
               </includes>
               <stylesheet>src/main/xsl/Tag.java.xsl</stylesheet>
-              <outputDir>target/generated-java/org/dcm4che/data</outputDir>
+              <outputDir>target/generated-java/org/dcm4che6/data</outputDir>
               <fileMappers>
                 <fileMapper implementation="org.codehaus.plexus.components.io.filemappers.MergeFileMapper">
                   <targetName>Tag.java</targetName>
@@ -93,7 +93,7 @@
                 <include>elements.xml</include>
               </includes>
               <stylesheet>src/main/xsl/StandardElementDictionary.java.xsl</stylesheet>
-              <outputDir>target/generated-java/org/dcm4che/data</outputDir>
+              <outputDir>target/generated-java/org/dcm4che6/data</outputDir>
               <fileMappers>
                 <fileMapper implementation="org.codehaus.plexus.components.io.filemappers.MergeFileMapper">
                   <targetName>StandardElementDictionary.java</targetName>
@@ -106,7 +106,7 @@
                 <include>uids.xml</include>
               </includes>
               <stylesheet>src/main/xsl/UIDNames.properties.xsl</stylesheet>
-              <outputDir>target/generated-resources/org/dcm4che/data</outputDir>
+              <outputDir>target/generated-resources/org/dcm4che6/data</outputDir>
               <fileMappers>
                 <fileMapper implementation="org.codehaus.plexus.components.io.filemappers.MergeFileMapper">
                   <targetName>UIDNames.properties</targetName>
@@ -119,7 +119,7 @@
                 <include>uids.xml</include>
               </includes>
               <stylesheet>src/main/xsl/UID.java.xsl</stylesheet>
-              <outputDir>target/generated-java/org/dcm4che/data</outputDir>
+              <outputDir>target/generated-java/org/dcm4che6/data</outputDir>
               <fileMappers>
                 <fileMapper implementation="org.codehaus.plexus.components.io.filemappers.MergeFileMapper">
                   <targetName>UID.java</targetName>

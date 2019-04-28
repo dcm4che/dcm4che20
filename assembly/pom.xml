@@ -61,27 +61,27 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.dcm4che6.tool</groupId>
+      <groupId>org.dcm4che.tool</groupId>
       <artifactId>dcm4che-tool-dcm2json</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.dcm4che6.tool</groupId>
+      <groupId>org.dcm4che.tool</groupId>
       <artifactId>dcm4che-tool-dcm2xml</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.dcm4che6.tool</groupId>
+      <groupId>org.dcm4che.tool</groupId>
       <artifactId>dcm4che-tool-dcmdump</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.dcm4che6.tool</groupId>
+      <groupId>org.dcm4che.tool</groupId>
       <artifactId>dcm4che-tool-json2dcm</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.dcm4che6.tool</groupId>
+      <groupId>org.dcm4che.tool</groupId>
       <artifactId>dcm4che-tool-xml2dcm</artifactId>
       <version>${project.version}</version>
     </dependency>
