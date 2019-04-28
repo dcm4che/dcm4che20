@@ -2,6 +2,7 @@ package org.dcm4che.internal;
 
 import org.dcm4che.data.*;
 import org.dcm4che.util.StringUtils;
+import org.dcm4che.util.function.StringValueConsumer;
 
 import java.util.Optional;
 import java.util.function.*;

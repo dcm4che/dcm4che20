@@ -1,4 +1,4 @@
-package org.dcm4che.data;
+package org.dcm4che.util.function;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>

@@ -2,7 +2,7 @@ package org.dcm4che.internal;
 
 import org.dcm4che.data.DicomElement;
 import org.dcm4che.data.DicomObject;
-import org.dcm4che.data.StringValueConsumer;
+import org.dcm4che.util.function.StringValueConsumer;
 import org.dcm4che.data.VR;
 import org.dcm4che.io.ByteOrder;
 import org.dcm4che.util.OptionalFloat;

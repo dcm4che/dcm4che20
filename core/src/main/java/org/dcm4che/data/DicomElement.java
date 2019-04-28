@@ -2,6 +2,7 @@ package org.dcm4che.data;
 
 import org.dcm4che.io.DicomOutputStream;
 import org.dcm4che.util.OptionalFloat;
+import org.dcm4che.util.function.StringValueConsumer;
 
 import java.io.IOException;
 import java.util.Optional;
