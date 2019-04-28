@@ -1,6 +1,6 @@
 package org.dcm4che.tool.dcm2xml;
 
-import org.dcm4che.data.DicomInputStream;
+import org.dcm4che.io.DicomInputStream;
 import org.dcm4che.xml.SAXWriter;
 import picocli.CommandLine;
 

@@ -1,5 +1,9 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.DicomObject;
+import org.dcm4che.data.VR;
+import org.dcm4che.io.ByteOrder;
+import org.dcm4che.io.DicomOutputStream;
 import org.dcm4che.util.OptionalFloat;
 
 import java.io.IOException;
@@ -11,7 +15,7 @@ import java.util.OptionalInt;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-class ByteArrayElement extends BaseDicomElement {
+class ByteArrayElement extends DicomElementImpl {
     private final byte[] value;
 
     ByteArrayElement(DicomObject dicomObject, int tag, VR vr, byte[] value) {

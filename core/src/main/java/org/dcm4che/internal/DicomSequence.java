@@ -1,21 +1,30 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
+
+import org.dcm4che.data.DicomObject;
+import org.dcm4che.data.VR;
+import org.dcm4che.io.DicomOutputStream;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.stream.Stream;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-public class DicomSequence extends BaseDicomElement implements Iterable<DicomObject> {
+class DicomSequence extends DicomElementImpl {
     private final ArrayList<DicomObject> items = new ArrayList<>();
-    private long streamPosition = -1L;
-    private int valueLength = 0;
+    private final long streamPosition;
+    private final int valueLength;
 
     DicomSequence(DicomObject dcmObj, int tag) {
+        this(dcmObj, tag, -1L, -1);
+    }
+
+    DicomSequence(DicomObject dcmObj, int tag, long streamPosition, int valueLength) {
         super(dcmObj, tag, VR.SQ);
+        this.streamPosition = streamPosition;
+        this.valueLength = valueLength;
     }
 
     @Override
@@ -24,14 +33,17 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
         items.forEach(DicomObject::trimToSize);
     }
 
+    @Override
     public void addItem(DicomObject item) {
-        items.add(item.containedBy(this));
+        items.add(((DicomObjectImpl) item).containedBy(this));
     }
 
+    @Override
     public DicomObject getItem(int index) {
         return index < items.size() ? items.get(index) : null;
     }
 
+    @Override
     public int size() {
         return items.size();
     }
@@ -46,20 +58,22 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
         return valueLength;
     }
 
+    int elementLength(DicomOutputStream dos) {
+        return dos.getSequenceLengthEncoding().totalLength.applyAsInt(
+                dos.getEncoding().headerLength(VR.SQ),
+                itemStream().mapToInt(item ->
+                            dos.getItemLengthEncoding().totalLength.applyAsInt(8,
+                                    ((DicomObjectImpl) item).calculateItemLength(dos)))
+                            .sum());
+    }
+
     @Override
     public int valueLength(DicomOutputStream dos) {
         return dos.getSequenceLengthEncoding().undefined.test(size()) ? -1
-                : itemStream().mapToInt(dos::lengthOf).sum();
-    }
-
-    DicomSequence valueLength(int valueLength) {
-        this.valueLength = valueLength;
-        return this;
-    }
-
-    DicomSequence streamPosition(long streamPosition) {
-        this.streamPosition = streamPosition;
-        return this;
+                : itemStream().mapToInt(item ->
+                        dos.getItemLengthEncoding().totalLength.applyAsInt(
+                                8, ((DicomObjectImpl) item).calculatedItemLength()))
+                    .sum();
     }
 
     @Override
@@ -68,14 +82,11 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
     }
 
     @Override
-    public Iterator<DicomObject> iterator() {
-        return items.iterator();
-    }
-
     public Stream<DicomObject> itemStream() {
         return items.stream();
     }
 
+    @Override
     public void purgeParsedItems() {
         items.forEach(DicomObject::purgeElements);
     }
@@ -88,7 +99,7 @@ public class DicomSequence extends BaseDicomElement implements Iterable<DicomObj
     @Override
     public void writeValueTo(DicomOutputStream dos) throws IOException {
         for (DicomObject item : items) {
-            dos.writeItem(item);
+            ((DicomObjectImpl) item).writeItemTo(dos);
         }
     }
 }

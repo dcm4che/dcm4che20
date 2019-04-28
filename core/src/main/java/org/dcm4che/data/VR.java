@@ -1,5 +1,10 @@
 package org.dcm4che.data;
 
+import org.dcm4che.internal.BinaryVR;
+import org.dcm4che.internal.SequenceVR;
+import org.dcm4che.internal.StringVR;
+import org.dcm4che.internal.VRType;
+
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
@@ -41,8 +46,8 @@ public enum VR {
     public enum JSONType { BASE64, SQ, PN, STRING, INT, UINT, DOUBLE }
     public final int code;
     public final boolean shortValueLength;
-    final VRType type;
-    final int paddingByte;
+    public final VRType type;
+    public final int paddingByte;
     public final JSONType jsonType;
 
     VR(int code, boolean shortValueLength, VRType type, int paddingByte, JSONType jsonType) {

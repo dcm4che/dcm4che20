@@ -1,10 +1,10 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-enum ToggleByteOrder {
+public enum ToggleByteOrder {
     SHORT {
         @Override
         public int swapBytes(byte[] b, int len) {

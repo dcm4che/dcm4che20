@@ -38,8 +38,8 @@
 
 package org.dcm4che.json;
 
+import org.dcm4che.data.DicomElement;
 import org.dcm4che.data.DicomObject;
-import org.dcm4che.data.DicomSequence;
 import org.dcm4che.data.VR;
 import org.dcm4che.util.StringUtils;
 import org.dcm4che.util.TagUtils;
@@ -115,7 +115,7 @@ public class JSONReader implements Closeable {
         DicomObject dcmobj;
         while (next() == Event.START_OBJECT) {
             fmi = null;
-            dcmobj = new DicomObject();
+            dcmobj = DicomObject.newDicomObject();
             next();
             readItem(dcmobj);
             callback.accept(fmi, dcmobj);
@@ -136,7 +136,7 @@ public class JSONReader implements Closeable {
         int tag = (int) Long.parseLong(getString(), 16);
         if (TagUtils.isFileMetaInformation(tag)) {
             if (fmi == null)
-                fmi = new DicomObject();
+                fmi = DicomObject.newDicomObject();
             dcmobj = fmi;
         }
         next();
@@ -247,7 +247,7 @@ public class JSONReader implements Closeable {
             return null;
 
         return (getString().length() == 8)
-                ? readItem(new DicomObject())
+                ? readItem(DicomObject.newDicomObject())
                 : readPersonName();
     }
 
@@ -330,9 +330,9 @@ public class JSONReader implements Closeable {
             return is;
         }
 
-        void toItems(DicomSequence seq) {
+        void toItems(DicomElement seq) {
             for (Object value : values) {
-                seq.addItem(value != null ? (DicomObject) value : new DicomObject());
+                seq.addItem(value != null ? (DicomObject) value : DicomObject.newDicomObject());
             }
         }
 

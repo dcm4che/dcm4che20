@@ -1,19 +1,26 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.*;
+import org.dcm4che.io.*;
 import org.dcm4che.util.TagUtils;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-public class DicomInputStream extends InputStream implements DicomInputHandler {
+public class DicomParser implements DicomInputHandler {
     private final MemoryCache cache;
+    private DicomInputStream dis;
     private InputStream in;
     private DicomInput input;
     private int limit = -1;
@@ -23,94 +30,77 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
     private VR vr;
     private int headerLength;
     private int valueLength;
-    private DicomObject fmi;
     private DicomInputHandler handler = this;
     private Predicate<DicomElement> parseItemsPredicate = x -> true;
     private Predicate<DicomElement> bulkDataPredicate = x -> false;
-    private URIProducer bulkDataURIProducer;
-    private PathSupplier bulkDataSpoolPathSupplier;
+    private Function<DicomInputStream, String> bulkDataURIProducer;
+    private Supplier<Path> bulkDataSpoolPathSupplier;
     private Path bulkDataSpoolPath;
     private OutputStream bulkDataSpoolStream;
     private long bulkDataSpoolStreamPos;
 
-    public DicomInputStream(InputStream in) {
+    public DicomParser(DicomInputStream dis, InputStream in) {
         this.cache = new MemoryCache();
+        this.dis = dis;
         this.in = in;
     }
 
-    DicomInputStream(DicomInput input, long pos) {
+    private DicomParser(DicomInput input, long pos) {
         this.input = input;
         this.pos = pos;
         this.cache = input.cache;
+    }
+
+    static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
+        new DicomParser(input, pos).parse(dcmObj, length);
     }
 
     public DicomEncoding getEncoding() {
         return input != null ? input.encoding : null;
     }
 
-    public DicomInputStream withEncoding(DicomEncoding encoding) throws IOException {
+    public void setEncoding(DicomEncoding encoding) throws IOException {
         input = new DicomInput(cache, encoding);
         if (input.encoding.deflated) {
             in = cache.inflate(pos, in);
         }
-        return this;
     }
 
-    public DicomInputStream withLimit(int limit) throws IOException {
+    public void setLimit(int limit) {
         if (limit <= 0)
             throw new IllegalArgumentException("limit: " + limit);
 
         this.limit = limit;
-        return this;
     }
 
-    public DicomInputStream withParseItems(Predicate<DicomElement> parseItemsPredicate) {
+    public void setParseItems(Predicate<DicomElement> parseItemsPredicate) {
         this.parseItemsPredicate = Objects.requireNonNull(parseItemsPredicate);
-        return this;
     }
 
-    public DicomInputStream withParseItemsLazy(int seqTag) {
-        return withParseItems(x -> x.tag() != seqTag);
-    }
-
-    public DicomInputStream withBulkData(Predicate<DicomElement> bulkDataPredicate) {
+    public void setBulkData(Predicate<DicomElement> bulkDataPredicate) {
         this.bulkDataPredicate = Objects.requireNonNull(bulkDataPredicate);
-        return this;
     }
 
-    public DicomInputStream withBulkDataURIProducer(URIProducer bulkDataURIProducer) {
+    public void setBulkDataURIProducer(Function<DicomInputStream, String> bulkDataURIProducer) {
         this.bulkDataURIProducer = Objects.requireNonNull(bulkDataURIProducer);
-        return this;
     }
 
-    public DicomInputStream withBulkDataURI(Path sourcePath) {
-        return withBulkDataURIProducer(x -> x.bulkDataURI(sourcePath.toUri().toString(), x.pos, x.valueLength));
+    public void setBulkDataSpoolPathSupplier(Supplier<Path> bulkDataSpoolPathSupplier) {
+        this.bulkDataSpoolPathSupplier = Objects.requireNonNull(bulkDataSpoolPathSupplier);
     }
 
-    public DicomInputStream withInputHandler(DicomInputHandler handler) {
+    public void setInputHandler(DicomInputHandler handler) {
         this.handler = Objects.requireNonNull(handler);
-        return this;
     }
 
     public DicomInputHandler getInputHandler() {
         return handler;
     }
 
-    public DicomInputStream spoolBulkDataTo(Path path) {
-        return spoolBulkData(() -> path);
-    }
-
-    public DicomInputStream spoolBulkData(PathSupplier bulkDataSpoolPathSupplier) {
-        this.bulkDataSpoolPathSupplier = Objects.requireNonNull(bulkDataSpoolPathSupplier);
-        this.bulkDataURIProducer = DicomInputStream::bulkDataSpoolPathURI;
-        return this;
-    }
-
     public long getStreamPosition() {
         return pos;
     }
 
-    @Override
     public int read() throws IOException {
         if (cache.loadFromStream(pos + 1, in) == pos)
             return -1;
@@ -118,7 +108,6 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         return cache.byteAt(pos++);
     }
 
-    @Override
     public int read(byte[] b, int off, int len) throws IOException {
         Objects.checkFromIndexSize(off, len, b.length);
         if (len == 0) {
@@ -133,7 +122,6 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         return read;
     }
 
-    @Override
     public void close() throws IOException {
         try {
             if (bulkDataSpoolStream != null)
@@ -153,25 +141,20 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         if (read != 132 || b[128] != 'D' || b[129] != 'I' || b[130] != 'C' || b[131] != 'M')
             return null;
 
-        DicomObject dcmObj = new DicomObject();
+        DicomObject dcmObj = new DicomObjectImpl();
         pos = 132;
         input = new DicomInput(cache, DicomEncoding.EVR_LE);
         readHeader(dcmObj, false);
         DicomElement groupLength = input.dicomElement(dcmObj, tag, vr, pos, valueLength);
-        handler.startElement(this, groupLength, false);
-        handler.endElement(this, groupLength, false);
+        handler.startElement(dis, groupLength, false);
+        handler.endElement(dis, groupLength, false);
         pos += valueLength;
         parse(dcmObj, groupLength.intValue(0).orElseThrow(
                 () -> new DicomParseException("Missing Group Length in File Meta Information")));
         String tsuid = dcmObj.getString(Tag.TransferSyntaxUID).orElseThrow(
                 () -> new DicomParseException("Missing Transfer Syntax UID in File Meta Information"));
-        withEncoding(DicomEncoding.of(tsuid));
-        fmi = dcmObj;
-        return fmi;
-    }
-
-    public DicomObject getFileMetaInformation() {
-        return fmi;
+        setEncoding(DicomEncoding.of(tsuid));
+        return dcmObj;
     }
 
     public DicomObject readCommandSet() throws IOException {
@@ -182,13 +165,13 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
             throw new IllegalStateException("encoding already initialized: " + input.encoding);
 
         input = new DicomInput(cache, DicomEncoding.IVR_LE);
-        DicomObject dcmObj = new DicomObject();
+        DicomObject dcmObj = new DicomObjectImpl();
         parse(dcmObj, limit);
         return dcmObj;
     }
 
     public DicomObject readDataSet() throws IOException {
-        DicomObject dcmObj = new DicomObject();
+        DicomObject dcmObj = new DicomObjectImpl();
         readDataSet(dcmObj);
         return dcmObj;
     }
@@ -305,11 +288,7 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         return ElementDictionary.vrOf(tag, dcmObj != null ? dcmObj.getPrivateCreator(tag) : Optional.empty());
     }
 
-    static void parse(DicomObject dcmObj, DicomInput input, long pos, int length) throws IOException {
-        new DicomInputStream(input, pos).parse(dcmObj, length);
-    }
-
-    boolean parse(DicomObject dcmObj, int length) throws IOException {
+    private boolean parse(DicomObject dcmObj, int length) throws IOException {
         boolean undefinedLength = length == -1;
         boolean expectEOF = undefinedLength && !dcmObj.hasParent();
         long endPos = pos + length;
@@ -319,13 +298,12 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
             if (valueLength == BulkDataElement.MAGIC_LEN) {
                 deserializeBulkDataElement(dcmObj);
             } else if (vr == VR.SQ) {
-                if (!parseItems(new DicomSequence(dcmObj, tag)
-                        .streamPosition(pos - (input.encoding.explicitVR ? 12 : 8))
-                        .valueLength(valueLength)))
+                if (!parseItems(new DicomSequence(dcmObj, tag,
+                        pos - (input.encoding.explicitVR ? 12 : 8), valueLength)))
                     return false;
             } else if (valueLength == -1) {
-                if (!parseDataFragments(new DataFragments(dcmObj, tag, vr)
-                        .streamPosition(pos - (input.encoding.explicitVR ? 12 : 8))))
+                if (!parseDataFragments(
+                        new DataFragments(dcmObj, tag, vr, pos - (input.encoding.explicitVR ? 12 : 8))))
                     return false;
             } else {
                 if (!parseCommonElement(input.dicomElement(dcmObj, tag, vr, pos, valueLength)))
@@ -365,17 +343,20 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
 
     private boolean parseCommonElement(DicomElement dcmElm) throws IOException {
         boolean bulkData = bulkDataPredicate.test(dcmElm);
-        if (!handler.startElement(this, dcmElm, bulkData))
+        if (!handler.startElement(dis, dcmElm, bulkData))
             return false;
 
+        if (bulkData)
+            skipBulkData();
+
         pos += valueLength;
-        return handler.endElement(this, dcmElm, bulkData);
+        return handler.endElement(dis, dcmElm, bulkData);
     }
 
     private boolean parseItems(DicomSequence dcmElm) throws IOException {
-        return handler.startElement(this, dcmElm, false)
+        return handler.startElement(dis, dcmElm, false)
                 && parseItems0(dcmElm)
-                && handler.endElement(this, dcmElm, false);
+                && handler.endElement(dis, dcmElm, false);
     }
 
     private boolean parseItems0(DicomSequence dcmElm) throws IOException {
@@ -405,8 +386,8 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
                 throw new DicomParseException("Expected (FFFE,E000) but " + TagUtils.toString(tag));
 
             if (parseItemsPredicate.test(dcmSeq)
-                    ? !parseItem(dcmSeq, new DicomObject(input, pos, valueLength, new ArrayList<>()))
-                    : !skipItem(dcmSeq, new DicomObject(input, pos, valueLength, null)))
+                    ? !parseItem(dcmSeq, new DicomObjectImpl(input, pos, valueLength, new ArrayList<>()))
+                    : !skipItem(dcmSeq, new DicomObjectImpl(input, pos, valueLength, null)))
                 return false;
         }
         return true;
@@ -433,20 +414,20 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
     }
 
     private boolean parseItem(DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
-        return handler.startItem(this, dcmSeq, dcmObj)
+        return handler.startItem(dis, dcmSeq, dcmObj)
                 && parse(dcmObj, valueLength)
-                && handler.endItem(this, dcmSeq, dcmObj);
+                && handler.endItem(dis, dcmSeq, dcmObj);
     }
 
     private boolean skipItem(DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
-        return handler.startItem(this, dcmSeq, dcmObj)
+        return handler.startItem(dis, dcmSeq, dcmObj)
                 && skipItem(valueLength)
-                && handler.endItem(this, dcmSeq, dcmObj);
+                && handler.endItem(dis, dcmSeq, dcmObj);
     }
 
     private boolean parseDataFragments(DataFragments fragments) throws IOException {
         boolean bulkData = bulkDataPredicate.test(fragments);
-        if (!handler.startElement(this, fragments, bulkData))
+        if (!handler.startElement(dis, fragments, bulkData))
             return false;
 
         while (readHeader(null, false)
@@ -458,7 +439,7 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
                 skipBytes(-headerLength, headerLength + valueLength, bulkDataSpoolStream);
                 bulkDataSpoolStreamPos += headerLength + valueLength;
             } else if (fragments != null
-                    && !handler.dataFragment(this, fragments, input.dataFragment(fragments, pos, valueLength))) {
+                    && !handler.dataFragment(dis, fragments, input.dataFragment(fragments, pos, valueLength))) {
                 return false;
             }
 
@@ -468,7 +449,7 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
             skipBytes(-headerLength, headerLength, bulkDataSpoolStream);
             bulkDataSpoolStreamPos += headerLength;
         }
-        return handler.endElement(this, fragments, bulkData);
+        return handler.endElement(dis, fragments, bulkData);
     }
 
     public void skipBytes(int off, int length, OutputStream out) throws IOException {
@@ -485,12 +466,20 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         return true;
     }
 
-    private String bulkDataSpoolPathURI() throws IOException {
+    public String bulkDataSpoolPathURI() {
         if (bulkDataSpoolPath == null) {
             bulkDataSpoolPath = bulkDataSpoolPathSupplier.get();
-            bulkDataSpoolStream = Files.newOutputStream(bulkDataSpoolPath);
+            try {
+                bulkDataSpoolStream = Files.newOutputStream(bulkDataSpoolPath);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
         return bulkDataURI(bulkDataSpoolPath.toUri().toString(), bulkDataSpoolStreamPos, valueLength);
+    }
+
+    public String bulkDataURI(Path sourcePath) {
+        return bulkDataURI(sourcePath.toUri().toString(), pos, valueLength);
     }
 
     private String bulkDataURI(String url, long pos, int valueLength) {
@@ -512,25 +501,18 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
     }
 
     @Override
-    public boolean startElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
+    public boolean startElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) {
         if (bulkData) {
-            String bulkDataURI = bulkDataURI();
-            if (bulkDataURI != null) {
-                dcmElm = new BulkDataElement(dcmElm.containedBy(), tag, vr, bulkDataURI, null);
-                dcmElm.containedBy().add(dcmElm);
-            }
-            skipBulkData();
-            return true;
+            if (bulkDataURIProducer == null)
+                return true;
+
+            dcmElm = new BulkDataElement(dcmElm.containedBy(), tag, vr, bulkDataURIProducer.apply(this.dis), null);
         }
         dcmElm.containedBy().add(dcmElm);
         return true;
     }
 
-    public String bulkDataURI() throws IOException {
-        return bulkDataURIProducer != null ? bulkDataURIProducer.apply(this) : null;
-    }
-
-    public void skipBulkData() throws IOException {
+    private void skipBulkData() throws IOException {
         skipBytes(-headerLength, headerLength, null);
         if (valueLength > 0) {
             skipBytes(0, valueLength, bulkDataSpoolStream);
@@ -538,51 +520,19 @@ public class DicomInputStream extends InputStream implements DicomInputHandler {
         }
     }
 
+    public String bulkDataURI() {
+        return bulkDataURIProducer != null ? bulkDataURIProducer.apply(dis) : null;
+    }
+
     @Override
-    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) {
+    public boolean startItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) {
         dcmSeq.addItem(dcmObj);
         return true;
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment) {
+    public boolean dataFragment(DicomInputStream dis, DicomElement fragments, DataFragment dataFragment) {
         fragments.addDataFragment(dataFragment);
         return true;
-    }
-
-    public static boolean isBulkData(DicomElement el) {
-        switch (el.tag()) {
-            case Tag.PixelData:
-            case Tag.FloatPixelData:
-            case Tag.DoubleFloatPixelData:
-            case Tag.SpectroscopyData:
-            case Tag.EncapsulatedDocument:
-                return !el.containedBy().hasParent();
-            case Tag.WaveformData:
-                return isWaveformSequenceItem(el.containedBy());
-        }
-        switch (el.tag() & 0xFF00FFFF) {
-            case Tag.AudioSampleData:
-            case Tag.CurveData:
-            case Tag.OverlayData:
-                return !el.containedBy().hasParent();
-        }
-        return false;
-    }
-
-    private static boolean isWaveformSequenceItem(DicomObject item) {
-        return item.containedBy()
-                .filter(seq -> seq.tag() == Tag.WaveformSequence && !seq.containedBy().hasParent())
-                .isPresent();
-    }
-
-    @FunctionalInterface
-    public interface URIProducer {
-        String apply(DicomInputStream reader) throws IOException;
-    }
-
-    @FunctionalInterface
-    public interface PathSupplier {
-        Path get() throws IOException;
     }
 }

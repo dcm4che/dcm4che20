@@ -1,15 +1,14 @@
-package org.dcm4che.data;
+package org.dcm4che.io;
 
-import org.dcm4che.util.TagUtils;
+import org.dcm4che.data.*;
+import org.dcm4che.internal.DicomObjectImpl;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.IntBinaryOperator;
 import java.util.function.IntPredicate;
-import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
@@ -130,8 +129,8 @@ public class DicomOutputStream extends OutputStream {
         boolean includeGroupLength0 = includeGroupLength;
         try {
             includeGroupLength = true;
-            calculateItemLength(fmi);
-            write(fmi);
+            ((DicomObjectImpl) fmi).calculateItemLength(this);
+            ((DicomObjectImpl) fmi).writeTo(this);
         } finally {
             includeGroupLength = includeGroupLength0;
         }
@@ -144,10 +143,10 @@ public class DicomOutputStream extends OutputStream {
             throw new IllegalStateException("encoding not initialized");
 
         Objects.requireNonNull(dcmobj);
-        if (includeGroupLength || itemLengthEncoding.explicit || sequenceLengthEncoding.explicit) {
-            calculateItemLength(dcmobj);
+        if (includeGroupLength || itemLengthEncoding.calculate || sequenceLengthEncoding.calculate) {
+            ((DicomObjectImpl) dcmobj).calculateItemLength(this);
         }
-        write(dcmobj);
+        ((DicomObjectImpl) dcmobj).writeTo(this);
         if (out instanceof DeflaterOutputStream) {
             ((DeflaterOutputStream) out).finish();
         }
@@ -160,92 +159,18 @@ public class DicomOutputStream extends OutputStream {
         Objects.requireNonNull(dcmobj);
         encoding = DicomEncoding.IVR_LE;
         includeGroupLength = true;
-        calculateItemLength(dcmobj);
-        write(dcmobj);
+        ((DicomObjectImpl) dcmobj).calculateItemLength(this);
+        ((DicomObjectImpl) dcmobj).writeTo(this);
     }
 
-    private void write(DicomObject dcmObj) throws IOException {
-        for (DicomElement element : dcmObj) {
-            int tag = element.tag();
-            if (includeGroupLength || !TagUtils.isGroupLength(tag)) {
-                int valueLength = element.valueLength(this);
-                writeHeader(tag, element.vr(), valueLength);
-                element.writeValueTo(this);
-                if (valueLength == -1) {
-                    writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
-                }
-            }
-        }
-    }
-
-    byte[] swapBuffer() {
+    public byte[] swapBuffer() {
         if (swapBuffer == null) {
             swapBuffer = new byte[BUFFER_LENGTH];
         }
         return swapBuffer;
     }
 
-    void writeItem(DicomObject dcmobj) throws IOException {
-        boolean undefinedLength = itemLengthEncoding.undefined.test(dcmobj.size());
-        writeHeader(Tag.Item, VR.NONE, undefinedLength ? -1 : dcmobj.calculatedItemLength);
-        write(dcmobj);
-        if (undefinedLength) {
-            writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
-        }
-    }
-
-    private int calculateLengthOf(DicomElement el) {
-        if (el instanceof DataFragments) {
-            DataFragments dataFragments = (DataFragments) el;
-            return dataFragments.fragmentStream().mapToInt(DataFragment::valueLength).sum()
-                    + dataFragments.size() * 8 + 20;
-        }
-        int headerLength = !encoding.explicitVR || el.vr().shortValueLength ? 8 : 12;
-        if (el instanceof DicomSequence) {
-            DicomSequence seq = (DicomSequence) el;
-            return sequenceLengthEncoding.totalLength.applyAsInt(
-                    headerLength, seq.itemStream().mapToInt(this::calculateLengthOf).sum());
-        }
-        return headerLength + el.valueLength();
-    }
-
-    private int calculateLengthOf(DicomObject item) {
-        return itemLengthEncoding.totalLength.applyAsInt(8, calculateItemLength(item));
-    }
-
-    private int calculateItemLength(DicomObject dcmobj) {
-        int len = 0;
-        if (!dcmobj.isEmpty()) {
-            int groupLengthTag = TagUtils.groupLengthTagOf(dcmobj.firstElement().tag());
-            if (includeGroupLength && groupLengthTag != TagUtils.groupLengthTagOf(dcmobj.lastElement().tag())) {
-                Map<Integer, Integer> groups = dcmobj.elementStream()
-                        .collect(Collectors.groupingBy(
-                                x -> TagUtils.groupNumber(x.tag()),
-                                Collectors.filtering(x -> !TagUtils.isGroupLength(x.tag()),
-                                        Collectors.summingInt(this::calculateLengthOf))));
-                for (Map.Entry<Integer, Integer> group : groups.entrySet()) {
-                    int glen = group.getValue();
-                    dcmobj.setInt(group.getKey() << 16, VR.UL, glen);
-                    len += glen + 12;
-                }
-            } else {
-                len = dcmobj.elementStream().filter(x -> !TagUtils.isGroupLength(x.tag()))
-                        .collect(Collectors.summingInt(this::calculateLengthOf));
-                if (includeGroupLength) {
-                    dcmobj.setInt(groupLengthTag, VR.UL, len);
-                    len += 12;
-                }
-            }
-        }
-        dcmobj.calculatedItemLength = len;
-        return len;
-    }
-
-    int lengthOf(DicomObject item) {
-        return itemLengthEncoding.totalLength.applyAsInt(8, item.calculatedItemLength);
-    }
-
-    void writeUTF(String s) throws IOException {
+    public void writeUTF(String s) throws IOException {
         byte[] b = s.getBytes(StandardCharsets.UTF_8);
         ByteOrder.LITTLE_ENDIAN.shortToBytes(b.length, header, 0);
         write(header, 0, 2);
@@ -257,12 +182,12 @@ public class DicomOutputStream extends OutputStream {
         UNDEFINED(false, x -> true, (h, x) -> h + x + 8),
         EXPLICIT(true, x -> false, (h, x) -> h + x);
 
-        public final boolean explicit;
+        public final boolean calculate;
         public final IntPredicate undefined;
         public final IntBinaryOperator totalLength;
 
-        LengthEncoding(boolean explicit, IntPredicate undefined, IntBinaryOperator totalLength) {
-            this.explicit = explicit;
+        LengthEncoding(boolean calculate, IntPredicate undefined, IntBinaryOperator totalLength) {
+            this.calculate = calculate;
             this.undefined = undefined;
             this.totalLength = totalLength;
         }

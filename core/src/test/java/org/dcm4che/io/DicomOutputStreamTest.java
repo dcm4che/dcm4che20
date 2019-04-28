@@ -1,5 +1,6 @@
-package org.dcm4che.data;
+package org.dcm4che.io;
 
+import org.dcm4che.data.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -56,7 +57,7 @@ class DicomOutputStreamTest {
     };
 
     private static DicomObject c_echo_rq() {
-        DicomObject cmd = new DicomObject();
+        DicomObject cmd = DicomObject.newDicomObject();
         cmd.setString(Tag.AffectedSOPClassUID, VR.UI, UID.VerificationSOPClass);
         cmd.setInt(Tag.CommandField, VR.US, 48);
         cmd.setInt(Tag.MessageID, VR.US, 1);
@@ -65,20 +66,20 @@ class DicomOutputStreamTest {
     }
 
     private static DicomObject sequences() {
-        DicomObject dcmObj = new DicomObject();
+        DicomObject dcmObj = DicomObject.newDicomObject();
         dcmObj.newDicomSequence(Tag.ReferencedStudySequence);
-        DicomSequence spsSeq = dcmObj.newDicomSequence(Tag.ScheduledProcedureStepSequence);
-        spsSeq.addItem(new DicomObject());
+        DicomElement spsSeq = dcmObj.newDicomSequence(Tag.ScheduledProcedureStepSequence);
+        spsSeq.addItem(DicomObject.newDicomObject());
         return dcmObj;
     }
 
     @Test
     void writeFileMetaInformation() throws IOException {
-        DicomObject fmi = new DicomObject();
+        DicomObject fmi = DicomObject.newDicomObject();
         fmi.setString(Tag.TransferSyntaxUID, VR.UI, UID.DeflatedExplicitVRLittleEndian);
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         try (DicomOutputStream dos = new DicomOutputStream(bout)) {
-            dos.writeFileMetaInformation(fmi).writeDataSet(new DicomObject());
+            dos.writeFileMetaInformation(fmi).writeDataSet(DicomObject.newDicomObject());
         }
         assertArrayEquals(resourceAsBytes("preamble_fmi_defl.dcm"), bout.toByteArray());
     }
@@ -131,9 +132,9 @@ class DicomOutputStreamTest {
     @Test
     void withBulkDataURI() throws IOException {
         String baseURL = DicomInputStreamTest.resource("waveform_overlay_pixeldata.dcm").toString();
-        DicomObject data = new DicomObject();
-        DicomSequence seq = data.newDicomSequence(Tag.WaveformSequence);
-        DicomObject item = new DicomObject();
+        DicomObject data = DicomObject.newDicomObject();
+        DicomElement seq = data.newDicomSequence(Tag.WaveformSequence);
+        DicomObject item = DicomObject.newDicomObject();
         seq.addItem(item);
         item.setBulkData(Tag.WaveformData, VR.OW, baseURL + "#offset=32&length=256", null);
         data.setBulkData(Tag.OverlayData, VR.OW, baseURL + "#offset=300&length=256", null);

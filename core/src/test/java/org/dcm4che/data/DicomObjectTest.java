@@ -19,7 +19,7 @@ class DicomObjectTest {
 
     @Test
     void getPrivate() {
-        DicomObject dataset = new DicomObject();
+        DicomObject dataset = DicomObject.newDicomObject();
         dataset.setString(0x00090010, VR.LO, PRIVATE_CREATOR_A);
         dataset.setString(0x00090011, VR.LO, PRIVATE_CREATOR_B);
         dataset.setString(0x00091010, VR.SH, "A");
@@ -42,7 +42,7 @@ class DicomObjectTest {
 
     @Test
     void setPrivate() {
-        DicomObject dataset = new DicomObject();
+        DicomObject dataset = DicomObject.newDicomObject();
         dataset.setString(PRIVATE_CREATOR_A, 0x00090010, VR.SH, "A");
         dataset.setInt(PRIVATE_CREATOR_A, 0x00090020, VR.US, 0XA);
         dataset.setFloat(PRIVATE_CREATOR_A, 0x00090030, VR.FL, 0.1111f);
@@ -65,20 +65,17 @@ class DicomObjectTest {
 
     @Test
     void serializeBulkData() {
-        DicomObject data = new DicomObject();
-        DicomSequence seq = data.newDicomSequence(Tag.WaveformSequence);
-        DicomObject item = new DicomObject();
+        DicomObject data = DicomObject.newDicomObject();
+        DicomElement seq = data.newDicomSequence(Tag.WaveformSequence);
+        DicomObject item = DicomObject.newDicomObject();
         seq.addItem(item);
         item.setBulkData(Tag.WaveformData, VR.OW, BULK_DATA_URI, null);
         data = deserialize(serialize(data));
         DicomElement elm = data.get(Tag.WaveformSequence).orElseGet(Assertions::fail);
-        assertTrue(elm instanceof DicomSequence);
-        seq = (DicomSequence) elm;
-        item = seq.getItem(0);
+        item = elm.getItem(0);
         assertNotNull(item);
         DicomElement waveformData = item.get(Tag.WaveformData).orElseGet(Assertions::fail);
-        assertTrue(waveformData instanceof BulkDataElement);
-        assertEquals(BULK_DATA_URI, ((BulkDataElement) waveformData).bulkDataURI());
+        assertEquals(BULK_DATA_URI, waveformData.bulkDataURI());
     }
 
     private static byte[] serialize(DicomObject dcmobj) {

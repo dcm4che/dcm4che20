@@ -1,5 +1,10 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.DicomElement;
+import org.dcm4che.data.DicomObject;
+import org.dcm4che.data.StringValueConsumer;
+import org.dcm4che.data.VR;
+import org.dcm4che.io.ByteOrder;
 import org.dcm4che.util.OptionalFloat;
 import org.dcm4che.util.StringUtils;
 import org.dcm4che.util.TagUtils;
@@ -14,7 +19,7 @@ import java.util.function.IntConsumer;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-enum BinaryVR implements VRType {
+public enum BinaryVR implements VRType {
     AT(4, ToggleByteOrder.SHORT,
             BinaryVR::tagToBytes, BinaryVR::bytesToTag, DicomInput::tagAt,
             BinaryVR::tagToBytes, BinaryVR::bytesToTag, DicomInput::tagAt,

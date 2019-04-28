@@ -1,8 +1,8 @@
 package org.dcm4che.tool.xml2dcm;
 
-import org.dcm4che.data.DicomEncoding;
+import org.dcm4che.io.DicomEncoding;
 import org.dcm4che.data.DicomObject;
-import org.dcm4che.data.DicomOutputStream;
+import org.dcm4che.io.DicomOutputStream;
 import org.dcm4che.data.Tag;
 import org.dcm4che.xml.SAXReader;
 import picocli.CommandLine;
@@ -90,7 +90,7 @@ public class Xml2Dcm implements Callable<Xml2Dcm> {
     public Xml2Dcm call() throws Exception {
         boolean stdin = xmlfile.toString().equals("-");
         DicomObject fmi;
-        DicomObject dcmobj = new DicomObject();
+        DicomObject dcmobj = DicomObject.newDicomObject();
         try (InputStream in = stdin ? System.in : Files.newInputStream(xmlfile)) {
             fmi = SAXReader.parse(in, dcmobj);
         }

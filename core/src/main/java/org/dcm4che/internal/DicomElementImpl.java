@@ -1,19 +1,19 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.*;
+import org.dcm4che.io.DicomOutputStream;
 import org.dcm4che.util.TagUtils;
-
-import java.io.IOException;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-class BaseDicomElement implements DicomElement {
+class DicomElementImpl implements DicomElement {
     protected final DicomObject dicomObject;
     protected final int tag;
     protected final VR vr;
 
-    BaseDicomElement(DicomObject dicomObject, int tag, VR vr) {
+    DicomElementImpl(DicomObject dicomObject, int tag, VR vr) {
         this.dicomObject = dicomObject;
         this.tag = tag;
         this.vr = vr;
@@ -34,12 +34,8 @@ class BaseDicomElement implements DicomElement {
         return dicomObject;
     }
 
-    @Override
-    public int valueLength() {
-        return 0;
-    }
-
-    public void writeValueTo(DicomOutputStream dos) throws IOException {
+    int elementLength(DicomOutputStream dos) {
+        return dos.getEncoding().headerLength(vr) + valueLength();
     }
 
     @Override
@@ -61,7 +57,7 @@ class BaseDicomElement implements DicomElement {
         return appendTo;
     }
 
-    protected StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
+    StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
         return appendTo;
     }
 }

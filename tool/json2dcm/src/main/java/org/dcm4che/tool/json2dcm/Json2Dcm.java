@@ -1,6 +1,8 @@
 package org.dcm4che.tool.json2dcm;
 
 import org.dcm4che.data.*;
+import org.dcm4che.io.DicomEncoding;
+import org.dcm4che.io.DicomOutputStream;
 import org.dcm4che.json.JSONReader;
 import picocli.CommandLine;
 
@@ -87,7 +89,7 @@ public class Json2Dcm implements Callable<Json2Dcm> {
     public Json2Dcm call() throws Exception {
         boolean stdin = jsonfile.toString().equals("-");
         DicomObject fmi;
-        DicomObject dcmobj = new DicomObject();
+        DicomObject dcmobj = DicomObject.newDicomObject();
         try (JSONReader reader =
                      new JSONReader(Json.createParser(stdin ? System.in : Files.newInputStream(jsonfile)))) {
             fmi = reader.readDataset(dcmobj);

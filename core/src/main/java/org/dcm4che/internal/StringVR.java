@@ -1,5 +1,6 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.*;
 import org.dcm4che.util.StringUtils;
 
 import java.util.Optional;
@@ -9,7 +10,7 @@ import java.util.function.*;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
  */
-enum StringVR implements VRType {
+public enum StringVR implements VRType {
     ASCII("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
             null, null),
     STRING("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet,
@@ -30,7 +31,7 @@ enum StringVR implements VRType {
     private final String delimiters;
     private final VM vm;
     private final StringUtils.Trim trim;
-    private final Function<DicomObject,SpecificCharacterSet> asciiOrCS;
+    private final Function<DicomObject, SpecificCharacterSet> asciiOrCS;
     private final ToIntFunction<String> stringToInt;
     private final ToDoubleFunction<String> stringToDouble;
 

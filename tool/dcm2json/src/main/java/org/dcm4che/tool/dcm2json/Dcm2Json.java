@@ -1,6 +1,6 @@
 package org.dcm4che.tool.dcm2json;
 
-import org.dcm4che.data.DicomInputStream;
+import org.dcm4che.io.DicomInputStream;
 import org.dcm4che.json.JSONWriter;
 import picocli.CommandLine;
 

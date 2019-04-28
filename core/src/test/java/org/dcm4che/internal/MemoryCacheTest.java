@@ -1,5 +1,11 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.SpecificCharacterSet;
+import org.dcm4che.data.VR;
+import org.dcm4che.internal.MemoryCache;
+import org.dcm4che.internal.ToggleByteOrder;
+import org.dcm4che.io.ByteOrder;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -50,7 +56,7 @@ public class MemoryCacheTest {
         assertEquals(0xff01fe02fd03fc04L, cache.longAt(POS_BYTES, ByteOrder.BIG_ENDIAN));
         assertArrayEquals(BYTES, cache.bytesAt(POS_BYTES, BYTES.length));
         assertEquals(POS_PN + 2, cache.loadFromStream(Integer.MAX_VALUE, in));
-        assertEquals(VR.PN.code, cache.vrcode(POS_PN));
+        Assertions.assertEquals(VR.PN.code, cache.vrcode(POS_PN));
         assertEquals("P", cache.stringAt(POS_PN, 1, SpecificCharacterSet.ASCII));
         assertEquals("PN", cache.stringAt(POS_PN, 2, SpecificCharacterSet.ASCII));
         assertArrayEquals(BYTES, writeBytesTo(cache, 0, BYTES.length));

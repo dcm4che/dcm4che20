@@ -1,6 +1,8 @@
 package org.dcm4che.tool.dcmdump;
 
 import org.dcm4che.data.*;
+import org.dcm4che.io.DicomInputHandler;
+import org.dcm4che.io.DicomInputStream;
 import org.dcm4che.util.TagUtils;
 import picocli.CommandLine;
 
@@ -90,7 +92,7 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
     }
 
     @Override
-    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) {
+    public boolean startItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) {
         dcmSeq.addItem(dcmObj);
         System.out.println(
                 dcmObj.appendNestingLevel(
@@ -101,7 +103,7 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
     }
 
     @Override
-    public boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) {
+    public boolean endItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) {
         if (dcmObj.getItemLength() == -1) {
             System.out.println(
                     dcmObj.appendNestingLevel(toPrompt(dis.getStreamPosition() - 8))
@@ -111,7 +113,7 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment)
+    public boolean dataFragment(DicomInputStream dis, DicomElement fragments, DataFragment dataFragment)
             throws IOException {
         System.out.println(
                 dis.promptTo(dataFragment, toPrompt(dis.getStreamPosition() - 8), cols));

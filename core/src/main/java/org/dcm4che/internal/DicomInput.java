@@ -1,10 +1,12 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.*;
+import org.dcm4che.io.DicomEncoding;
+import org.dcm4che.io.DicomOutputStream;
 import org.dcm4che.util.OptionalFloat;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -63,7 +65,7 @@ class DicomInput {
         return new ParsedDataFragment(dcmElm, valuePos, valueLength);
     }
 
-    private class ParsedDicomElement extends BaseDicomElement {
+    private class ParsedDicomElement extends DicomElementImpl {
         final long valuePos;
         final int valueLen;
 
@@ -154,7 +156,7 @@ class DicomInput {
         }
 
         @Override
-        public DataFragments containedBy() {
+        public DicomElement containedBy() {
             return dataFragments;
         }
 

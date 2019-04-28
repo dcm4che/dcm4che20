@@ -1,6 +1,8 @@
 package org.dcm4che.json;
 
 import org.dcm4che.data.*;
+import org.dcm4che.io.DicomInputHandler;
+import org.dcm4che.io.DicomInputStream;
 import org.dcm4che.util.TagUtils;
 
 import javax.json.stream.JsonGenerator;
@@ -39,12 +41,7 @@ public class JSONWriter implements DicomInputHandler {
             dis.loadValueFromStream();
             dcmElm.containedBy().add(dcmElm);
         }
-        if (bulkData) {
-            bulkDataURI = dis.bulkDataURI();
-            dis.skipBulkData();
-        } else {
-            bulkDataURI = null;
-        }
+        bulkDataURI = dis.bulkDataURI();
         if (exclude(tag, bulkData))
             return true;
 
@@ -135,7 +132,7 @@ public class JSONWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    public boolean startItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         if (dcmSeq.isEmpty()) {
             gen.writeStartArray("Value");
         }
@@ -145,13 +142,13 @@ public class JSONWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    public boolean endItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         gen.writeEnd();
         return true;
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment)
+    public boolean dataFragment(DicomInputStream dis, DicomElement fragments, DataFragment dataFragment)
             throws IOException {
         dis.skipBytes(-8, 8 + dataFragment.valueLength(), inlineBinary);
         return true;

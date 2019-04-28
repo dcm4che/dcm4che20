@@ -1,26 +1,27 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
+
+import org.dcm4che.data.DataFragment;
+import org.dcm4che.data.DicomObject;
+import org.dcm4che.data.Tag;
+import org.dcm4che.data.VR;
+import org.dcm4che.io.DicomOutputStream;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.stream.Stream;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-public class DataFragments extends BaseDicomElement implements Iterable<DataFragment> {
+class DataFragments extends DicomElementImpl {
 
     private final ArrayList<DataFragment> items = new ArrayList<>();
-    private long streamPosition;
+    private final long streamPosition;
 
-    DataFragments(DicomObject dicomObject, int tag, VR vr) {
+    DataFragments(DicomObject dicomObject, int tag, VR vr, long streamPosition) {
         super(dicomObject, tag, vr);
-    }
-
-    DataFragments streamPosition(long streamPosition) {
         this.streamPosition = streamPosition;
-        return this;
     }
 
     @Override
@@ -33,15 +34,16 @@ public class DataFragments extends BaseDicomElement implements Iterable<DataFrag
         return -1;
     }
 
-    @Override
-    public Iterator<DataFragment> iterator() {
-        return items.iterator();
+    int elementLength(DicomOutputStream dos) {
+        return fragmentStream().mapToInt(DataFragment::valueLength).sum() + size() * 8 + 20;
     }
 
+    @Override
     public Stream<DataFragment> fragmentStream() {
         return items.stream();
     }
 
+    @Override
     public int size() {
         return items.size();
     }
@@ -51,10 +53,12 @@ public class DataFragments extends BaseDicomElement implements Iterable<DataFrag
         items.trimToSize();
     }
 
+    @Override
     public void addDataFragment(DataFragment item) {
         items.add(item);
     }
 
+    @Override
     public DataFragment getDataFragment(int index) {
         return index < items.size() ? items.get(index) : null;
     }

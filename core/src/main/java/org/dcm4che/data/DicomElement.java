@@ -1,5 +1,6 @@
 package org.dcm4che.data;
 
+import org.dcm4che.io.DicomOutputStream;
 import org.dcm4che.util.OptionalFloat;
 
 import java.io.IOException;
@@ -8,6 +9,7 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
+import java.util.stream.Stream;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -25,13 +27,15 @@ public interface DicomElement {
 
     DicomObject containedBy();
 
-    int valueLength();
+    default int valueLength() { return 0; }
 
     default int valueLength(DicomOutputStream dos) { return valueLength(); }
 
     default boolean isEmpty() { return valueLength() == 0; }
 
-    void writeValueTo(DicomOutputStream dos) throws IOException;
+    default int size() { return 0; }
+
+    default void writeValueTo(DicomOutputStream dos) throws IOException {}
 
     default Optional<String> stringValue(int index) { return Optional.empty(); }
 
@@ -59,6 +63,40 @@ public interface DicomElement {
 
     default void forEachDoubleValue(DoubleConsumer action) {
         vr().type.forEachDoubleValue(this, action);
+    }
+
+    default void addItem(DicomObject item) {
+        throw new UnsupportedOperationException();
+    }
+
+    default DicomObject getItem(int index) {
+        return null;
+    }
+
+    default Stream<DicomObject> itemStream() {
+        return Stream.empty();
+    }
+
+    default void purgeParsedItems() {}
+
+    default void addDataFragment(DataFragment item) {
+        throw new UnsupportedOperationException();
+    }
+
+    default DataFragment getDataFragment(int index) {
+        return null;
+    }
+
+    default Stream<DataFragment> fragmentStream() {
+        return Stream.empty();
+    }
+
+    default String bulkDataURI() {
+        return null;
+    }
+
+    default String bulkDataUUID() {
+        return null;
     }
 
     default void trimToSize() {}

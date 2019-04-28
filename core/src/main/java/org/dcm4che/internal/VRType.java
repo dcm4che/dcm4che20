@@ -1,5 +1,9 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
 
+import org.dcm4che.data.DicomElement;
+import org.dcm4che.data.DicomObject;
+import org.dcm4che.data.StringValueConsumer;
+import org.dcm4che.data.VR;
 import org.dcm4che.util.OptionalFloat;
 
 import java.util.Optional;
@@ -12,7 +16,7 @@ import java.util.function.IntConsumer;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-interface VRType {
+public interface VRType {
     default String delimiters() {
         throw new UnsupportedOperationException();
     }
@@ -129,7 +133,7 @@ interface VRType {
     }
 
     default DicomElement elementOf(DicomObject dcmObj, int tag, VR vr) {
-        return new BaseDicomElement(dcmObj, tag, vr);
+        return new DicomElementImpl(dcmObj, tag, vr);
     }
 
     default DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, byte[] val) {

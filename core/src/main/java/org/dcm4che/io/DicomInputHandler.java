@@ -1,4 +1,6 @@
-package org.dcm4che.data;
+package org.dcm4che.io;
+
+import org.dcm4che.data.*;
 
 import java.io.IOException;
 
@@ -15,15 +17,15 @@ public interface DicomInputHandler {
         return true;
     }
 
-    default boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    default boolean startItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         return true;
     }
 
-    default boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    default boolean endItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         return true;
     }
 
-    default boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment)
+    default boolean dataFragment(DicomInputStream dis, DicomElement fragments, DataFragment dataFragment)
             throws IOException {
         return true;
     }

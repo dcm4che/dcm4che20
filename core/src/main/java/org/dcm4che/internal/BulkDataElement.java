@@ -1,4 +1,13 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
+
+import org.dcm4che.data.DicomObject;
+import org.dcm4che.data.Tag;
+import org.dcm4che.data.VR;
+import org.dcm4che.internal.DicomElementImpl;
+import org.dcm4che.internal.ToggleByteOrder;
+import org.dcm4che.io.ByteOrder;
+import org.dcm4che.io.DicomEncoding;
+import org.dcm4che.io.DicomOutputStream;
 
 import java.io.*;
 import java.net.URI;
@@ -7,7 +16,7 @@ import java.net.URI;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Aug 2018
  */
-public class BulkDataElement extends BaseDicomElement {
+class BulkDataElement extends DicomElementImpl {
 
     static final int MAGIC_LEN = 0xfbfb;
 
@@ -30,10 +39,12 @@ public class BulkDataElement extends BaseDicomElement {
         return dos.getEncoding() == DicomEncoding.SERIALIZE ? MAGIC_LEN : valueLength();
     }
 
+    @Override
     public String bulkDataURI() {
         return uri;
     }
 
+    @Override
     public String bulkDataUUID() {
         return uuid;
     }
@@ -46,7 +57,7 @@ public class BulkDataElement extends BaseDicomElement {
             transferTo(dos);
     }
 
-    int offset() {
+    private int offset() {
         return parseInt("offset=", 0);
     }
 

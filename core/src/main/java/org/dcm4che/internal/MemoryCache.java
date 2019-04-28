@@ -1,4 +1,7 @@
-package org.dcm4che.data;
+package org.dcm4che.internal;
+
+import org.dcm4che.data.SpecificCharacterSet;
+import org.dcm4che.io.ByteOrder;
 
 import java.io.*;
 import java.util.ArrayList;

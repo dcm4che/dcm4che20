@@ -1,9 +1,6 @@
 package org.dcm4che.xml;
 
-import org.dcm4che.data.DicomObject;
-import org.dcm4che.data.DicomSequence;
-import org.dcm4che.data.PersonName;
-import org.dcm4che.data.VR;
+import org.dcm4che.data.*;
 import org.dcm4che.util.TagUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -18,7 +15,7 @@ import java.util.*;
 public class SAXHandler extends DefaultHandler {
     private DicomObject dicomObject;
     private DicomObject fmi;
-    private DicomSequence dicomSequence;
+    private DicomElement dicomSequence;
     private String privateCreator;
     private int tag;
     private VR vr;
@@ -153,7 +150,7 @@ public class SAXHandler extends DefaultHandler {
             dicomSequence = dicomObject.newDicomSequence(privateCreator, tag);
         int add = Integer.parseInt(attributes.getValue("number")) - dicomSequence.size();
         while (add-- > 0)
-            dicomSequence.addItem(dicomObject = new DicomObject());
+            dicomSequence.addItem(dicomObject = DicomObject.newDicomObject());
     }
 
     private void bulkData(Attributes attributes) {
@@ -198,7 +195,7 @@ public class SAXHandler extends DefaultHandler {
 
     private DicomObject fmi() {
         if (fmi == null)
-            fmi = new DicomObject();
+            fmi = DicomObject.newDicomObject();
         return fmi;
     }
 

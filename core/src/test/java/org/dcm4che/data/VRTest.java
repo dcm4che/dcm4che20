@@ -1,5 +1,8 @@
 package org.dcm4che.data;
 
+import org.dcm4che.io.DicomEncoding;
+import org.dcm4che.io.DicomInputStream;
+import org.dcm4che.io.DicomOutputStream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -167,7 +170,7 @@ class VRTest {
                                      float[] floats, byte[] bLE2, byte[] bBE2)
             throws IOException {
         double[] doubles = toDoubles(floats);
-        DicomObject dcmObj = new DicomObject();
+        DicomObject dcmObj = DicomObject.newDicomObject();
         dcmObj.setInt(tag, vr, vals);
         assertArrayEquals(vals, dcmObj.getInts(tag).orElseGet(Assertions::fail));
         assertEquals(vals[2], dcmObj.getInt(tag, 2).orElseGet(Assertions::fail));

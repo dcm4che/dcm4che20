@@ -1,4 +1,7 @@
-package org.dcm4che.data;
+package org.dcm4che.io;
+
+import org.dcm4che.data.UID;
+import org.dcm4che.data.VR;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -34,5 +37,9 @@ public enum DicomEncoding {
                 return DEFL_EVR_LE;
         }
         return EVR_LE;
+    }
+
+    public int headerLength(VR vr) {
+        return explicitVR && !vr.shortValueLength ? 12 : 8;
     }
 }

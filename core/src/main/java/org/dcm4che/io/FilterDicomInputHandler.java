@@ -1,4 +1,6 @@
-package org.dcm4che.data;
+package org.dcm4che.io;
+
+import org.dcm4che.data.*;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -26,17 +28,17 @@ public class FilterDicomInputHandler implements DicomInputHandler {
     }
 
     @Override
-    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    public boolean startItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         return handler.startItem(dis, dcmSeq, dcmObj);
     }
 
     @Override
-    public boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    public boolean endItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         return handler.endItem(dis, dcmSeq, dcmObj);
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment)
+    public boolean dataFragment(DicomInputStream dis, DicomElement fragments, DataFragment dataFragment)
             throws IOException {
         return handler.dataFragment(dis, fragments, dataFragment);
     }

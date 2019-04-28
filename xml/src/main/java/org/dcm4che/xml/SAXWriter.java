@@ -1,6 +1,8 @@
 package org.dcm4che.xml;
 
 import org.dcm4che.data.*;
+import org.dcm4che.io.DicomInputHandler;
+import org.dcm4che.io.DicomInputStream;
 import org.dcm4che.util.TagUtils;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -69,12 +71,7 @@ public class SAXWriter implements DicomInputHandler {
             dis.loadValueFromStream();
             dcmElm.containedBy().add(dcmElm);
         }
-        if (bulkData) {
-            bulkDataURI = dis.bulkDataURI();
-            dis.skipBulkData();
-        } else {
-            bulkDataURI = null;
-        }
+        bulkDataURI = dis.bulkDataURI();
         if (exclude(tag, bulkData))
             return true;
 
@@ -150,7 +147,7 @@ public class SAXWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean startItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    public boolean startItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         try {
             startElement("Item", "number", Integer.toString(dcmSeq.size() + 1));
         } catch (SAXException e) {
@@ -161,7 +158,7 @@ public class SAXWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean endItem(DicomInputStream dis, DicomSequence dcmSeq, DicomObject dcmObj) throws IOException {
+    public boolean endItem(DicomInputStream dis, DicomElement dcmSeq, DicomObject dcmObj) throws IOException {
         try {
             endElement("Item");
         } catch (SAXException e) {
@@ -171,7 +168,7 @@ public class SAXWriter implements DicomInputHandler {
     }
 
     @Override
-    public boolean dataFragment(DicomInputStream dis, DataFragments fragments, DataFragment dataFragment) throws IOException {
+    public boolean dataFragment(DicomInputStream dis, DicomElement fragments, DataFragment dataFragment) throws IOException {
         dis.skipBytes(-8, 8 + dataFragment.valueLength(), inlineBinary);
         return true;
     }
