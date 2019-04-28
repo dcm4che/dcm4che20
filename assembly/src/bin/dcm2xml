@@ -3,7 +3,7 @@
 # dcm2xml  Launcher
 # -------------------------------------------------------------------------
 
-MAIN_MODULE=org.dcm4che.tool.dcm2xml
+MAIN_MODULE=org.dcm4che6.tool.dcm2xml
 MAIN_JAR=dcm4che-tool-dcm2xml-${project.version}.jar
 
 DIRNAME="`dirname "$0"`"
@@ -38,7 +38,7 @@ fi
 
 # Setup the module path
 MP="$DCM4CHE_HOME/lib/$MAIN_JAR"
-MP="$MP:$DCM4CHE_HOME/lib/dcm4che-core-${project.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/dcm4che-base-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/dcm4che-xml-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/picocli-${picocli.version}.jar"
 

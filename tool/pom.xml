@@ -9,7 +9,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.dcm4che.tool</groupId>
+  <groupId>org.dcm4che6.tool</groupId>
   <artifactId>dcm4che-tool-parent</artifactId>
   <packaging>pom</packaging>
 

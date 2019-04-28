@@ -11,7 +11,7 @@
 
   <modules>
     <module>assembly</module>
-    <module>core</module>
+    <module>base</module>
     <module>dict</module>
     <module>json</module>
     <module>tool</module>

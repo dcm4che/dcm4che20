@@ -6,7 +6,7 @@ rem -------------------------------------------------------------------------
 if not "%ECHO%" == ""  echo %ECHO%
 if "%OS%" == "Windows_NT"  setlocal
 
-set MAIN_MODULE=org.dcm4che.tool.dcmdump
+set MAIN_MODULE=org.dcm4che6.tool.dcmdump
 set MAIN_JAR=dcm4che-tool-dcmdump-${project.version}.jar
 
 set DIRNAME=.\
@@ -41,7 +41,7 @@ set JAVA=%JAVA_HOME%\bin\java
 :SKIP_SET_JAVA_HOME
 
 set MP=%MP%;%DCM4CHE_HOME%\lib\%MAIN_JAR%
-set MP=%MP%;%DCM4CHE_HOME%\lib\dcm4che-core-${project.version}.jar
+set MP=%MP%;%DCM4CHE_HOME%\lib\dcm4che-base-${project.version}.jar
 set MP=%MP%;%DCM4CHE_HOME%\lib\picocli-${picocli.version}.jar
 
 "%JAVA%" %JAVA_OPTS% -p "%MP%" -m %MAIN_MODULE% %ARGS%
