@@ -43,7 +43,7 @@
         <include>org.dcm4che.tool:dcm4che-tool-dcmdump</include>
         <include>org.dcm4che.tool:dcm4che-tool-json2dcm</include>
         <include>org.dcm4che.tool:dcm4che-tool-xml2dcm</include>
-        <include>org.glassfish:javax.json</include>
+        <include>org.glassfish:jakarta.json</include>
         <include>info.picocli:picocli</include>
       </includes>
       <useProjectArtifact>false</useProjectArtifact>

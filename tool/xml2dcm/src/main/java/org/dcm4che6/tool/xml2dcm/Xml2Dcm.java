@@ -110,7 +110,7 @@ public class Xml2Dcm implements Callable<Xml2Dcm> {
             .withSequenceLengthEncoding(sequenceLengthEncoding)
             .withItemLengthEncoding(itemLengthEncoding)) {
             if (fmi != null) {
-                dos.writeFileMetaInformation(fmi);
+                dos.writeFileMetaInformation(fmi).withEncoding(fmi);
             } else {
                 dos.withEncoding(DicomEncoding.IVR_LE);
             }

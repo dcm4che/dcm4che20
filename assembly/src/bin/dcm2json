@@ -40,7 +40,7 @@ fi
 MP="$DCM4CHE_HOME/lib/$MAIN_JAR"
 MP="$MP:$DCM4CHE_HOME/lib/dcm4che-base-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/dcm4che-json-${project.version}.jar"
-MP="$MP:$DCM4CHE_HOME/lib/javax.json-${javax.json.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/jakarta.json-${jakarta.json.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/picocli-${picocli.version}.jar"
 
 # For Cygwin, switch paths to Windows format before running java

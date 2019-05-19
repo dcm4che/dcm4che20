@@ -82,7 +82,9 @@ class DicomOutputStreamTest {
         fmi.setString(Tag.TransferSyntaxUID, VR.UI, UID.DeflatedExplicitVRLittleEndian);
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         try (DicomOutputStream dos = new DicomOutputStream(bout)) {
-            dos.writeFileMetaInformation(fmi).writeDataSet(DicomObject.newDicomObject());
+            dos.writeFileMetaInformation(fmi)
+                    .withEncoding(fmi)
+                    .writeDataSet(DicomObject.newDicomObject());
         }
         assertArrayEquals(resourceAsBytes("preamble_fmi_defl.dcm"), bout.toByteArray());
     }

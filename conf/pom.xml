@@ -9,18 +9,11 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>dcm4che-json</artifactId>
+  <artifactId>dcm4che-conf</artifactId>
+  <packaging>pom</packaging>
+  <modules>
+    <module>model</module>
+    <module>json</module>
+  </modules>
 
-  <dependencies>
-    <dependency>
-      <groupId>org.dcm4che</groupId>
-      <artifactId>dcm4che-base</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>jakarta.json</groupId>
-      <artifactId>jakarta.json-api</artifactId>
-      <version>${jakarta.json.version}</version>
-    </dependency>
-  </dependencies>
 </project>

@@ -63,8 +63,10 @@ public class StringUtils {
         return trim.substring(s, 0, s.length());
     }
 
-    public static String requireNonEmptyElse(String s, String defaultValue) {
-        return s.isEmpty() ? defaultValue : s;
+    public static String requireNonBlank(String s) {
+        if ((s = s.trim()).isEmpty())
+            throw new IllegalArgumentException("blank");
+        return s;
     }
 
     public static Optional<String> optionalOf(String s) {
@@ -137,4 +139,9 @@ public class StringUtils {
     public static String trimDS(String s) {
         return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s.replace(".0E", "E");
     }
+
+    public static String trimAndNullifyEmpty(String s) {
+        return s == null || (s = s.trim()).isEmpty() ? null : s;
+    }
+
 }

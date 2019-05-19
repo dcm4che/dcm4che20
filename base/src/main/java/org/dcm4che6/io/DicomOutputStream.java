@@ -45,6 +45,13 @@ public class DicomOutputStream extends OutputStream {
         return this;
     }
 
+    public DicomOutputStream withEncoding(DicomObject fmi) {
+        String tsuid = fmi.getString(Tag.TransferSyntaxUID).orElseThrow(
+                () -> new IllegalArgumentException("Missing Transfer Syntax UID in File Meta Information"));
+
+        return withEncoding(DicomEncoding.of(tsuid));
+    }
+
     public boolean isIncludeGroupLength() {
         return includeGroupLength;
     }
@@ -118,9 +125,6 @@ public class DicomOutputStream extends OutputStream {
         if (encoding != null)
             throw new IllegalStateException("encoding already initialized: " + encoding);
 
-        String tsuid = fmi.getString(Tag.TransferSyntaxUID).orElseThrow(
-                () -> new IllegalArgumentException("Missing Transfer Syntax UID in File Meta Information"));
-
         byte[] b = new byte[132];
         b[128] = 'D';
         b[129] = 'I';
@@ -136,7 +140,6 @@ public class DicomOutputStream extends OutputStream {
         } finally {
             includeGroupLength = includeGroupLength0;
         }
-        withEncoding(DicomEncoding.of(tsuid));
         return this;
     }
 
@@ -180,7 +183,7 @@ public class DicomOutputStream extends OutputStream {
     }
 
     public enum LengthEncoding {
-        UNDEFINED_OR_ZERO(false, x -> x != 0, (h, x) -> x != 0 ? h + x + 8 : h + x),
+        UNDEFINED_OR_ZERO(false, x -> x != 0, (h, x) -> x == 0 ? h : h + x + 8),
         UNDEFINED(false, x -> true, (h, x) -> h + x + 8),
         EXPLICIT(true, x -> false, (h, x) -> h + x);
 

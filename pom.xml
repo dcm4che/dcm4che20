@@ -16,12 +16,15 @@
     <module>json</module>
     <module>tool</module>
     <module>xml</module>
+    <module>conf</module>
   </modules>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>11</maven.compiler.release>
-    <javax.json.version>1.1.4</javax.json.version>
+    <jakarta.json.version>1.1.5</jakarta.json.version>
+    <jakarta.json.bind.version>1.0.1</jakarta.json.bind.version>
+    <yasson.version>1.0.3</yasson.version>
     <picocli.version>3.9.0</picocli.version>
   </properties>
 

@@ -111,7 +111,7 @@ public class Json2Dcm implements Callable<Json2Dcm> {
             .withSequenceLengthEncoding(sequenceLengthEncoding)
             .withItemLengthEncoding(itemLengthEncoding)) {
             if (fmi != null) {
-                dos.writeFileMetaInformation(fmi);
+                dos.writeFileMetaInformation(fmi).withEncoding(fmi);
             } else {
                 dos.withEncoding(DicomEncoding.IVR_LE);
             }

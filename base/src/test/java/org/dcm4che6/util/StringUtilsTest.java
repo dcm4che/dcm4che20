@@ -46,9 +46,4 @@ class StringUtilsTest {
         assertEquals("A ", StringUtils.trim(" A ", StringUtils.Trim.LEADING));
         assertEquals("A", StringUtils.trim(" A ", StringUtils.Trim.LEADING_AND_TRAILING));
     }
-
-    @Test
-    void name() {
-        assertEquals("A", StringUtils.requireNonEmptyElse("", "A"));
-    }
 }
