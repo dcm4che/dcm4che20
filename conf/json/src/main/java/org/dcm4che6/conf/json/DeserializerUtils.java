@@ -1,15 +1,19 @@
 package org.dcm4che6.conf.json;
 
+import org.dcm4che6.conf.model.ApplicationEntity;
 import org.dcm4che6.conf.model.Connection;
 import org.dcm4che6.conf.model.Device;
+import org.dcm4che6.conf.model.KeyStoreConfiguration;
 import org.dcm4che6.util.Code;
 import org.dcm4che6.util.Issuer;
 
 import javax.json.JsonString;
 import javax.json.bind.JsonbException;
 import javax.json.stream.JsonParser;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -73,6 +77,15 @@ public class DeserializerUtils {
     public static Connection replaceConnection(Connection ref, Device device) {
         return device.getConnection(ref)
                 .orElseThrow(() -> new JsonbException(String.format("no such connection: %s", ref)));
+    }
+
+    public static List<Connection> replaceConnections(List<Connection> refs, Device device) {
+        return refs.stream().map(ref -> replaceConnection(ref, device)).collect(Collectors.toList());
+    }
+
+    public static KeyStoreConfiguration replaceKeyStoreConf(KeyStoreConfiguration ks, Device device) {
+        return device.getKeyStoreConfiguration(ks.getName())
+                .orElseThrow(() -> new JsonbException(String.format("no such keystore: %s", ks.getName())));
     }
 
     public static void assertEvent(JsonParser.Event expected, JsonParser.Event event) {

@@ -1,9 +1,6 @@
 package org.dcm4che6.conf.json;
 
-import org.dcm4che6.conf.model.ApplicationEntity;
-import org.dcm4che6.conf.model.Connection;
-import org.dcm4che6.conf.model.Device;
-import org.dcm4che6.conf.model.TransferCapability;
+import org.dcm4che6.conf.model.*;
 import org.dcm4che6.conf.model.annotation.JsonbTypeProperty;
 import org.dcm4che6.data.UID;
 import org.dcm4che6.util.Code;
@@ -24,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -45,14 +43,29 @@ class DeviceSerializerTest {
                 .addConnection(conn)
                 .addTransferCapability(new TransferCapability()
                 .setTransferSyntaxes(UID.ImplicitVRLittleEndian));
+        KeyStoreConfiguration trustStore = new KeyStoreConfiguration()
+                .setName("trustStore")
+                .setPath("${jboss.server.config.dir}/keystores/cacerts.jks")
+                .setKeyStoreType("JKS")
+                .setPassword("secret");
+        KeyStoreConfiguration keyStore = new KeyStoreConfiguration()
+                .setName("keyStore")
+                .setPath("${jboss.server.config.dir}/keystores/key.jks")
+                .setKeyStoreType("JKS")
+                .setPassword("secret");
         Device device = new Device()
                 .setDeviceName("dcm4chee-arc")
                 .setPrimaryDeviceTypes("ARCHIVE")
                 .setIssuerOfPatientID(issuerOfPatientID)
                 .setInstitutionCodes(code)
                 .setLimitOpenAssociations(100)
+                .setTrustManagerConfiguration(new TrustManagerConfiguration().setKeyStoreConfiguration(trustStore))
+                .setKeyManagerConfiguration(new KeyManagerConfiguration().setKeyStoreConfiguration(keyStore)
+                        .setPassword("secret"))
                 .addConnection(conn)
                 .addApplicationEntity(ae)
+                .addKeyStoreConfiguration(trustStore)
+                .addKeyStoreConfiguration(keyStore)
                 .addDeviceExtension(new Extension().setValue("value"));
         JsonbConfig config = new JsonbConfig()
                 .withFormatting(true)
@@ -65,6 +78,10 @@ class DeviceSerializerTest {
         assertEquals(Optional.of(issuerOfPatientID), device1.getIssuerOfPatientID());
         assertEquals(List.of("ARCHIVE"), device1.getPrimaryDeviceTypes());
         assertEquals(List.of(code), device1.getInstitutionCodes());
+        assertSame(device1.getKeyStoreConfiguration("trustStore").get(),
+                device1.getTrustManagerConfiguration().get().getKeyStoreConfiguration());
+        assertSame(device1.getKeyStoreConfiguration("keyStore").get(),
+                device1.getKeyManagerConfiguration().get().getKeyStoreConfiguration());
         assertEquals("value", device1.getDeviceExtension(Extension.class).value);
     }
 

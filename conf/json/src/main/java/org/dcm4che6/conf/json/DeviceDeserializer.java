@@ -1,20 +1,19 @@
 package org.dcm4che6.conf.json;
 
-import org.dcm4che6.conf.model.ApplicationEntity;
-import org.dcm4che6.conf.model.Connection;
-import org.dcm4che6.conf.model.Device;
-import org.dcm4che6.conf.model.TransferCapability;
+import org.dcm4che6.conf.model.*;
 
 import javax.json.bind.serializer.DeserializationContext;
 import javax.json.bind.serializer.JsonbDeserializer;
 import javax.json.stream.JsonParser;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.dcm4che6.conf.json.DeserializerUtils.*;
+import static org.dcm4che6.conf.json.SerializerUtils.serializeValue;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -97,6 +96,12 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
                 case "dicomPrimaryDeviceType":
                     device.setPrimaryDeviceTypes(deserializeStringArray(parser));
                     break;
+                case "dicomAuthorizedNodeCertificateReferences":
+                    device.setAuthorizedNodeCertificateReferences(deserializeStringArray(parser));
+                    break;
+                case "dicomThisNodeCertificateReferences":
+                    device.setThisNodeCertificateReferences(deserializeStringArray(parser));
+                    break;
                 case "dicomInstalled":
                     device.setInstalled(deserializeBoolean(parser));
                     break;
@@ -110,7 +115,7 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
                 case "dicomNetworkAE":
                     assertEvent(JsonParser.Event.START_ARRAY, parser.next());
                     while ((event = parser.next()) == JsonParser.Event.START_OBJECT) {
-                        device.addApplicationEntity(deserializeApplicationEntity(parser, device));
+                        device.addApplicationEntity(deserializeApplicationEntity(parser));
                     }
                     assertEvent(JsonParser.Event.END_ARRAY, event);
                     break;
@@ -121,39 +126,26 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
                             case "dcmLimitOpenAssociations":
                                 device.setLimitOpenAssociations(deserializeInt(parser));
                                 break;
-                            case "dcmTrustStoreURL":
-                                device.setTrustStoreURL(deserializeString(parser));
+                            case "dcmKeyStore":
+                                assertEvent(JsonParser.Event.START_ARRAY, parser.next());
+                                while ((event = parser.next()) == JsonParser.Event.START_OBJECT) {
+                                    device.addKeyStoreConfiguration(deserializeKeyStoreConf(parser));
+                                }
+                                assertEvent(JsonParser.Event.END_ARRAY, event);
                                 break;
-                            case "dcmTrustStoreType":
-                                device.setTrustStoreType(deserializeString(parser));
+                            case "dcmKeyManager":
+                                device.setKeyManagerConfiguration(deserializeKeyManagerConf(parser));
                                 break;
-                            case "dcmTrustStorePin":
-                                device.setTrustStorePin(deserializeString(parser));
-                                break;
-                            case "dcmTrustStorePinProperty":
-                                device.setTrustStorePinProperty(deserializeString(parser));
-                                break;
-                            case "dcmKeyStoreURL":
-                                device.setKeyStoreURL(deserializeString(parser));
-                                break;
-                            case "dcmKeyStoreType":
-                                device.setKeyStoreType(deserializeString(parser));
-                                break;
-                            case "dcmKeyStorePin":
-                                device.setKeyStorePin(deserializeString(parser));
-                                break;
-                            case "dcmKeyStorePinProperty":
-                                device.setKeyStorePinProperty(deserializeString(parser));
-                                break;
-                            case "dcmKeyStoreKeyPin":
-                                device.setKeyStoreKeyPin(deserializeString(parser));
-                                break;
-                            case "dcmKeyStoreKeyPinProperty":
-                                device.setKeyStoreKeyPinProperty(deserializeString(parser));
+                            case "dcmTrustManager":
+                                device.setTrustManagerConfiguration(deserializeTrustManagerConf(parser));
                                 break;
                             default:
                                 device.addDeviceExtension(ctx.deserialize(key2class(key), parser));
                         }
+                        device.getKeyManagerConfiguration().ifPresent(km ->
+                                km.setKeyStoreConfiguration(replaceKeyStoreConf(km.getKeyStoreConfiguration(), device)));
+                        device.getTrustManagerConfiguration().ifPresent(tm ->
+                                tm.setKeyStoreConfiguration(replaceKeyStoreConf(tm.getKeyStoreConfiguration(), device)));
                     }
                     assertEvent(JsonParser.Event.END_OBJECT, event);
                     break;
@@ -161,11 +153,12 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
                     unexpectedKey(key);
             }
         }
+        device.getApplicationEntities().forEach(ae -> adjustApplicationEntity(ae, device));
         assertEvent(JsonParser.Event.END_OBJECT, event);
         return device;
     }
 
-    private ApplicationEntity deserializeApplicationEntity(JsonParser parser, Device device) {
+    private ApplicationEntity deserializeApplicationEntity(JsonParser parser) {
         ApplicationEntity ae = new ApplicationEntity();
         JsonParser.Event event;
         String key;
@@ -195,14 +188,14 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
                 case "dicomNetworkConnection":
                     assertEvent(JsonParser.Event.START_ARRAY, parser.next());
                     while ((event = parser.next()) == JsonParser.Event.START_OBJECT) {
-                        ae.addConnection(replaceConnection(deserializeConnection(parser), device));
+                        ae.addConnection(deserializeConnection(parser));
                     }
                     assertEvent(JsonParser.Event.END_ARRAY, event);
                     break;
                 case "dicomTransferCapability":
                     assertEvent(JsonParser.Event.START_ARRAY, parser.next());
                     while ((event = parser.next()) == JsonParser.Event.START_OBJECT) {
-                        ae.addTransferCapability(deserializeransferCapability(parser));
+                        ae.addTransferCapability(deserializeTransferCapability(parser));
                     }
                     assertEvent(JsonParser.Event.END_ARRAY, event);
                     break;
@@ -212,6 +205,12 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
         }
         assertEvent(JsonParser.Event.END_OBJECT, event);
         return ae;
+    }
+
+    private void adjustApplicationEntity(ApplicationEntity ae, Device device) {
+        List<Connection> list = replaceConnections(ae.getConnections(), device);
+        ae.clearConnections();
+        list.forEach(ae::addConnection);
     }
 
     private static Connection deserializeConnection(JsonParser parser) {
@@ -243,7 +242,7 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
         return conn;
     }
 
-    private TransferCapability deserializeransferCapability(JsonParser parser) {
+    private TransferCapability deserializeTransferCapability(JsonParser parser) {
         TransferCapability tc = new TransferCapability();
         JsonParser.Event event;
         String key;
@@ -267,6 +266,89 @@ public class DeviceDeserializer implements JsonbDeserializer<Device> {
         }
         assertEvent(JsonParser.Event.END_OBJECT, event);
         return tc;
+    }
+
+    private KeyStoreConfiguration deserializeKeyStoreConf(JsonParser parser) {
+        KeyStoreConfiguration ks = new KeyStoreConfiguration();
+        JsonParser.Event event;
+        String key;
+        while ((event = parser.next()) == JsonParser.Event.KEY_NAME) {
+            switch (key = parser.getString()) {
+                case "dcmKeyStoreName":
+                    ks.setName(deserializeString(parser));
+                    break;
+                case "dcmKeyStoreType":
+                    ks.setKeyStoreType(deserializeString(parser));
+                    break;
+                case "dcmProvider":
+                    ks.setProvider(deserializeString(parser));
+                    break;
+                case "dcmPath":
+                    ks.setPath(deserializeString(parser));
+                    break;
+                case "dcmURL":
+                    ks.setURL(deserializeString(parser));
+                    break;
+                case "dcmPassword":
+                    ks.setPassword(deserializeString(parser));
+                    break;
+                default:
+                    unexpectedKey(key);
+            }
+        }
+        assertEvent(JsonParser.Event.END_OBJECT, event);
+        return ks;
+    }
+
+    private KeyManagerConfiguration deserializeKeyManagerConf(JsonParser parser) {
+        assertEvent(JsonParser.Event.START_OBJECT, parser.next());
+        KeyManagerConfiguration km = new KeyManagerConfiguration();
+        JsonParser.Event event;
+        String key;
+        while ((event = parser.next()) == JsonParser.Event.KEY_NAME) {
+            switch (key = parser.getString()) {
+                case "dcmKeyStoreName":
+                    km.setKeyStoreConfiguration(new KeyStoreConfiguration().setName(deserializeString(parser)));
+                    break;
+                case "dcmAlgorithm":
+                    km.setAlgorithm(deserializeString(parser));
+                    break;
+                case "dcmProvider":
+                    km.setProvider(deserializeString(parser));
+                    break;
+                case "dcmPassword":
+                    km.setPassword(deserializeString(parser));
+                    break;
+                default:
+                    unexpectedKey(key);
+            }
+        }
+        assertEvent(JsonParser.Event.END_OBJECT, event);
+        return km;
+    }
+
+    private TrustManagerConfiguration deserializeTrustManagerConf(JsonParser parser) {
+        assertEvent(JsonParser.Event.START_OBJECT, parser.next());
+        TrustManagerConfiguration tm = new TrustManagerConfiguration();
+        JsonParser.Event event;
+        String key;
+        while ((event = parser.next()) == JsonParser.Event.KEY_NAME) {
+            switch (key = parser.getString()) {
+                case "dcmKeyStoreName":
+                    tm.setKeyStoreConfiguration(new KeyStoreConfiguration().setName(deserializeString(parser)));
+                    break;
+                case "dcmAlgorithm":
+                    tm.setAlgorithm(deserializeString(parser));
+                    break;
+                case "dcmProvider":
+                    tm.setProvider(deserializeString(parser));
+                    break;
+                default:
+                    unexpectedKey(key);
+            }
+        }
+        assertEvent(JsonParser.Event.END_OBJECT, event);
+        return tm;
     }
 
     private Class<?> key2class(String key) {

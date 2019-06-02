@@ -34,22 +34,18 @@ public class Device {
     private volatile Code[] institutionCodes = {};
     private volatile String[] institutionAddresses = {};
     private volatile String[] institutionalDepartmentNames = {};
+    private volatile String[] authorizedNodeCertificateReferences = {};
+    private volatile String[] thisNodeCertificateReferences = {};
+
     private volatile boolean installed = true;
 
     private volatile int limitOpenAssociations = -1;
-    private volatile String trustStoreURL;
-    private volatile String trustStoreType;
-    private volatile String trustStorePin;
-    private volatile String trustStorePinProperty;
-    private volatile String keyStoreURL;
-    private volatile String keyStoreType;
-    private volatile String keyStorePin;
-    private volatile String keyStorePinProperty;
-    private volatile String keyStoreKeyPin;
-    private volatile String keyStoreKeyPinProperty;
+    private volatile KeyManagerConfiguration keyManagerConfiguration;
+    private volatile TrustManagerConfiguration trustManagerConfiguration;
 
     private final List<Connection> conns = new ArrayList<>();
     private final List<ApplicationEntity> aes = new ArrayList<>();
+    private final List<KeyStoreConfiguration> keyStoreConfigurations = new ArrayList<>();
     private final Map<Class,Object> deviceExtensions = new ConcurrentHashMap<>();
 
     public String getDeviceName() {
@@ -241,6 +237,24 @@ public class Device {
         return this;
     }
 
+    public List<String> getAuthorizedNodeCertificateReferences() {
+        return List.of(authorizedNodeCertificateReferences);
+    }
+
+    public Device setAuthorizedNodeCertificateReferences(String... authorizedNodeCertificateReferences) {
+        this.authorizedNodeCertificateReferences = authorizedNodeCertificateReferences;
+        return this;
+    }
+
+    public List<String> getThisNodeCertificateReferences() {
+        return List.of(thisNodeCertificateReferences);
+    }
+
+    public Device setThisNodeCertificateReferences(String... thisNodeCertificateReferences) {
+        this.thisNodeCertificateReferences = thisNodeCertificateReferences;
+        return this;
+    }
+
     public boolean isInstalled() {
         return installed;
     }
@@ -259,93 +273,21 @@ public class Device {
         return this;
     }
 
-    public Optional<String> getTrustStoreURL() {
-        return Optional.ofNullable(trustStoreURL);
+    public Optional<KeyManagerConfiguration> getKeyManagerConfiguration() {
+        return Optional.ofNullable(keyManagerConfiguration);
     }
 
-    public Device setTrustStoreURL(String trustStoreURL) {
-        this.trustStoreURL = StringUtils.trimAndNullifyEmpty(trustStoreURL);
+    public Device setKeyManagerConfiguration(KeyManagerConfiguration keyManagerConfiguration) {
+        this.keyManagerConfiguration = keyManagerConfiguration;
         return this;
     }
 
-    public Optional<String> getTrustStoreType() {
-        return Optional.ofNullable(trustStoreType);
+    public Optional<TrustManagerConfiguration> getTrustManagerConfiguration() {
+        return Optional.ofNullable(trustManagerConfiguration);
     }
 
-    public Device setTrustStoreType(String trustStoreType) {
-        this.trustStoreType = StringUtils.trimAndNullifyEmpty(trustStoreType);
-        return this;
-    }
-
-    public Optional<String> getTrustStorePin() {
-        return Optional.ofNullable(trustStorePin);
-    }
-
-    public Device setTrustStorePin(String trustStorePin) {
-        this.trustStorePin = StringUtils.trimAndNullifyEmpty(trustStorePin);
-        return this;
-    }
-
-    public Optional<String> getTrustStorePinProperty() {
-        return Optional.ofNullable(trustStorePinProperty);
-    }
-
-    public Device setTrustStorePinProperty(String trustStorePinProperty) {
-        this.trustStorePinProperty = StringUtils.trimAndNullifyEmpty(trustStorePinProperty);
-        return this;
-    }
-
-    public Optional<String> getKeyStoreURL() {
-        return Optional.ofNullable(keyStoreURL);
-    }
-
-    public Device setKeyStoreURL(String keyStoreURL) {
-        this.keyStoreURL = StringUtils.trimAndNullifyEmpty(keyStoreURL);
-        return this;
-    }
-
-    public Optional<String> getKeyStoreType() {
-        return Optional.ofNullable(keyStoreType);
-    }
-
-    public Device setKeyStoreType(String keyStoreType) {
-        this.keyStoreType = StringUtils.trimAndNullifyEmpty(keyStoreType);
-        return this;
-    }
-
-    public Optional<String> getKeyStorePin() {
-        return Optional.ofNullable(keyStorePin);
-    }
-
-    public Device setKeyStorePin(String keyStorePin) {
-        this.keyStorePin = StringUtils.trimAndNullifyEmpty(keyStorePin);
-        return this;
-    }
-
-    public Optional<String> getKeyStorePinProperty() {
-        return Optional.ofNullable(keyStorePinProperty);
-    }
-
-    public Device setKeyStorePinProperty(String keyStorePinProperty) {
-        this.keyStorePinProperty = StringUtils.trimAndNullifyEmpty(keyStorePinProperty);
-        return this;
-    }
-
-    public Optional<String> getKeyStoreKeyPin() {
-        return Optional.ofNullable(keyStoreKeyPin);
-    }
-
-    public Device setKeyStoreKeyPin(String keyStoreKeyPin) {
-        this.keyStoreKeyPin = StringUtils.trimAndNullifyEmpty(keyStoreKeyPin);
-        return this;
-    }
-
-    public Optional<String> getKeyStoreKeyPinProperty() {
-        return Optional.ofNullable(keyStoreKeyPinProperty);
-    }
-
-    public Device setKeyStoreKeyPinProperty(String keyStoreKeyPinProperty) {
-        this.keyStoreKeyPinProperty = StringUtils.trimAndNullifyEmpty(keyStoreKeyPinProperty);
+    public Device setTrustManagerConfiguration(TrustManagerConfiguration trustManagerConfiguration) {
+        this.trustManagerConfiguration = trustManagerConfiguration;
         return this;
     }
 
@@ -376,6 +318,29 @@ public class Device {
         return this;
     }
 
+    public Device removeApplicationEntity(ApplicationEntity ae) {
+        aes.remove(Objects.requireNonNull(ae));
+        return this;
+    }
+
+    public List<KeyStoreConfiguration> getKeyStoreConfigurations() {
+        return Collections.unmodifiableList(keyStoreConfigurations);
+    }
+
+    public Device addKeyStoreConfiguration(KeyStoreConfiguration keyStoreReference) {
+        keyStoreConfigurations.add(Objects.requireNonNull(keyStoreReference));
+        return this;
+    }
+
+    public Device removeKeyStoreConfiguration(KeyStoreConfiguration keyStoreReference) {
+        keyStoreConfigurations.remove(Objects.requireNonNull(keyStoreReference));
+        return this;
+    }
+
+    public Optional<KeyStoreConfiguration> getKeyStoreConfiguration(String name) {
+        return keyStoreConfigurations.stream().filter(ks -> name.equals(ks.getName())).findAny();
+    }
+
     public Collection<Object> getDeviceExtensions() {
         return Collections.unmodifiableCollection(deviceExtensions.values());
     }
@@ -391,17 +356,7 @@ public class Device {
 
     public boolean isStrictDicom() {
         return limitOpenAssociations < 0
-                && trustStoreURL == null
-                && trustStoreType == null
-                && trustStorePin == null
-                && trustStorePinProperty == null
-                && keyStoreURL == null
-                && keyStoreType == null
-                && keyStorePin == null
-                && keyStorePinProperty == null
-                && keyStoreKeyPin == null
-                && keyStoreKeyPinProperty == null
+                && keyStoreConfigurations.isEmpty()
                 && deviceExtensions.isEmpty();
     }
-
 }

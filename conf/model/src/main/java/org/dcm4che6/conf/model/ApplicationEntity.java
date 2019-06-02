@@ -93,6 +93,11 @@ public class ApplicationEntity {
         return this;
     }
 
+    public ApplicationEntity clearConnections() {
+        conns.clear();
+        return this;
+    }
+
     public ApplicationEntity addConnection(Connection conn) {
         conns.add(Objects.requireNonNull(conn));
         return this;

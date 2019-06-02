@@ -1,9 +1,6 @@
 package org.dcm4che6.conf.json;
 
-import org.dcm4che6.conf.model.ApplicationEntity;
-import org.dcm4che6.conf.model.Connection;
-import org.dcm4che6.conf.model.Device;
-import org.dcm4che6.conf.model.TransferCapability;
+import org.dcm4che6.conf.model.*;
 
 import javax.json.bind.serializer.JsonbSerializer;
 import javax.json.bind.serializer.SerializationContext;
@@ -43,22 +40,17 @@ public class DeviceSerializer implements JsonbSerializer<Device> {
         serializeArray("dicomInstitutionAddress", device.getInstitutionAddresses(), gen);
         serializeArray("dicomInstitutionDepartmentName", device.getInstitutionalDepartmentNames(), gen);
         serializeArray("dicomPrimaryDeviceType", device.getPrimaryDeviceTypes(), gen);
+        serializeArray("dicomAuthorizedNodeCertificateReferences", device.getAuthorizedNodeCertificateReferences(), gen);
+        serializeArray("dicomThisNodeCertificateReferences", device.getThisNodeCertificateReferences(), gen);
         gen.write("dicomInstalled", device.isInstalled());
         serializeConnections(device.getConnections(), gen);
         serializeApplicationEntities(device.getApplicationEntities(), gen);
         if (!device.isStrictDicom()) {
             gen.writeStartObject("dcmDevice");
             serializeInt("dcmLimitOpenAssociations", device.getLimitOpenAssociations(), gen);
-            serializeValue("dcmTrustStoreURL", device.getTrustStoreURL(), gen);
-            serializeValue("dcmTrustStoreType", device.getTrustStoreType(), gen);
-            serializeValue("dcmTrustStorePin", device.getTrustStorePin(), gen);
-            serializeValue("dcmTrustStorePinProperty", device.getTrustStorePinProperty(), gen);
-            serializeValue("dcmKeyStoreURL", device.getKeyStoreURL(), gen);
-            serializeValue("dcmKeyStoreType", device.getKeyStoreType(), gen);
-            serializeValue("dcmKeyStorePin", device.getKeyStorePin(), gen);
-            serializeValue("dcmKeyStorePinProperty", device.getKeyStorePinProperty(), gen);
-            serializeValue("dcmKeyStoreKeyPin", device.getKeyStoreKeyPin(), gen);
-            serializeValue("dcmKeyStoreKeyPinProperty", device.getKeyStoreKeyPinProperty(), gen);
+            serializeKeyStoreConfs(device.getKeyStoreConfigurations(), gen);
+            device.getKeyManagerConfiguration().ifPresent(km -> serializeKeyManagerConf(km, gen));
+            device.getTrustManagerConfiguration().ifPresent(km -> serializeTrustManagerConf(km, gen));
             device.getDeviceExtensions().forEach(ext -> ctx.serialize(jsonPropertyOf(ext.getClass()), ext, gen));
             gen.writeEnd();
         }
@@ -138,6 +130,42 @@ public class DeviceSerializer implements JsonbSerializer<Device> {
         gen.write("dicomSOPClass", tc.getSOPClass());
         gen.write("dicomTransferRole", tc.getRole().toString());
         serializeArray("dicomTransferSyntax", tc.getTransferSyntaxes(), gen);
+        gen.writeEnd();
+    }
+
+    private void serializeKeyStoreConfs(List<KeyStoreConfiguration> list, JsonGenerator gen) {
+        if (!list.isEmpty()) {
+            gen.writeStartArray("dcmKeyStore");
+            list.forEach(keyStoreRef -> serializeKeyStoreConf(keyStoreRef, gen));
+            gen.writeEnd();
+        }
+    }
+
+    private void serializeKeyStoreConf(KeyStoreConfiguration ks, JsonGenerator gen) {
+        gen.writeStartObject();
+        gen.write("dcmKeyStoreName", ks.getName());
+        serializeValue("dcmKeyStoreType", ks.getKeyStoreType(), gen);
+        serializeValue("dcmProvider", ks.getProvider(), gen);
+        serializeValue("dcmPath", ks.getPath(), gen);
+        serializeValue("dcmURL", ks.getURL(), gen);
+        gen.write("dcmPassword", ks.getPassword());
+        gen.writeEnd();
+    }
+
+    private void serializeKeyManagerConf(KeyManagerConfiguration km, JsonGenerator gen) {
+        gen.writeStartObject("dcmKeyManager");
+        gen.write("dcmKeyStoreName", km.getKeyStoreConfiguration().getName());
+        serializeValue("dcmAlgorithm", km.getAlgorithm(), gen);
+        serializeValue("dcmProvider", km.getProvider(), gen);
+        gen.write("dcmPassword", km.getPassword());
+        gen.writeEnd();
+    }
+
+    private void serializeTrustManagerConf(TrustManagerConfiguration tm, JsonGenerator gen) {
+        gen.writeStartObject("dcmTrustManager");
+        gen.write("dcmKeyStoreName", tm.getKeyStoreConfiguration().getName());
+        serializeValue("dcmAlgorithm", tm.getAlgorithm(), gen);
+        serializeValue("dcmProvider", tm.getProvider(), gen);
         gen.writeEnd();
     }
 }
