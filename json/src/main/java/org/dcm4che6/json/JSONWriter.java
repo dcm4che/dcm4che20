@@ -7,6 +7,7 @@ import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.VR;
 import org.dcm4che6.io.DicomInputHandler;
 import org.dcm4che6.io.DicomInputStream;
+import org.dcm4che6.io.DicomOutputStream;
 import org.dcm4che6.util.PersonName;
 import org.dcm4che6.util.TagUtils;
 
@@ -31,12 +32,33 @@ public class JSONWriter implements DicomInputHandler {
 
     private final JsonGenerator gen;
     private final OutputStream out;
-    private String bulkDataURI;
     private InlineBinary inlineBinary;
+    private boolean suppressEndElement;
 
     public JSONWriter(JsonGenerator gen, OutputStream out) {
         this.gen = gen;
         this.out = out;
+    }
+
+    public void writeDataSet(DicomObject dcmobj) throws IOException {
+        gen.writeStartObject();
+        writeElements(dcmobj);
+        gen.writeEnd();
+    }
+
+    public void writeElements(DicomObject dcmobj) throws IOException {
+        for (DicomElement dcmElm : dcmobj) {
+            int tag = dcmElm.tag();
+            if (!TagUtils.isGroupLength(tag)) {
+                startElement(null, dcmElm, dcmElm.bulkDataURI());
+                if (dcmElm.vr() == VR.SQ && !dcmElm.isEmpty()) {
+                    gen.writeStartArray("Value");
+                    dcmElm.forEachItem((item, number) -> writeDataSet(item));
+                    gen.writeEnd();
+                }
+                gen.writeEnd();
+            }
+        }
     }
 
     @Override
@@ -46,20 +68,28 @@ public class JSONWriter implements DicomInputHandler {
             dis.loadValueFromStream();
             dcmElm.containedBy().add(dcmElm);
         }
-        bulkDataURI = dis.bulkDataURI();
-        if (exclude(tag, bulkData))
-            return true;
+        String bulkDataURI = null;
+        if (!(suppressEndElement = bulkData
+                ? (bulkDataURI = dis.bulkDataURI()) == null
+                : TagUtils.isGroupLength(tag))) {
+            startElement(dis, dcmElm, bulkDataURI);
+        }
+        return true;
+    }
 
+    private void startElement(DicomInputStream dis, DicomElement dcmElm, String bulkDataURI)
+            throws IOException {
         VR vr = dcmElm.vr();
-        gen.writeStartObject(TagUtils.toHexString(tag));
+        gen.writeStartObject(TagUtils.toHexString(dcmElm.tag()));
         gen.write("vr", vr.name());
         if (!dcmElm.isEmpty()) {
-            if (bulkData) {
+            if (bulkDataURI != null) {
                 gen.write("BulkDataURI", bulkDataURI);
             } else if (vr.jsonType == VR.JSONType.BASE64) {
                 writeInlineBinary(dis, dcmElm);
             } else {
-                dis.loadValueFromStream();
+                if (dis != null)
+                    dis.loadValueFromStream();
                 gen.writeStartArray("Value");
                 switch (vr.jsonType) {
                     case PN:
@@ -81,7 +111,6 @@ public class JSONWriter implements DicomInputHandler {
                 gen.writeEnd();
             }
         }
-        return true;
     }
 
     private void writeInlineBinary(DicomInputStream dis, DicomElement dcmElm) throws IOException {
@@ -90,8 +119,14 @@ public class JSONWriter implements DicomInputHandler {
         if (inlineBinary == null)
             inlineBinary = new InlineBinary();
 
-        if (dcmElm.valueLength() != -1)
-            dis.skipBytes(0, dcmElm.valueLength(), inlineBinary);
+        if (dis != null) {
+            if (dcmElm.valueLength() != -1)
+                dis.skipBytes(0, dcmElm.valueLength(), inlineBinary);
+        } else {
+            dcmElm.writeValueTo(new DicomOutputStream(inlineBinary));
+            inlineBinary.finish();
+            out.write('"');
+        }
     }
 
     private void writeString(String value, int number) {
@@ -120,7 +155,7 @@ public class JSONWriter implements DicomInputHandler {
 
     @Override
     public boolean endElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
-        if (exclude(dcmElm.tag(), bulkData))
+        if (suppressEndElement)
             return true;
 
         if (!bulkData && dcmElm.vr().jsonType == VR.JSONType.BASE64) {
@@ -157,10 +192,6 @@ public class JSONWriter implements DicomInputHandler {
             throws IOException {
         dis.skipBytes(-8, 8 + dataFragment.valueLength(), inlineBinary);
         return true;
-    }
-
-    public boolean exclude(int tag, boolean bulkData) {
-        return bulkData ? bulkDataURI == null : TagUtils.isGroupLength(tag);
     }
 
     private class InlineBinary extends OutputStream {

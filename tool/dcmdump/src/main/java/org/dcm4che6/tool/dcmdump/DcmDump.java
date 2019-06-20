@@ -32,10 +32,10 @@ import java.util.concurrent.Callable;
         footerHeading = "%nExample:%n",
         footer = { "$ dcmdump image.dcm", "Dump DICOM file image.dcm to standard output." }
 )
-public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
+public class DcmDump implements Callable<Integer>, DicomInputHandler {
 
     static class ModuleVersionProvider implements CommandLine.IVersionProvider {
-        public String[] getVersion() throws Exception {
+        public String[] getVersion() {
             return new String[]{DcmDump.class.getModule().getDescriptor().rawVersion().orElse("6")};
         }
     }
@@ -50,16 +50,16 @@ public class DcmDump implements Callable<DcmDump>, DicomInputHandler {
     int count;
 
     public static void main(String[] args) {
-        CommandLine.call(new DcmDump(), args);
+        new CommandLine(new DcmDump()).execute(args);
     }
 
     @Override
-    public DcmDump call() throws Exception {
+    public Integer call() throws Exception {
         try (DicomInputStream dis = new DicomInputStream(Files.newInputStream(file))) {
             dis.withInputHandler(this);
             dis.readDataSet();
         }
-        return this;
+        return 0;
     }
 
 

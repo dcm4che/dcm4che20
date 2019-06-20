@@ -1,17 +1,19 @@
 package org.dcm4che6.xml;
 
 import org.dcm4che6.data.*;
-import org.dcm4che6.data.*;
 import org.dcm4che6.io.DicomInputHandler;
 import org.dcm4che6.io.DicomInputStream;
+import org.dcm4che6.io.DicomOutputStream;
 import org.dcm4che6.util.PersonName;
 import org.dcm4che6.util.TagUtils;
+import org.dcm4che6.util.function.StringValueConsumer;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
@@ -32,7 +34,7 @@ public class SAXWriter implements DicomInputHandler {
     private final AttributesImpl atts = new AttributesImpl();
     private final char[] ch = new char[BUFFER_LENGTH];
     private InlineBinary inlineBinary;
-    private String bulkDataURI;
+    private boolean suppressEndElement;
 
     public SAXWriter(ContentHandler handler) {
         this.handler = handler;
@@ -66,6 +68,33 @@ public class SAXWriter implements DicomInputHandler {
         handler.endDocument();
     }
 
+    public void writeDataSet(DicomObject dcmobj) throws SAXException {
+        startDocument();
+        writeElements(dcmobj);
+        endDocument();
+    }
+
+    public void writeElements(DicomObject dcmobj) throws SAXException {
+        for (DicomElement dcmElm : dcmobj) {
+            int tag = dcmElm.tag();
+            if (!isGroupLengthOrPrivateCreator(tag)) {
+                try {
+                    startElement(null, dcmElm, dcmElm.bulkDataUUID(), dcmElm.bulkDataURI());
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+                dcmElm.forEachItem(this::writeItem);
+                endElement("DicomAttribute");
+            }
+        }
+    }
+
+    private void writeItem(DicomObject dcmobj, int number) throws SAXException {
+        startElement("Item", "number", Integer.toString(number));
+        writeElements(dcmobj);
+        endElement("Item");
+    }
+
     @Override
     public boolean startElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
         int tag = dcmElm.tag();
@@ -73,10 +102,22 @@ public class SAXWriter implements DicomInputHandler {
             dis.loadValueFromStream();
             dcmElm.containedBy().add(dcmElm);
         }
-        bulkDataURI = dis.bulkDataURI();
-        if (exclude(tag, bulkData))
-            return true;
+        String bulkDataURI = null;
+        if (!(suppressEndElement = bulkData
+                ? (bulkDataURI = dis.bulkDataURI()) == null
+                : isGroupLengthOrPrivateCreator(tag))) {
+            try {
+                startElement(dis, dcmElm, null, bulkDataURI);
+            } catch (SAXException e) {
+                throw new IOException(e);
+            }
+        }
+        return true;
+    }
 
+    private void startElement(DicomInputStream dis, DicomElement dcmElm, String bulkDataUUID, String bulkDataURI)
+            throws SAXException, IOException {
+        int tag = dcmElm.tag();
         VR vr = dcmElm.vr();
         Optional<String> privateCreator = dcmElm.containedBy().getPrivateCreator(tag);
         if (privateCreator.isPresent()) {
@@ -90,24 +131,26 @@ public class SAXWriter implements DicomInputHandler {
                 addAttribute("keyword", keyword);
         }
         addAttribute("vr", vr.name());
-        try {
-            startElement("DicomAttribute");
-            if (bulkData) {
-                writeBulkData();
-            } else if (vr.jsonType == VR.JSONType.BASE64) {
-                writeInlineBinary(dis, dcmElm);
-            } else {
+        startElement("DicomAttribute");
+        if (bulkDataUUID != null || bulkDataURI != null) {
+            writeBulkData(bulkDataUUID, bulkDataURI);
+        } else if (vr.jsonType == VR.JSONType.BASE64) {
+            writeInlineBinary(dis, dcmElm);
+        } else {
+            if (dis != null)
                 dis.loadValueFromStream();
-                dcmElm.forEachStringValue(vr == VR.PN ? this::writePN : this::writeValue);
-            }
-        } catch (SAXException e) {
-            throw new IOException(e);
+            dcmElm.forEachStringValue(vr == VR.PN
+                    ? (StringValueConsumer<SAXException>) this::writePN
+                    : (StringValueConsumer<SAXException>) this::writeValue);
         }
-        return true;
     }
 
-    private void writeBulkData() throws SAXException {
-        startElement("BulkData", "uri", bulkDataURI);
+    private void writeBulkData(String bulkDataUUID, String bulkDataURI) throws SAXException {
+        if (bulkDataUUID != null)
+            addAttribute("uuid", bulkDataUUID);
+        if (bulkDataURI != null)
+            addAttribute("uri", bulkDataURI);
+        startElement("BulkData");
         endElement("BulkData");
     }
 
@@ -116,8 +159,14 @@ public class SAXWriter implements DicomInputHandler {
         if (inlineBinary == null)
             inlineBinary = new InlineBinary();
 
-        if (dcmElm.valueLength() != -1)
-            dis.skipBytes(0, dcmElm.valueLength(), inlineBinary);
+        if (dis != null) {
+            if (dcmElm.valueLength() != -1)
+                dis.skipBytes(0, dcmElm.valueLength(), inlineBinary);
+        } else {
+            dcmElm.writeValueTo(new DicomOutputStream(inlineBinary));
+            inlineBinary.finish();
+            endElement("InlineBinary");
+        }
     }
 
     private void writeValue(String s, int number) throws SAXException {
@@ -127,7 +176,7 @@ public class SAXWriter implements DicomInputHandler {
 
     @Override
     public boolean endElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
-        if (exclude(dcmElm.tag(), bulkData))
+        if (suppressEndElement)
             return true;
 
         try {
@@ -144,8 +193,8 @@ public class SAXWriter implements DicomInputHandler {
         return true;
     }
 
-    public boolean exclude(int tag, boolean bulkData) {
-        return bulkData ? bulkDataURI == null : TagUtils.isGroupLength(tag) || TagUtils.isPrivateCreator(tag);
+    private static boolean isGroupLengthOrPrivateCreator(int tag) {
+        return TagUtils.isGroupLength(tag) || TagUtils.isPrivateCreator(tag);
     }
 
     @Override

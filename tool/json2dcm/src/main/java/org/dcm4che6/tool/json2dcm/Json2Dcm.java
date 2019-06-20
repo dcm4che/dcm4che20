@@ -32,10 +32,10 @@ import java.util.concurrent.Callable;
                 "$ json2dcm dataset.json dataset.dcm",
                 "Convert JSON file dataset.json to DICOM file dataset.dcm"}
 )
-public class Json2Dcm implements Callable<Json2Dcm> {
+public class Json2Dcm implements Callable<Integer> {
 
     static class ModuleVersionProvider implements CommandLine.IVersionProvider {
-        public String[] getVersion() throws Exception {
+        public String[] getVersion() {
             return new String[]{Json2Dcm.class.getModule().getDescriptor().rawVersion().orElse("6")};
         }
     }
@@ -83,11 +83,11 @@ public class Json2Dcm implements Callable<Json2Dcm> {
     DicomOutputStream.LengthEncoding itemLengthEncoding = DicomOutputStream.LengthEncoding.UNDEFINED_OR_ZERO;
 
     public static void main(String[] args) {
-        CommandLine.call(new Json2Dcm(), args);
+        new CommandLine(new Json2Dcm()).execute(args);
     }
 
     @Override
-    public Json2Dcm call() throws Exception {
+    public Integer call() throws Exception {
         boolean stdin = jsonfile.toString().equals("-");
         DicomObject fmi;
         DicomObject dcmobj = DicomObject.newDicomObject();
@@ -117,6 +117,6 @@ public class Json2Dcm implements Callable<Json2Dcm> {
             }
             dos.writeDataSet(dcmobj);
         }
-        return this;
+        return 0;
     }
 }

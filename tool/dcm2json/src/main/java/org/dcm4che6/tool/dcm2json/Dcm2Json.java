@@ -36,10 +36,10 @@ import java.util.concurrent.Callable;
                 "Write JSON representation of DICOM file image.dcm to standard output, including only a reference " +
                 "to the pixel data in image.dcm" }
 )
-public class Dcm2Json implements Callable<Dcm2Json> {
+public class Dcm2Json implements Callable<Integer> {
 
     static class ModuleVersionProvider implements CommandLine.IVersionProvider {
-        public String[] getVersion() throws Exception {
+        public String[] getVersion() {
             return new String[]{Dcm2Json.class.getModule().getDescriptor().rawVersion().orElse("6")};
         }
     }
@@ -71,11 +71,11 @@ public class Dcm2Json implements Callable<Dcm2Json> {
     Path blkfile;
 
     public static void main(String[] args) {
-        CommandLine.call(new Dcm2Json(), args);
+        new CommandLine(new Dcm2Json()).execute(args);
     }
 
     @Override
-    public Dcm2Json call() throws Exception {
+    public Integer call() throws Exception {
         boolean stdin = file.toString().equals("-");
         try (JsonGenerator gen = createGenerator(System.out);
              DicomInputStream dis = new DicomInputStream(stdin ? System.in : Files.newInputStream(file))) {
@@ -94,7 +94,7 @@ public class Dcm2Json implements Callable<Dcm2Json> {
             dis.readDataSet();
             gen.writeEnd();
         }
-        return this;
+        return 0;
     }
 
     private Path blkfile() throws IOException {

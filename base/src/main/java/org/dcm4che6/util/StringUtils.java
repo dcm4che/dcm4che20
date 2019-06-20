@@ -63,8 +63,14 @@ public class StringUtils {
         return trim.substring(s, 0, s.length());
     }
 
+    public static String requireNonEmpty(String s) {
+        if (s.isEmpty())
+            throw new IllegalArgumentException("empty");
+        return s;
+    }
+
     public static String requireNonBlank(String s) {
-        if ((s = s.trim()).isEmpty())
+        if (s.isBlank())
             throw new IllegalArgumentException("blank");
         return s;
     }

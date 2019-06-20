@@ -1,6 +1,5 @@
 package org.dcm4che6.data;
 
-import org.dcm4che6.data.Tag;
 import org.dcm4che6.internal.DicomObjectImpl;
 import org.dcm4che6.util.OptionalFloat;
 

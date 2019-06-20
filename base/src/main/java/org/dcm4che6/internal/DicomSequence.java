@@ -3,6 +3,7 @@ package org.dcm4che6.internal;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.VR;
 import org.dcm4che6.io.DicomOutputStream;
+import org.dcm4che6.util.function.ItemConsumer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,8 +35,9 @@ class DicomSequence extends DicomElementImpl {
     }
 
     @Override
-    public void addItem(DicomObject item) {
+    public DicomObject addItem(DicomObject item) {
         items.add(((DicomObjectImpl) item).containedBy(this));
+        return item;
     }
 
     @Override
@@ -79,6 +81,14 @@ class DicomSequence extends DicomElementImpl {
     @Override
     public long getStreamPosition() {
         return streamPosition;
+    }
+
+    @Override
+    public <E extends Throwable> void forEachItem(ItemConsumer<E> action) throws E {
+        int i = 0;
+        for (DicomObject item : items) {
+            action.accept(item, ++i);
+        }
     }
 
     @Override

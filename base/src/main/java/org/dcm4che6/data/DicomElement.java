@@ -2,6 +2,7 @@ package org.dcm4che6.data;
 
 import org.dcm4che6.io.DicomOutputStream;
 import org.dcm4che6.util.OptionalFloat;
+import org.dcm4che6.util.function.ItemConsumer;
 import org.dcm4che6.util.function.StringValueConsumer;
 
 import java.io.IOException;
@@ -54,7 +55,7 @@ public interface DicomElement {
 
     default double[] doubleValues() { return EMPTY_DOUBLES; }
 
-    default void forEachStringValue(StringValueConsumer action) {
+    default <E extends Throwable> void forEachStringValue(StringValueConsumer<E> action) throws E {
         vr().type.forEachStringValue(this, action);
     }
 
@@ -66,7 +67,9 @@ public interface DicomElement {
         vr().type.forEachDoubleValue(this, action);
     }
 
-    default void addItem(DicomObject item) {
+    default <E extends Throwable> void forEachItem(ItemConsumer<E> action) throws E {}
+
+    default DicomObject addItem(DicomObject item) {
         throw new UnsupportedOperationException();
     }
 

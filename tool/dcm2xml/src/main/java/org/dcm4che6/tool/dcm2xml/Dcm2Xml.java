@@ -40,10 +40,10 @@ import java.util.concurrent.Callable;
                 "Write XML representation of DICOM file image.dcm to standard output, including only a reference " +
                         "to the pixel data in image.dcm" }
 )
-public class Dcm2Xml implements Callable<Dcm2Xml> {
+public class Dcm2Xml implements Callable<Integer> {
 
     static class ModuleVersionProvider implements CommandLine.IVersionProvider {
-        public String[] getVersion() throws Exception {
+        public String[] getVersion() {
             return new String[]{Dcm2Xml.class.getModule().getDescriptor().rawVersion().orElse("6")};
         }
     }
@@ -94,11 +94,11 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
     URL url;
 
     public static void main(String[] args) {
-        CommandLine.call(new Dcm2Xml(), args);
+        new CommandLine(new Dcm2Xml()).execute(args);
     }
 
     @Override
-    public Dcm2Xml call() throws Exception {
+    public Integer call() throws Exception {
         boolean stdin = file.toString().equals("-");
         TransformerHandler th = getTransformerHandler();
         Transformer t = th.getTransformer();
@@ -124,7 +124,7 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
             dis.readDataSet();
         }
         handler.endDocument();
-        return this;
+        return 0;
     }
 
     private Path blkfile() throws IOException {
@@ -132,7 +132,7 @@ public class Dcm2Xml implements Callable<Dcm2Xml> {
     }
 
     private TransformerHandler getTransformerHandler()
-            throws TransformerConfigurationException, IOException {
+            throws TransformerConfigurationException {
         SAXTransformerFactory tf = (SAXTransformerFactory)
                 TransformerFactory.newInstance();
         if (url == null)

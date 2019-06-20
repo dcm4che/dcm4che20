@@ -32,10 +32,10 @@ import java.util.concurrent.Callable;
                 "$ xml2dcm dataset.xml dataset.dcm",
                 "Convert XML document dataset.xml to DICOM file dataset.dcm"}
 )
-public class Xml2Dcm implements Callable<Xml2Dcm> {
+public class Xml2Dcm implements Callable<Integer> {
 
     static class ModuleVersionProvider implements CommandLine.IVersionProvider {
-        public String[] getVersion() throws Exception {
+        public String[] getVersion() {
             return new String[]{Xml2Dcm.class.getModule().getDescriptor().rawVersion().orElse("6")};
         }
     }
@@ -83,11 +83,11 @@ public class Xml2Dcm implements Callable<Xml2Dcm> {
     DicomOutputStream.LengthEncoding itemLengthEncoding = DicomOutputStream.LengthEncoding.UNDEFINED_OR_ZERO;
 
     public static void main(String[] args) {
-        CommandLine.call(new Xml2Dcm(), args);
+        new CommandLine(new Xml2Dcm()).execute(args);
     }
 
     @Override
-    public Xml2Dcm call() throws Exception {
+    public Integer call() throws Exception {
         boolean stdin = xmlfile.toString().equals("-");
         DicomObject fmi;
         DicomObject dcmobj = DicomObject.newDicomObject();
@@ -116,6 +116,6 @@ public class Xml2Dcm implements Callable<Xml2Dcm> {
             }
             dos.writeDataSet(dcmobj);
         }
-        return this;
+        return 0;
     }
 }

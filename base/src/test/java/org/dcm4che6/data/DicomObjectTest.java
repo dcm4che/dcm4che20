@@ -1,9 +1,5 @@
 package org.dcm4che6.data;
 
-import org.dcm4che6.data.Tag;
-import org.dcm4che6.data.DicomElement;
-import org.dcm4che6.data.DicomObject;
-import org.dcm4che6.data.VR;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

@@ -3,11 +3,14 @@ package org.dcm4che6.internal;
 import org.dcm4che6.data.DicomElement;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.VR;
+import org.dcm4che6.util.OptionalFloat;
 import org.dcm4che6.util.StringUtils;
 import org.dcm4che6.util.function.StringValueConsumer;
 import org.dcm4che6.data.SpecificCharacterSet;
 
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.function.*;
 
 /**
@@ -16,21 +19,21 @@ import java.util.function.*;
  */
 public enum StringVR implements VRType {
     ASCII("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
-            null, null),
+            null, null, null, null),
     STRING("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet,
-            null, null),
+            null, null, null, null),
     TEXT("\r\n\t\f", VM.SINGLE, StringUtils.Trim.TRAILING, DicomObject::specificCharacterSet,
-            null, null),
+            null, null, null, null),
     DS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
-            StringVR::parseDoubleAsInt, Double::parseDouble),
+            StringVR::parseDoubleAsInt, Double::parseDouble, Integer::toString, StringVR::doubleToString),
     IS("\\", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
-            Integer::parseInt, StringVR::parseIntAsDouble),
+            Integer::parseInt, StringVR::parseIntAsDouble, Integer::toString, null),
     PN("\\^=", VM.MULTI, StringUtils.Trim.LEADING_AND_TRAILING, DicomObject::specificCharacterSet,
-            null, null),
+            null, null, null, null),
     UC("\\", VM.MULTI, StringUtils.Trim.TRAILING, StringVR::ascii,
-            null, null),
+            null, null, null, null),
     UR("", VM.SINGLE, StringUtils.Trim.LEADING_AND_TRAILING, StringVR::ascii,
-            null, null);
+            null, null, null, null);
 
     private final String delimiters;
     private final VM vm;
@@ -38,15 +41,21 @@ public enum StringVR implements VRType {
     private final Function<DicomObject, SpecificCharacterSet> asciiOrCS;
     private final ToIntFunction<String> stringToInt;
     private final ToDoubleFunction<String> stringToDouble;
+    private final IntFunction<String> intToString;
+    private final DoubleFunction<String> doubleToString;
 
-    StringVR(String delimiters, VM vm, StringUtils.Trim trim, Function<DicomObject, SpecificCharacterSet> asciiOrCS,
-            ToIntFunction<String> stringToInt, ToDoubleFunction<String> stringToDouble) {
+    StringVR(String delimiters, VM vm, StringUtils.Trim trim,
+            Function<DicomObject, SpecificCharacterSet> asciiOrCS,
+            ToIntFunction<String> stringToInt, ToDoubleFunction<String> stringToDouble,
+            IntFunction<String> intToString, DoubleFunction<String> doubleToString) {
         this.delimiters = delimiters;
         this.vm = vm;
         this.trim = trim;
         this.asciiOrCS = asciiOrCS;
         this.stringToInt = stringToInt;
         this.stringToDouble = stringToDouble;
+        this.intToString = intToString;
+        this.doubleToString = doubleToString;
     }
 
     private static SpecificCharacterSet ascii(DicomObject dicomObject) {
@@ -123,6 +132,107 @@ public enum StringVR implements VRType {
     }
 
     @Override
+    public OptionalInt intValue(String value, int index) {
+        if (stringToInt == null)
+            return OptionalInt.empty();
+
+        return stringValue(value, index).stream().mapToInt(stringToInt).findFirst();
+    }
+
+    @Override
+    public int[] intValues(String value) {
+        if (stringToInt == null)
+            return DicomElement.EMPTY_INTS;
+
+        String[] ss = stringValues(value);
+        int[] ints = new int[ss.length];
+        for (int i = 0; i < ss.length; i++) {
+            ints[i] = stringToInt.applyAsInt(ss[i]);
+        }
+        return ints;
+    }
+
+    @Override
+    public OptionalFloat floatValue(String value, int index) {
+        if (stringToDouble == null)
+            return OptionalFloat.empty();
+
+        Optional<String> s = stringValue(value, index);
+        return s.isPresent() ? OptionalFloat.of((float) stringToDouble.applyAsDouble(s.get())) : OptionalFloat.empty();
+    }
+
+    @Override
+    public float[] floatValues(String value) {
+        if (stringToDouble == null)
+            return DicomElement.EMPTY_FLOATS;
+
+        String[] ss = stringValues(value);
+        float[] floats = new float[ss.length];
+        for (int i = 0; i < ss.length; i++) {
+            floats[i] = (float) stringToDouble.applyAsDouble(ss[i]);
+        }
+        return floats;
+    }
+
+    @Override
+    public OptionalDouble doubleValue(String value, int index) {
+        if (stringToDouble == null)
+            return OptionalDouble.empty();
+
+        Optional<String> s = stringValue(value, index);
+        return s.isPresent() ? OptionalDouble.of(stringToDouble.applyAsDouble(s.get())) : OptionalDouble.empty();
+    }
+
+    @Override
+    public double[] doubleValues(String value) {
+        if (stringToDouble == null)
+            return DicomElement.EMPTY_DOUBLES;
+
+        String[] ss = stringValues(value);
+        double[] doubles = new double[ss.length];
+        for (int i = 0; i < ss.length; i++) {
+            doubles[i] = stringToDouble.applyAsDouble(ss[i]);
+        }
+        return doubles;
+    }
+
+    @Override
+    public DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, int[] vals) {
+        if (intToString == null)
+            throw new UnsupportedOperationException();
+
+        String[] ss = new String[vals.length];
+        for (int i = 0; i < ss.length; i++) {
+            ss[i] = intToString.apply(vals[i]);
+        }
+        return elementOf(dcmObj, tag, vr, ss);
+    }
+
+    @Override
+    public DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, float[] vals) {
+        if (doubleToString == null)
+            throw new UnsupportedOperationException();
+
+        String[] ss = new String[vals.length];
+        for (int i = 0; i < ss.length; i++) {
+            ss[i] = doubleToString.apply(vals[i]);
+        }
+        return elementOf(dcmObj, tag, vr, ss);
+    }
+
+    @Override
+    public DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, double[] vals) {
+        if (doubleToString == null)
+            throw new UnsupportedOperationException();
+
+        String[] ss = new String[vals.length];
+        for (int i = 0; i < ss.length; i++) {
+            ss[i] = doubleToString.apply(vals[i]);
+        }
+        return elementOf(dcmObj, tag, vr, ss);
+    }
+
+    @Override
     public DicomElement elementOf(DicomObject dcmObj, int tag, VR vr, String val) {
         if (val.isEmpty()) {
             return VRType.super.elementOf(dcmObj, tag, vr);
@@ -144,6 +254,14 @@ public enum StringVR implements VRType {
 
     private static int parseDoubleAsInt(String s) {
         return (int) Double.parseDouble(s);
+    }
+
+    private static String doubleToString(double value) {
+        return StringUtils.trimDS(Double.toString(value));
+    }
+
+    private static String floatToString(float value, long pos) {
+        return StringUtils.trimDS(Float.toString(value));
     }
 
     enum VM {

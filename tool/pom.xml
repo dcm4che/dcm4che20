@@ -18,6 +18,7 @@
     <module>dcm2xml</module>
     <module>dcm2json</module>
     <module>json2dcm</module>
+    <module>stowrs</module>
     <module>xml2dcm</module>
   </modules>
 

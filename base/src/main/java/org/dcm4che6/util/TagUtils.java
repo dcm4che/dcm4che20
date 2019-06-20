@@ -2,6 +2,8 @@ package org.dcm4che6.util;
 
 import org.dcm4che6.data.Tag;
 
+import java.util.OptionalInt;
+
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jul 2018
@@ -62,34 +64,20 @@ public class TagUtils {
         return new String(s);
     }
 
-    public static byte[] fromHexString(String s) {
-        char[] chars = s.toCharArray();
-        byte[] b = new byte[chars.length / 2];
-        try {
-            for (int i = 0, j = 0; i < b.length; i++)
-                b[i] = (byte) ((INV_HEX_DIGITS[chars[j++]] << 4) | INV_HEX_DIGITS[chars[j++]]);
-        } catch (IndexOutOfBoundsException e) {
-            throw new IllegalArgumentException(s);
-        }
-        return b;
-    }
-
     public static int intFromHexString(String s) {
         char[] chars = s.toCharArray();
         int val = 0;
         for (int i = 0; i < chars.length; i++)
-            val = (val << 4) | INV_HEX_DIGITS[chars[i]];
-
+            val = (val << 4) | hexDigitOrThrow(chars[i], s);
         return val;
     }
 
-    public static int[] fromHexStrings(String[] ss) {
-        int n = ss.length;
-        int[] vals = new int[n];
-        for (int i = 0; i < n; i++)
-            vals[i] = intFromHexString(ss[i]);
-
-        return vals;
+    private static byte hexDigitOrThrow(char c, String s) {
+        try {
+            byte b = INV_HEX_DIGITS[c];
+            if (b >= 0) return b;
+        } catch (IndexOutOfBoundsException e) {}
+        throw new NumberFormatException(s);
     }
 
     public static String toString(int tag) {
@@ -173,12 +161,12 @@ public class TagUtils {
 
     public static int forName(String name) {
         try {
-            return Integer.parseInt(name, 16);
+            return intFromHexString(name);
         } catch (NumberFormatException nfe) {
             try {
                 return Tag.class.getField(name).getInt(null);
             } catch (Exception e) {
-                return -1;
+                throw new IllegalArgumentException(name);
             }
         }
     }
