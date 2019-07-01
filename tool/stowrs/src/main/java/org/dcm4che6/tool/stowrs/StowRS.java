@@ -110,10 +110,12 @@ public class StowRS implements Callable<Integer> {
     boolean photo;
 
     @CommandLine.Option(names = { "-v", "--verbose" },
-            description = {
-                "Log HTTP headers."
-            })
+            description = "Log HTTP headers.")
     boolean verbose;
+
+    @CommandLine.Option(names = { "--tsuid" },
+            description =  "Include Transfer Syntax UID in the Content Type of image and video bulkdata.")
+    boolean appendTransferSyntax;
 
     @CommandLine.Option(names = "--metadata",
             description = "Use metadata from specified XML file.")
@@ -139,7 +141,8 @@ public class StowRS implements Callable<Integer> {
         ContentType type = probeContentType();
         MultipartBody multipartBody = new MultipartBody(boundary);
         if (type != ContentType.APPLICATION_DICOM) addMetadataParts(multipartBody, type);
-        files.forEach(path -> multipartBody.addPart(type.type, path, path.toUri().toString()));
+        files.forEach(path -> multipartBody.addPart(
+                type.contentType(appendTransferSyntax), path, path.toUri().toString()));
         HttpClient client = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
@@ -228,21 +231,22 @@ public class StowRS implements Callable<Integer> {
     }
 
     enum ContentType {
-        APPLICATION_DICOM("application/dicom", -1, null),
-        APPLICATION_PDF("application/pdf", Tag.EncapsulatedDocument, x -> "pdf.xml"),
-        TEXT_XML("text/xml", Tag.EncapsulatedDocument, x -> "cda.xml"),
-        IMAGE_JPEG("image/jpeg;transfer-syntax=1.2.840.10008.1.2.4.50",
-                Tag.PixelData, x -> x.photo ? "photo.xml" : "sc.xml"),
-        VIDEO_MPEG("video/mpeg", Tag.PixelData, x -> "video.xml"),
-        VIDEO_MP4("video/mp4", Tag.PixelData, x -> "video.xml");
+        APPLICATION_DICOM("application/dicom", null, -1, null),
+        APPLICATION_PDF("application/pdf", null, Tag.EncapsulatedDocument, x -> "pdf.xml"),
+        TEXT_XML("text/xml", null, Tag.EncapsulatedDocument, x -> "cda.xml"),
+        IMAGE_JPEG("image/jpeg", UID.JPEGBaseline1, Tag.PixelData, x -> x.photo ? "photo.xml" : "sc.xml"),
+        VIDEO_MPEG("video/mpeg", UID.MPEG2, Tag.UID, x -> "video.xml"),
+        VIDEO_MP4("video/mp4", UID.MPEG4AVCH264HighProfileLevel41, Tag.PixelData, x -> "video.xml");
 
         final String type;
+        final String tsuid;
         final int bulkdataTag;
         final Function<StowRS, String> resource;
 
-        ContentType(String type, int bulkdataTag, Function<StowRS, String> resource) {
+        ContentType(String type, String tsuid, int bulkdataTag, Function<StowRS, String> resource) {
             this.type = type;
             this.bulkdataTag = bulkdataTag;
+            this.tsuid = tsuid;
             this.resource = resource;
         }
 
@@ -270,6 +274,10 @@ public class StowRS implements Callable<Integer> {
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+        }
+
+        public String contentType(boolean appendTransferSyntax) {
+            return appendTransferSyntax && tsuid != null ? type + "transfer-syntax=" + tsuid : type;
         }
 
         public void setBulkDataURI(DicomObject metadata, Path file) {
@@ -304,7 +312,9 @@ public class StowRS implements Callable<Integer> {
             t.setOutputProperty(OutputKeys.VERSION, xml11 ? XML_1_1 : XML_1_0);
         }
         th.setResult(new StreamResult(out));
-        SAXWriter saxWriter = new SAXWriter(th);
+        SAXWriter saxWriter = new SAXWriter(th)
+                .withIncludeKeyword(!noKeyword)
+                .withIncludeNamespaceDeclaration(includeNamespaceDeclaration);
         return saxWriter;
     }
 

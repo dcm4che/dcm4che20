@@ -14,7 +14,7 @@ import java.util.ResourceBundle;
 public class UID {
 
     private static final ResourceBundle rb = 
-            ResourceBundle.getBundle("org.dcm4che3.data.UIDNames");
+            ResourceBundle.getBundle("org.dcm4che6.data.UIDNames");
 
     public static String nameOf(String uid) {
         try {

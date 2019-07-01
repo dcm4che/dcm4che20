@@ -12,11 +12,12 @@
   <modules>
     <module>assembly</module>
     <module>base</module>
+    <module>conf</module>
+    <module>codec</module>
     <module>dict</module>
     <module>json</module>
     <module>tool</module>
     <module>xml</module>
-    <module>conf</module>
   </modules>
 
   <properties>

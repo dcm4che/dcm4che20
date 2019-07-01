@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?><NativeDicomModel xml:space="preserve">
     <DicomAttribute keyword="SOPClassUID" tag="00080016" vr="UI">
-        <Value number="1">1.2.840.10008.5.1.4.1.1.104.1</Value>
+        <Value number="1">1.2.840.10008.5.1.4.1.1.77.1.4.1</Value>
     </DicomAttribute>
     <DicomAttribute keyword="StudyDate" tag="00080020" vr="DA"/>
-    <DicomAttribute keyword="ContentDate" tag="00080023" vr="DA"/>
-    <DicomAttribute keyword="AcquisitionDateTime" tag="0008002A" vr="DT"/>
     <DicomAttribute keyword="StudyTime" tag="00080030" vr="TM"/>
-    <DicomAttribute keyword="ContentTime" tag="00080033" vr="TM"/>
     <DicomAttribute keyword="AccessionNumber" tag="00080050" vr="SH"/>
     <DicomAttribute keyword="Modality" tag="00080060" vr="CS">
-        <Value number="1">DOC</Value>
+        <Value number="1">OT</Value>
     </DicomAttribute>
     <DicomAttribute keyword="Manufacturer" tag="00080070" vr="LO"/>
     <DicomAttribute keyword="ReferringPhysicianName" tag="00080090" vr="PN"/>
@@ -24,12 +21,8 @@
     <DicomAttribute keyword="InstanceNumber" tag="00200013" vr="IS">
         <Value number="1">1</Value>
     </DicomAttribute>
-    <DicomAttribute keyword="BurnedInAnnotation" tag="00280301" vr="CS">
-        <Value number="1">YES</Value>
+    <DicomAttribute keyword="LossyImageCompression" tag="00282110" vr="CS">
+        <Value number="1">01</Value>
     </DicomAttribute>
-    <DicomAttribute keyword="ConceptNameCodeSequence" tag="0040A043" vr="SQ"/>
-    <DicomAttribute keyword="DocumentTitle" tag="00420010" vr="ST"/>
-    <DicomAttribute keyword="MIMETypeOfEncapsulatedDocument" tag="00420012" vr="LO">
-        <Value number="1">application/pdf</Value>
-    </DicomAttribute>
+    <DicomAttribute keyword="AcquisitionContextSequence" tag="00405555" vr="SQ"/>
 </NativeDicomModel>
