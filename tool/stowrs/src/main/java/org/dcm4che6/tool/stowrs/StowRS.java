@@ -1,5 +1,9 @@
 package org.dcm4che6.tool.stowrs;
 
+import org.dcm4che6.codec.CompressedPixelParser;
+import org.dcm4che6.codec.JPEGParser;
+import org.dcm4che6.codec.MP4Parser;
+import org.dcm4che6.codec.MPEG2Parser;
 import org.dcm4che6.data.*;
 import org.dcm4che6.json.JSONWriter;
 import org.dcm4che6.util.DateTimeUtils;
@@ -21,6 +25,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -48,6 +53,12 @@ import java.util.function.Function;
                 "Upload DICOM file image.dcm to STOW-RS service provided at specified URL." }
 )
 public class StowRS implements Callable<Integer> {
+
+    static class ModuleVersionProvider implements CommandLine.IVersionProvider {
+        public String[] getVersion() {
+            return new String[]{StowRS.class.getModule().getDescriptor().rawVersion().orElse("6")};
+        }
+    }
 
     private static final String APPLICATION_DICOM_JSON = "application/dicom+json";
     private static final String APPLICATION_DICOM_XML = "application/dicom+xml";
@@ -142,7 +153,7 @@ public class StowRS implements Callable<Integer> {
         MultipartBody multipartBody = new MultipartBody(boundary);
         if (type != ContentType.APPLICATION_DICOM) addMetadataParts(multipartBody, type);
         files.forEach(path -> multipartBody.addPart(
-                type.contentType(appendTransferSyntax), path, path.toUri().toString()));
+                type.contentType(appendTransferSyntax, path), path, path.toUri().toString()));
         HttpClient client = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
@@ -219,35 +230,30 @@ public class StowRS implements Callable<Integer> {
         return out.toByteArray();
     }
 
-    private static void updateMetadata(DicomObject metadata) {
-        metadata.setString(Tag.SOPInstanceUID, VR.UI,
-                UIDUtils.nameUIDFromString(metadata.getString(Tag.SOPInstanceUID).get()));
-        metadata.setInt(Tag.InstanceNumber, VR.IS,
-                metadata.getInt(Tag.InstanceNumber).getAsInt() + 1);
-    }
-
-    private ContentType probeContentType() {
-        return files.stream().map(PathWithType::new).reduce(PathWithType::requiresTypeEquals).get().type;
-    }
-
     enum ContentType {
-        APPLICATION_DICOM("application/dicom", null, -1, null),
-        APPLICATION_PDF("application/pdf", null, Tag.EncapsulatedDocument, x -> "pdf.xml"),
-        TEXT_XML("text/xml", null, Tag.EncapsulatedDocument, x -> "cda.xml"),
-        IMAGE_JPEG("image/jpeg", UID.JPEGBaseline1, Tag.PixelData, x -> x.photo ? "photo.xml" : "sc.xml"),
-        VIDEO_MPEG("video/mpeg", UID.MPEG2, Tag.UID, x -> "video.xml"),
-        VIDEO_MP4("video/mp4", UID.MPEG4AVCH264HighProfileLevel41, Tag.PixelData, x -> "video.xml");
+        APPLICATION_DICOM("application/dicom", -1, null, null),
+        APPLICATION_PDF("application/pdf", Tag.EncapsulatedDocument, x -> "pdf.xml", null),
+        TEXT_XML("text/xml", Tag.EncapsulatedDocument, x -> "cda.xml", JPEGParser::new),
+        IMAGE_JPEG("image/jpeg", Tag.PixelData, x -> x.photo ? "photo.xml" : "sc.xml", JPEGParser::new),
+        IMAGE_JP2("image/jp2", Tag.PixelData, x -> x.photo ? "photo.xml" : "sc.xml", JPEGParser::new),
+        VIDEO_MPEG("video/mpeg", Tag.PixelData, x -> "video.xml", MPEG2Parser::new),
+        VIDEO_MP4("video/mp4", Tag.PixelData, x -> "video.xml", MP4Parser::new);
+
+        @FunctionalInterface
+        interface ParserGenerator {
+            CompressedPixelParser apply(SeekableByteChannel channel) throws IOException;
+        }
 
         final String type;
-        final String tsuid;
         final int bulkdataTag;
         final Function<StowRS, String> resource;
+        final ParserGenerator parserGenerator;
 
-        ContentType(String type, String tsuid, int bulkdataTag, Function<StowRS, String> resource) {
+        ContentType(String type, int bulkdataTag, Function<StowRS, String> resource, ParserGenerator parserGenerator) {
             this.type = type;
             this.bulkdataTag = bulkdataTag;
-            this.tsuid = tsuid;
             this.resource = resource;
+            this.parserGenerator = parserGenerator;
         }
 
         static ContentType probe(Path path) {
@@ -264,6 +270,8 @@ public class StowRS implements Callable<Integer> {
                         return ContentType.TEXT_XML;
                     case "image/jpeg":
                         return ContentType.IMAGE_JPEG;
+                    case "image/jp2":
+                        return ContentType.IMAGE_JP2;
                     case "video/mpeg":
                         return ContentType.VIDEO_MPEG;
                     case "video/mp4":
@@ -276,13 +284,30 @@ public class StowRS implements Callable<Integer> {
             }
         }
 
-        public String contentType(boolean appendTransferSyntax) {
-            return appendTransferSyntax && tsuid != null ? type + "transfer-syntax=" + tsuid : type;
-        }
-
         public void setBulkDataURI(DicomObject metadata, Path file) {
             metadata.setBulkData(bulkdataTag, VR.OB, file.toUri().toASCIIString(), null);
         }
+
+        public String contentType(boolean appendTransferSyntax, Path path) {
+            if (appendTransferSyntax && parserGenerator != null)
+                try (SeekableByteChannel channel = Files.newByteChannel(path)) {
+                    return type + ";transfer-syntax=" + parserGenerator.apply(channel).getTransferSyntaxUID();
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            return type;
+        }
+    }
+
+    private static void updateMetadata(DicomObject metadata) {
+        metadata.setString(Tag.SOPInstanceUID, VR.UI,
+                UIDUtils.nameUIDFromString(metadata.getString(Tag.SOPInstanceUID).get()));
+        metadata.setInt(Tag.InstanceNumber, VR.IS,
+                metadata.getInt(Tag.InstanceNumber).getAsInt() + 1);
+    }
+
+    private ContentType probeContentType() {
+        return files.stream().map(PathWithType::new).reduce(PathWithType::requiresTypeEquals).get().type;
     }
 
     private static class PathWithType {
@@ -321,12 +346,6 @@ public class StowRS implements Callable<Integer> {
     private JsonGenerator jsonGenerator(OutputStream out) {
         return Json.createGeneratorFactory(pretty ? Map.of(JsonGenerator.PRETTY_PRINTING, true) : null)
                 .createGenerator(out);
-    }
-
-    static class ModuleVersionProvider implements CommandLine.IVersionProvider {
-        public String[] getVersion() {
-            return new String[]{StowRS.class.getModule().getDescriptor().rawVersion().orElse("6")};
-        }
     }
 
 }

@@ -7,6 +7,8 @@ import org.dcm4che6.data.DicomObject;
  * @since Jun 2019
  */
 public interface CompressedPixelParser {
+    long getCodeStreamPosition();
+
     DicomObject getImagePixelDescription(DicomObject destination);
 
     String getTransferSyntaxUID() throws CompressedPixelParserException;

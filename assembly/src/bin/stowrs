@@ -1,6 +1,6 @@
 #!/bin/sh
 # -------------------------------------------------------------------------
-# xml2dcm  Launcher
+# stowrs  Launcher
 # -------------------------------------------------------------------------
 
 MAIN_MODULE=org.dcm4che.tool.stowrs
@@ -39,6 +39,7 @@ fi
 # Setup the module path
 MP="$DCM4CHE_HOME/lib/$MAIN_JAR"
 MP="$MP:$DCM4CHE_HOME/lib/dcm4che-base-${project.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/dcm4che-codec-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/dcm4che-json-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/dcm4che-xml-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/jakarta.json-${jakarta.json.version}.jar"

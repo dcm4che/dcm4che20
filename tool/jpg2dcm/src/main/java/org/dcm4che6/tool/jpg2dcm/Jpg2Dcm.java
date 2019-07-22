@@ -108,10 +108,11 @@ public class Jpg2Dcm implements Callable<Integer> {
                 dos.writeDataSet(dcmobj);
                 dos.writeHeader(Tag.PixelData, VR.OB, -1);
                 dos.writeHeader(Tag.Item, VR.NONE, 0);
-                dos.writeHeader(Tag.Item, VR.NONE, (int) ((channel.size() + 1) & ~1));
-                channel.position(0);
+                long codeStreamSize = channel.size() - parser.getCodeStreamPosition();
+                dos.writeHeader(Tag.Item, VR.NONE, (int) ((codeStreamSize + 1) & ~1));
+                channel.position(parser.getCodeStreamPosition());
                 copy(channel, dos);
-                if ((channel.size() & 1) != 0)
+                if ((codeStreamSize & 1) != 0)
                     dos.write(0);
                 dos.writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
             }
@@ -181,6 +182,7 @@ public class Jpg2Dcm implements Callable<Integer> {
                     throw new IOException(String.format("failed to determine content type of file: '%s'", path));
                 switch (type.toLowerCase()) {
                     case "image/jpeg":
+                    case "image/jp2":
                         return ContentType.IMAGE_JPEG;
                     case "video/mpeg":
                         return ContentType.VIDEO_MPEG;

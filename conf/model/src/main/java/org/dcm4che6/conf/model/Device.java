@@ -34,6 +34,7 @@ public class Device {
     private volatile Code[] institutionCodes = {};
     private volatile String[] institutionAddresses = {};
     private volatile String[] institutionalDepartmentNames = {};
+    private volatile String[] relatedDeviceReferences = {};
     private volatile String[] authorizedNodeCertificateReferences = {};
     private volatile String[] thisNodeCertificateReferences = {};
 
@@ -234,6 +235,15 @@ public class Device {
 
     public Device setInstitutionalDepartmentNames(String... institutionalDepartmentNames) {
         this.institutionalDepartmentNames = institutionalDepartmentNames;
+        return this;
+    }
+
+    public List<String> getRelatedDeviceReferences() {
+        return List.of(relatedDeviceReferences);
+    }
+
+    public Device setRelatedDeviceReferences(String... relatedDeviceReferences) {
+        this.relatedDeviceReferences = relatedDeviceReferences;
         return this;
     }
 

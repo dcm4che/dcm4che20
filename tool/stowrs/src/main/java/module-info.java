@@ -6,6 +6,7 @@ import java.nio.file.spi.FileTypeDetector;
  */
 module org.dcm4che.tool.stowrs {
     requires org.dcm4che.base;
+    requires org.dcm4che.codec;
     requires org.dcm4che.json;
     requires org.dcm4che.xml;
     requires info.picocli;

@@ -12,8 +12,9 @@
   <artifactId>dcm4che-conf</artifactId>
   <packaging>pom</packaging>
   <modules>
-    <module>model</module>
     <module>json</module>
+    <module>ldap</module>
+    <module>model</module>
   </modules>
 
 </project>
