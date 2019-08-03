@@ -26,7 +26,20 @@ class LdapDicomConfigurationTest {
         try (LdapDicomConfiguration config = new LdapDicomConfiguration()) {
             config.purgeDicomConfiguration();
             config.persist(createDevice());
-            Optional<Device> optionalDevice = config.loadDevice("dcm4chee-arc");
+            Optional<Device> optionalDevice = config.findDevice("dcm4chee-arc");
+            assertTrue(optionalDevice.isPresent());
+            assertDevice(optionalDevice.get());
+        }
+    }
+
+    @Test
+    void mergeDevice() throws Exception {
+        try (LdapDicomConfiguration config = new LdapDicomConfiguration()) {
+            config.purgeDicomConfiguration();
+            Device device = createDevice();
+            config.persist(device);
+            config.merge(device);
+            Optional<Device> optionalDevice = config.findDevice("dcm4chee-arc");
             assertTrue(optionalDevice.isPresent());
             assertDevice(optionalDevice.get());
         }
@@ -59,13 +72,13 @@ class LdapDicomConfigurationTest {
                 .setIssuerOfPatientID(issuerOfPatientID)
                 .setInstitutionCodes(code)
                 .setLimitOpenAssociations(100)
-                .setTrustManagerConfiguration(new TrustManagerConfiguration().setKeyStoreConfiguration(trustStore))
-                .setKeyManagerConfiguration(new KeyManagerConfiguration().setKeyStoreConfiguration(keyStore)
-                        .setPassword("secret"))
+//                .setTrustManagerConfiguration(new TrustManagerConfiguration().setKeyStoreConfiguration(trustStore))
+//                .setKeyManagerConfiguration(new KeyManagerConfiguration().setKeyStoreConfiguration(keyStore)
+//                        .setPassword("secret"))
                 .addConnection(conn)
-                .addApplicationEntity(ae)
-                .addKeyStoreConfiguration(trustStore)
-                .addKeyStoreConfiguration(keyStore);
+                .addApplicationEntity(ae);
+//                .addKeyStoreConfiguration(trustStore)
+//                .addKeyStoreConfiguration(keyStore);
     }
 
     private void assertDevice(Device device) {

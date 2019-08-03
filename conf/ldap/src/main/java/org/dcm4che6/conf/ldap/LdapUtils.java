@@ -6,17 +6,17 @@ import org.dcm4che6.util.Code;
 import org.dcm4che6.util.Issuer;
 import org.dcm4che6.util.function.ThrowingConsumer;
 
-import javax.naming.InvalidNameException;
-import javax.naming.Name;
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
+import javax.naming.*;
 import javax.naming.directory.*;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -33,6 +33,9 @@ public class LdapUtils {
     static final Function<Object, Boolean> booleanMapping =
             ((Function<Object, String>) Object::toString).andThen(Boolean::valueOf);
 
+    static final Function<Object, Integer> intMapping =
+            ((Function<Object, String>) Object::toString).andThen(Integer::valueOf);
+
     static final Function<Object, TransferCapability.Role> roleMapping =
             ((Function<Object, String>) Object::toString).andThen(TransferCapability.Role::valueOf);
 
@@ -40,38 +43,23 @@ public class LdapUtils {
         return new SearchControls(scope, 1, 0, new String[0], false, false);
     }
 
-    static SearchControls singleResult() {
-        return new SearchControls(SearchControls.ONELEVEL_SCOPE, 1, 0, null, false, false);
-    }
-
-    static boolean contains(DirContext ctx, Name name, Rdn rdn) throws NamingException {
-        NamingEnumeration<SearchResult> search = ctx.search(name, rdn.toString(),
-                singleResultNoAttributes(SearchControls.ONELEVEL_SCOPE));
-        try {
-            return search.hasMore();
-        } finally {
-            search.close();
-        }
-    }
-
-    static Attributes search(DirContext ctx, Name name, Rdn rdn) throws NamingException {
-        NamingEnumeration<SearchResult> search = ctx.search(name, rdn.toString(), singleResult());
-        try {
-            return search.hasMore() ? search.next().getAttributes() : null;
-        } finally {
-            search.close();
-        }
-    }
-
     static void forEach(DirContext ctx, Name name, String objectClass,
-            ThrowingConsumer<Attributes, NamingException> action) throws NamingException {
+            ThrowingConsumer<SearchResult, NamingException> action) throws NamingException {
         NamingEnumeration<SearchResult> search =
                 ctx.search(name, new Rdn("objectclass", objectClass).toString(), new SearchControls());
         try {
             while (search.hasMore())
-                action.accept(search.next().getAttributes());
+                action.accept(search.next());
         } finally {
             search.close();
+        }
+    }
+
+    static <T> void ifPresent(DirContext ctx, Name name, Function<Attributes, T> mapping, Consumer<T> action)
+            throws NamingException {
+        try {
+            action.accept(mapping.apply(ctx.getAttributes(name)));
+        } catch (NameNotFoundException e) {
         }
     }
 
@@ -91,58 +79,66 @@ public class LdapUtils {
         }
     }
 
-    static Rdn rdnOf(Connection conn) {
-        if (conn.getName().isPresent())
-            return rdn("cn", conn.getName().get());
-        Attributes attrSet = new BasicAttributes("dicomHostname", conn.getHostname());
-        putInt(attrSet, "dicomPort", conn.getPort());
-        return rdn(attrSet);
-    }
-
-    static Rdn rdnOf(TransferCapability tc) {
-        if (tc.getName().isPresent())
-            return rdn("cn", tc.getName().get());
-        Attributes attrSet = new BasicAttributes("dicomSOPClass", tc.getSOPClass());
-        putValue(attrSet, "dicomTransferRole", tc.getRole());
-        return rdn(attrSet);
-    }
-
-    static String dnOf(Connection conn, Rdn[] fullDeviceRdns) {
-        return toName(append(fullDeviceRdns, rdnOf(conn))).toString();
-    }
-
     static String valueOf(boolean b) {
         return b ? "TRUE" : "FALSE";
     }
 
-    static <T> T getValue(Attributes attrSet, String attrID, Function<Object, T> mapping) throws NamingException {
-        Attribute attr = attrSet.get(attrID);
-        return attr != null ? mapping.apply(attr.get()) : null;
-    }
-
-    static void getInt(Attributes attrSet, String attrID, IntConsumer action) {
+    static <T> void ifPresent(Attributes attrSet, String attrID, Function<Object, T> mapping, Consumer<T> action) {
         Attribute attr = attrSet.get(attrID);
         if (attr != null) {
             try {
-                action.accept(Integer.parseInt(attr.get().toString()));
+                action.accept(mapping.apply(attr.get()));
             } catch (NamingException e) {
                 throw new UncheckedNamingException(e);
             }
         }
     }
 
-    static <T> T[] getArray(Attributes attrSet, String attrID, Function<Object, T> mapping, Class<T> clazz)
-            throws NamingException {
+    static void ifPresent(Attributes attrSet, String attrID, IntConsumer action) throws NamingException {
         Attribute attr = attrSet.get(attrID);
-        T[] a = (T[]) Array.newInstance(clazz, attr != null ? attr.size() : 0);
-        for (int i = 0; i < a.length; i++)
-            a[i] = mapping.apply(attr.get(i));
-
-        return a;
+        if (attr != null)
+            action.accept(Integer.parseInt(attr.get().toString()));
     }
 
-    static String[] objectClassesOf(Attributes attrSet) throws NamingException {
-        return getArray(attrSet, "objectclass", Object::toString, String.class);
+    static <T> void ifPresent(Attributes attrSet, String attrID, Function<Object, T> mapping, Class<T> clazz,
+            Consumer<T[]> action) throws NamingException {
+        Attribute attr = attrSet.get(attrID);
+        if (attr != null) {
+            T[] a = (T[]) Array.newInstance(clazz, attr.size());
+            for (int i = 0; i < a.length; i++) {
+                a[i] = mapping.apply(attr.get(i));
+            }
+            action.accept(a);
+        }
+    }
+
+    static <T> void forEach(Attributes attrSet, String attrID, Function<Object, T> mapping,
+            Consumer<T> action) throws NamingException {
+        Attribute attr = attrSet.get(attrID);
+        if (attr != null) {
+            for (int i = 0; i < attr.size(); i++) {
+                action.accept(mapping.apply(attr.get(i)));
+            }
+        }
+    }
+
+    static <T> boolean anyMatch(Attributes attrSet, String attrID, Predicate<Object> predicate) {
+        Attribute attr = attrSet.get(attrID);
+        if (attr != null) {
+            try {
+                for (int i = 0; i < attr.size(); i++) {
+                        if (predicate.test(attr.get(i)))
+                            return true;
+                }
+            } catch (NamingException e) {
+                throw new UncheckedNamingException(e);
+            }
+        }
+        return false;
+    }
+
+    static boolean hasObjectClass(Attributes attrSet, String objectClass) {
+        return anyMatch(attrSet, "objectclass", objectClass::equals);
     }
 
     static void putBoolean(Attributes attrSet, String attrID, boolean b) {
@@ -169,16 +165,93 @@ public class LdapUtils {
         attrSet.put(new BasicAttribute(attrID, toString.apply(value)));
     }
 
-    static <T> void putList(Attributes attrSet, String attrID, List<T> list) {
-        putList(attrSet, attrID, list, Objects::toString);
+    static <T> void putValues(Attributes attrSet, String attrID, List<T> list) {
+        putValues(attrSet, attrID, list, Objects::toString);
     }
 
-    static <T> void putList(Attributes attrSet, String attrID, List<T> list, Function<T,String> toString) {
-        if (!list.isEmpty()) {
-            BasicAttribute attr = new BasicAttribute(attrID);
-            list.forEach(v -> attr.add(toString.apply(v)));
-            attrSet.put(attr);
-        }
+    static <T> void putValues(Attributes attrSet, String attrID, List<T> list, Function<T,String> toString) {
+        if (!list.isEmpty())
+            attrSet.put(newAttribute(attrID, list, toString));
+    }
+
+    static <T> void diffOptionalValue(List<ModificationItem> mods, String attrID, Optional<T> a, Optional<T> b) {
+        diffOptionalValue(mods, attrID, a, b, Objects::toString);
+    }
+
+    static void diffOptionalInt(List<ModificationItem> mods, String attrID, OptionalInt a, OptionalInt b) {
+        if (!a.equals(b))
+            mods.add(b.isEmpty()
+                    ? new ModificationItem(DirContext.REMOVE_ATTRIBUTE, new BasicAttribute(attrID))
+                    : new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute(attrID, Integer.toString(b.getAsInt()))));
+    }
+
+    static <T> void diffOptionalValue(List<ModificationItem> mods, String attrID, Optional<T> a, Optional<T> b,
+            Function<T,String> toString) {
+        if (!a.equals(b))
+            mods.add(b.isEmpty()
+                    ? new ModificationItem(DirContext.REMOVE_ATTRIBUTE, new BasicAttribute(attrID))
+                    : new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute(attrID, toString.apply(b.get()))));
+    }
+
+    static <T> void diffValue(List<ModificationItem> mods, String attrID, T a, T b) {
+        diffValue(mods, attrID, a, b, Objects::toString);
+    }
+
+    static <T> void diffValue(List<ModificationItem> mods, String attrID, T a, T b, Function<T,String> toString) {
+        if (!a.equals(b))
+            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute(attrID, toString.apply(b))));
+    }
+
+    static void diffBoolean(List<ModificationItem> mods, String attrID, boolean a, boolean b) {
+        if (a != b)
+            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(attrID, valueOf(b))));
+    }
+
+    static void diffOptionalBoolean(List<ModificationItem> mods, String attrID,
+            Optional<Boolean> a, Optional<Boolean> b) {
+        diffOptionalValue(mods, attrID, a, b, LdapUtils::valueOf);
+    }
+
+    static <T> void diffValues(List<ModificationItem> mods, String attrID, Collection<T> a, Collection<T> b) {
+        diffValues(mods, attrID, a, b, Objects::toString);
+    }
+
+    static <T> void diffValues(List<ModificationItem> mods, String attrID, Collection<T> a, Collection<T> b,
+            Function<T,String> toString) {
+        if (!equalsIgnoreOrder(a, b))
+            mods.add(diffValues(attrID, a, b, toString));
+    }
+
+    static <T> boolean equalsIgnoreOrder(Collection<T> a, Collection<T> b) {
+        return a.equals(b)
+                || a.size() == b.size() && a.size() > 1 && !(a instanceof Set) && a.stream().allMatch(b::contains);
+    }
+
+    private static <T> ModificationItem diffValues(String attrID, Collection<T> a, Collection<T> b,
+            Function<T, String> toString) {
+        if (b.isEmpty())
+            return new ModificationItem(DirContext.REMOVE_ATTRIBUTE, new BasicAttribute(attrID));
+
+        Set<T> add = new HashSet(b);
+        add.removeAll(a);
+
+        Set<T> remove = new HashSet(a);
+        remove.removeAll(b);
+
+        return add.isEmpty()
+                ? new ModificationItem(DirContext.REMOVE_ATTRIBUTE, newAttribute(attrID, remove, toString))
+                : remove.isEmpty()
+                ? new ModificationItem(DirContext.ADD_ATTRIBUTE, newAttribute(attrID, add, toString))
+                : new ModificationItem(DirContext.REPLACE_ATTRIBUTE, newAttribute(attrID, b, toString));
+    }
+
+    static <T> Attribute newAttribute(String attrID, Collection<T> list, Function<T, String> toString) {
+        BasicAttribute attr = new BasicAttribute(attrID);
+        list.forEach(v -> attr.add(toString.apply(v)));
+        return attr;
     }
 
     static Attributes objectClass(String type) {
@@ -189,29 +262,26 @@ public class LdapUtils {
         attrSet.get("objectclass").add(type);
     }
 
-    static Rdn uncheckedRdn(String type, Object value) {
-        try {
-            return new Rdn(type, value);
-        } catch (InvalidNameException e) {
-            throw new UncheckedNamingException(e);
-        }
-    }
-
     static Name toName(Rdn[] rdns) {
         return new LdapName(List.of(rdns));
     }
 
-    static Rdn[] append(Rdn[] appendTo, Rdn rdn) {
-        Rdn[] result = new Rdn[appendTo.length + 1];
-        System.arraycopy(appendTo, 0, result, 0, appendTo.length);
-        result[appendTo.length] = rdn;
+    static Rdn[] cat(Rdn[] prefix, Rdn rdn) {
+        Rdn[] result = new Rdn[prefix.length + 1];
+        System.arraycopy(prefix, 0, result, 0, prefix.length);
+        result[prefix.length] = rdn;
         return result;
     }
 
-    static Rdn[] cat(Rdn[] rdns1, Rdn[] rdns2) {
-        Rdn[] result = new Rdn[rdns1.length + rdns2.length];
+    static Rdn[] cat(Rdn[] rdns1, Rdn[] rdns2, Rdn rdn) {
+        Rdn[] result = new Rdn[rdns1.length + rdns2.length + 1];
         System.arraycopy(rdns1, 0, result, 0, rdns1.length);
         System.arraycopy(rdns2, 0, result, rdns1.length, rdns2.length);
+        result[result.length - 1] = rdn;
         return result;
+    }
+
+    static <K, T> Map<K, T> toMap(Collection<T> a, Function<? super T, ? extends K> keyMapper) {
+        return a.stream().collect(Collectors.toMap(keyMapper, Function.identity()));
     }
 }
