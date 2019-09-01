@@ -45,6 +45,7 @@
         <include>org.dcm4che.tool:dcm4che-tool-jpg2dcm</include>
         <include>org.dcm4che.tool:dcm4che-tool-json2dcm</include>
         <include>org.dcm4che.tool:dcm4che-tool-stowrs</include>
+        <include>org.dcm4che.tool:dcm4che-tool-wadors</include>
         <include>org.dcm4che.tool:dcm4che-tool-xml2dcm</include>
         <include>org.glassfish:jakarta.json</include>
         <include>info.picocli:picocli</include>

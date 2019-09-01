@@ -14,11 +14,9 @@ import java.util.*;
 public class MultipartBody {
     private List<Part> parts = new ArrayList<>();
     private final String boundary;
-    private final String delimiter;
 
     public MultipartBody(String boundary) {
         this.boundary = boundary;
-        this.delimiter = "\r\n--" + boundary;
     }
 
     public HttpRequest.BodyPublisher bodyPublisher() {
@@ -27,7 +25,7 @@ public class MultipartBody {
 
     private Enumeration<? extends InputStream> enumeration() {
         return new Enumeration<>() {
-            Iterator<Part> iter = new ArrayList<>(parts).iterator();
+            Iterator<Part> iter = parts.iterator();
             Part part;
             boolean closed;
 
@@ -44,7 +42,7 @@ public class MultipartBody {
                     part = null;
                 } else if (iter.hasNext()) {
                     part = iter.next();
-                    stream = new ByteArrayInputStream(part.header.getBytes(StandardCharsets.UTF_8));
+                    stream = new ByteArrayInputStream(part.header().getBytes(StandardCharsets.UTF_8));
                 } else if (!closed) {
                     stream = new ByteArrayInputStream(closeDelimiter().getBytes(StandardCharsets.UTF_8));
                     closed = true;
@@ -57,7 +55,7 @@ public class MultipartBody {
     }
 
     private String closeDelimiter() {
-        return delimiter + "--";
+        return "\r\n--" + boundary + "--";
     }
 
     public void addPart(String type, final byte[] b, String location) {
@@ -97,41 +95,61 @@ public class MultipartBody {
     }
 
     private void addPart(String type, Payload payload, String location) {
-        parts.add(new Part(payload, header(type, payload.size(), location), type));
-    }
-
-    private String header(String type, long length, String location) {
-        StringBuilder sb = new StringBuilder(256)
-                .append(delimiter).append("\r\nContent-Type: ").append(type)
-                .append("\r\nContent-Length: ").append(length);
-        if (location != null)
-            sb.append("\r\nContent-Location: ").append(location);
-        return sb.append("\r\n\r\n").toString();
+        parts.add(new Part(payload, type, location));
     }
 
     public String contentType() {
-        return "multipart/related;type=\"" + parts.iterator().next().type + "\";boundary=" + boundary;
+        return "multipart/related;type=\"" + firstPart().type + "\";boundary=" + boundary;
     }
 
-    private static class Part {
+    private Part firstPart() {
+        return parts.iterator().next();
+    }
+
+    private class Part {
         final String type;
-        final String header;
+        final String location;
         final Payload payload;
 
-        public Part(Payload payload, String header, String type) {
+        public Part(Payload payload, String type, String location) {
             this.type = type;
+            this.location = location;
             this.payload = payload;
-            this.header = header;
         }
 
         public InputStream newInputStream() {
             return payload.newInputStream();
         }
 
+        String header() {
+            StringBuilder sb = new StringBuilder(256)
+                    .append("\r\n--").append(boundary)
+                    .append("\r\nContent-Type: ").append(type)
+                    .append("\r\nContent-Length: ").append(payload.size());
+            if (location != null)
+                sb.append("\r\nContent-Location: ").append(location);
+            return sb.append("\r\n\r\n").toString();
+        }
+
+        void prompt() {
+            System.out.println("> --" + boundary);
+            System.out.println("> Content-Type: " + type);
+            System.out.println("> Content-Length: " + payload.size());
+            if (location != null)
+                System.out.println("> Content-Location: " + location);
+            System.out.println(">");
+            System.out.println("> [...]");
+        }
     }
 
     private interface Payload {
         long size();
         InputStream newInputStream();
+    }
+
+    void prompt() {
+        parts.stream().forEach(Part::prompt);
+        System.out.println("> --" + boundary + "--");
+        System.out.println(">");
     }
 }

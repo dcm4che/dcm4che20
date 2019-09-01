@@ -16,6 +16,7 @@
     <module>codec</module>
     <module>dict</module>
     <module>json</module>
+    <module>net</module>
     <module>tool</module>
     <module>xml</module>
   </modules>

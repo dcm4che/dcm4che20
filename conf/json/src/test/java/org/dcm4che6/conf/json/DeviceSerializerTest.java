@@ -1,7 +1,6 @@
 package org.dcm4che6.conf.json;
 
 import org.dcm4che6.conf.model.*;
-import org.dcm4che6.conf.model.annotation.JsonbTypeProperty;
 import org.dcm4che6.data.UID;
 import org.dcm4che6.util.Code;
 import org.dcm4che6.util.Issuer;
@@ -10,13 +9,6 @@ import org.junit.jupiter.api.Test;
 import javax.json.bind.Jsonb;
 import javax.json.bind.JsonbBuilder;
 import javax.json.bind.JsonbConfig;
-import javax.json.bind.serializer.DeserializationContext;
-import javax.json.bind.serializer.JsonbDeserializer;
-import javax.json.bind.serializer.JsonbSerializer;
-import javax.json.bind.serializer.SerializationContext;
-import javax.json.stream.JsonGenerator;
-import javax.json.stream.JsonParser;
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Optional;
 
@@ -85,42 +77,4 @@ class DeviceSerializerTest {
         assertEquals("value", device1.getDeviceExtension(Extension.class).value);
     }
 
-    @JsonbTypeProperty("dcmExtension")
-    static class Extension {
-        String value;
-
-        Extension setValue(String value) {
-            this.value = value;
-            return this;
-        }
-    }
-
-    static class ExtensionSerializer implements JsonbSerializer<Extension> {
-        @Override
-        public void serialize(Extension ext, JsonGenerator gen, SerializationContext ctx) {
-            gen.writeStartObject();
-            gen.write("dcmValue", ext.value);
-            gen.writeEnd();
-        }
-    }
-
-    static class ExtensionDeserializer implements JsonbDeserializer<Extension> {
-        @Override
-        public Extension deserialize(JsonParser parser, DeserializationContext ctx, Type rtType) {
-            Extension ext = new Extension();
-            JsonParser.Event event;
-            String key;
-            while ((event = parser.next()) == JsonParser.Event.KEY_NAME) {
-                switch (key = parser.getString()) {
-                    case "dcmValue":
-                        ext.value = DeserializerUtils.deserializeString(parser);
-                        break;
-                    default:
-                        DeserializerUtils.unexpectedKey(key);
-                }
-            }
-            DeserializerUtils.assertEvent(JsonParser.Event.END_OBJECT, event);
-            return ext;
-        }
-    }
 }

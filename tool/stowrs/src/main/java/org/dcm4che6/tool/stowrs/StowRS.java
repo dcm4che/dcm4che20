@@ -23,17 +23,20 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -77,7 +80,7 @@ public class StowRS implements Callable<Integer> {
             description = "DICOM or Bulkdata files.",
             index = "1..*",
             arity = "1..*")
-    List<Path> files;
+    List<Path> files = new ArrayList<>();
 
     @CommandLine.Option(names = "--boundary",
             description = "Specifies a string that acts as a boundary between message parts.")
@@ -106,13 +109,6 @@ public class StowRS implements Callable<Integer> {
             })
     boolean json;
 
-    @CommandLine.Option(names = "--accept-json",
-            description = {
-                "Specify response Content Type as 'application/dicom+json'.",
-                "Otherwise response Content Type 'application/dicom+xml' will be negotiated."
-            })
-    boolean acceptJson;
-
     @CommandLine.Option(names = "--photo",
             description = {
                 "Encapsulate JPEG images into DICOM Visible Light Photographic images.",
@@ -121,7 +117,7 @@ public class StowRS implements Callable<Integer> {
     boolean photo;
 
     @CommandLine.Option(names = { "-v", "--verbose" },
-            description = "Log HTTP headers.")
+            description = "Include sent and received HTTP headers in the output.")
     boolean verbose;
 
     @CommandLine.Option(names = { "--tsuid" },
@@ -136,6 +132,18 @@ public class StowRS implements Callable<Integer> {
             description = "Set element of metadata in format <attribute=value>.")
     Map<TagPath, String> elements = new HashMap<>();
 
+    @CommandLine.Option(names = { "-o", "--output" },
+            description = "Write output to <file> instead of stdout.")
+    Path file;
+
+    @CommandLine.Option(names = { "-a", "--accept" },
+            description = "Specify Acceptable Media Types for the response payload.")
+    List<String> type = new ArrayList<>();
+
+    @CommandLine.Option(names = { "--oauth2-bearer" },
+            description = "Specify the Bearer Token for OAUTH 2.0 server authentication.")
+    String token;
+
     TransformerHandler th;
 
     public static void main(String[] args) {
@@ -146,28 +154,58 @@ public class StowRS implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        if (verbose)
-            System.setProperty("jdk.httpclient.HttpClient.log", "headers");
-
-        ContentType type = probeContentType();
+        ContentType partType = probeContentType();
         MultipartBody multipartBody = new MultipartBody(boundary);
-        if (type != ContentType.APPLICATION_DICOM) addMetadataParts(multipartBody, type);
+        if (partType != ContentType.APPLICATION_DICOM) addMetadataParts(multipartBody, partType);
         files.forEach(path -> multipartBody.addPart(
-                type.contentType(appendTransferSyntax, path), path, path.toUri().toString()));
+                partType.contentType(appendTransferSyntax, path), path, path.toUri().toString()));
         HttpClient client = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(url)
-                .header("Accept", acceptJson ? APPLICATION_DICOM_JSON : APPLICATION_DICOM_XML)
+        HttpRequest.Builder builder = HttpRequest.newBuilder();
+        authorizationHeader(builder);
+        acceptHeader(builder);
+        HttpRequest request = builder
                 .header("Content-Type", multipartBody.contentType())
                 .POST(multipartBody.bodyPublisher())
+                .uri(url)
                 .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("Response status code: " + response.statusCode());
-        System.out.println("Response headers: " + response.headers());
-        System.out.println("Response body: " + response.body());
+        if (verbose) {
+            System.out.println("> POST " + request.uri().getRawPath() + " HTTP/1.1");
+            System.out.println("> Host: " + request.uri().getHost() + ":" + request.uri().getPort());
+            promptHeaders("> ", request.headers());
+            multipartBody.prompt();
+        }
+        if (file != null)
+            send(client, request, HttpResponse.BodyHandlers.ofFile(file));
+        else
+            send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(System.out::println);
         return 0;
+    }
+
+    <T> HttpResponse<T> send(HttpClient client, HttpRequest request, HttpResponse.BodyHandler<T> bodyHandler)
+            throws Exception {
+        HttpResponse<T> response = client.send(request, bodyHandler);
+        if (verbose) {
+            System.out.println("< HTTP/1.1 " + response.statusCode());
+            promptHeaders("< ", response.headers());
+        }
+        return response;
+    }
+
+    void authorizationHeader(HttpRequest.Builder builder) {
+        if (token != null)
+            builder.header("Authorization", "Bearer " + token);
+    }
+
+    void acceptHeader(HttpRequest.Builder builder) {
+        for (String t : type)
+            builder.header("Accept", t);
+    }
+
+    private static void promptHeaders(String prefix, HttpHeaders headers) {
+        headers.map().forEach((k,v) -> v.stream().forEach(v1 -> System.out.println(prefix + k + ": " + v1)));
+        System.out.println(prefix);
     }
 
     private void addMetadataParts(MultipartBody multipartBody, ContentType type) throws Exception {
