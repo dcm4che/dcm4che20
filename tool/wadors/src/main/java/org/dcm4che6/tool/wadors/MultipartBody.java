@@ -18,6 +18,10 @@ public class MultipartBody extends InputStream {
     public MultipartBody(InputStream in, String boundary) throws IOException {
         this.in = new PushbackInputStream(in, BUFFER_SIZE);
         this.delimiter = ("\r\n--" + boundary).getBytes(StandardCharsets.US_ASCII);
+        skipPreamble();
+    }
+
+    void skipPreamble() throws IOException {
         byte[] dashBoundary = Arrays.copyOfRange(this.delimiter, 2, this.delimiter.length);
         while (read0(dashBoundary) != -1);
     }
@@ -38,10 +42,14 @@ public class MultipartBody extends InputStream {
                 int delimiterEnd = i + delimiter.length;
                 if (eof = len >= delimiterEnd) {
                     in.unread(b, off + delimiterEnd, len - delimiterEnd);
-                } else {
-                    in.unread(b, off + i, len - i);
+                    return i > 0 ? i : -1;
                 }
-                return i > 0 ? i : -1;
+                in.unread(b, off + i, len - i);
+                if (i > 0) {
+                    return i;
+                }
+                b[off] = (byte) read();
+                return eof ? -1 : 1;
             }
         }
         return len;
