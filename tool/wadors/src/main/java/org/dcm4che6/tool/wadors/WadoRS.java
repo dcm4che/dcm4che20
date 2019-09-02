@@ -149,10 +149,14 @@ public class WadoRS implements Callable<Integer> {
     private String toFileExtension(String mediaType) {
         String ext = afterLast(beforeFirst(mediaType, ';'), '/');
         switch (ext) {
+            case "dicom":
+                return "dcm";
             case "dicom+xml":
                 return "xml";
             case "dicom+json":
                 return "json";
+            case "jpeg":
+                return "jpg";
             case "octet-stream":
                 return "bin";
             default:
