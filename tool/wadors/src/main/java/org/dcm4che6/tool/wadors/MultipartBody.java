@@ -11,7 +11,7 @@ import java.util.*;
 public class MultipartBody extends InputStream {
     private static final int BUFFER_SIZE = 8192;
     private final PushbackInputStream in;
-    private byte[] delimiter;
+    private final byte[] delimiter;
     private boolean eof;
 
 
@@ -19,11 +19,6 @@ public class MultipartBody extends InputStream {
         this.in = new PushbackInputStream(in, BUFFER_SIZE);
         this.delimiter = ("\r\n--" + boundary).getBytes(StandardCharsets.US_ASCII);
         skipPreamble();
-    }
-
-    void skipPreamble() throws IOException {
-        byte[] dashBoundary = Arrays.copyOfRange(this.delimiter, 2, this.delimiter.length);
-        while (readFrom(in, dashBoundary) != -1);
     }
 
     @Override
@@ -43,7 +38,7 @@ public class MultipartBody extends InputStream {
         }
         len = in.read(b, off, Math.min(len, BUFFER_SIZE));
         for (int i = 0; i < len; i++) {
-            if (endOfPart(b, off + i, len - i)) {
+            if (containsDelimiter(b, off + i, len - i)) {
                 int delimiterEnd = i + delimiter.length;
                 if (eof = len >= delimiterEnd) {
                     in.unread(b, off + delimiterEnd, len - delimiterEnd);
@@ -60,14 +55,9 @@ public class MultipartBody extends InputStream {
         return len;
     }
 
-    private boolean endOfPart(byte[] b, int off, int len) {
-        int max = Math.min(delimiter.length, len);
-        for (int i = 0; i < max; i++) {
-            if (b[off + i] != delimiter[i]) {
-                return false;
-            }
-        }
-        return true;
+    private void skipPreamble() throws IOException {
+        byte[] dashBoundary = Arrays.copyOfRange(this.delimiter, 2, this.delimiter.length);
+        while (readFrom(in, dashBoundary) != -1);
     }
 
     private static int readFrom(PushbackInputStream in, byte[] delimiter) throws IOException {
@@ -87,7 +77,17 @@ public class MultipartBody extends InputStream {
         return -1;
     }
 
-    public Map<String, List<String>> nextPart() throws IOException {
+    private boolean containsDelimiter(byte[] b, int off, int len) {
+        int max = Math.min(delimiter.length, len);
+        for (int i = 0; i < max; i++) {
+            if (b[off + i] != delimiter[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    Map<String, List<String>> nextPart() throws IOException {
         int b1 = in.read();
         int b2 = in.read();
         if ((b1 | b2) < 0)
@@ -96,7 +96,7 @@ public class MultipartBody extends InputStream {
         if (b1 == '-' && b2 == '-')
             return null;
 
-        Map<String, List<String>> headers = new HashMap<>();
+        Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         String header;
         int endName;
         while ((header = nextHeader()) != null) {
