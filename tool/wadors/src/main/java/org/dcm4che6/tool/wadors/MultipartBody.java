@@ -23,12 +23,17 @@ public class MultipartBody extends InputStream {
 
     void skipPreamble() throws IOException {
         byte[] dashBoundary = Arrays.copyOfRange(this.delimiter, 2, this.delimiter.length);
-        while (read0(dashBoundary) != -1);
+        while (readFrom(in, dashBoundary) != -1);
     }
 
     @Override
     public int read() throws IOException {
-        return read0(delimiter);
+        if (eof) {
+            return -1;
+        }
+        int b = readFrom(in, delimiter);
+        eof = b < 0;
+        return b;
     }
 
     @Override
@@ -65,10 +70,7 @@ public class MultipartBody extends InputStream {
         return true;
     }
 
-    int read0(byte[] delimiter) throws IOException {
-        if (eof) {
-            return -1;
-        }
+    private static int readFrom(PushbackInputStream in, byte[] delimiter) throws IOException {
         int b;
         for (int i = 0; i < delimiter.length; i++) {
             if ((b = in.read()) != delimiter[i]) {
@@ -82,7 +84,6 @@ public class MultipartBody extends InputStream {
                 return delimiter[0];
             }
         }
-        eof = true;
         return -1;
     }
 
