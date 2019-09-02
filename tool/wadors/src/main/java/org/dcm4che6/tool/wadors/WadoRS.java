@@ -81,6 +81,7 @@ public class WadoRS implements Callable<Integer> {
         }
         HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
         if (verbose) {
+            System.out.println("< HTTP/1.1 " + response.statusCode());
             promptHeaders("< ", response.headers().map());
         }
         String mediaType = contentType(response.headers().map());
