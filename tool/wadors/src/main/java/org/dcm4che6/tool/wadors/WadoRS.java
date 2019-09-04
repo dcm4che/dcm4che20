@@ -44,7 +44,8 @@ public class WadoRS implements Callable<Integer> {
     boolean verbose;
 
     @CommandLine.Option(names = { "-a", "--accept" },
-            description = "Specify Acceptable Media Types for the response payload.")
+            description = "Specify Acceptable Media Types for the response payload.",
+            defaultValue = "*/*")
     List<String> type = new ArrayList<>();
 
     @CommandLine.Option(names = { "--oauth2-bearer" },
