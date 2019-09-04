@@ -11,14 +11,6 @@
 
   <artifactId>dcm4che-tool-wadors</artifactId>
 
-  <dependencies>
-    <dependency>
-      <groupId>org.dcm4che</groupId>
-      <artifactId>dcm4che-base</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-  </dependencies>
-
   <build>
     <plugins>
       <plugin>

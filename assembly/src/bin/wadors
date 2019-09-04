@@ -38,7 +38,6 @@ fi
 
 # Setup the module path
 MP="$DCM4CHE_HOME/lib/$MAIN_JAR"
-MP="$MP:$DCM4CHE_HOME/lib/dcm4che-base-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/picocli-${picocli.version}.jar"
 
 # For Cygwin, switch paths to Windows format before running java
