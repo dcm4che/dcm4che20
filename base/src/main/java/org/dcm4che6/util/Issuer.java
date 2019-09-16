@@ -3,7 +3,7 @@ package org.dcm4che6.util;
 import java.util.Arrays;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public final class Issuer {

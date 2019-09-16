@@ -11,7 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jun 2019
  */
 public class JPEGParser implements CompressedPixelParser {

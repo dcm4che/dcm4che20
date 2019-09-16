@@ -19,7 +19,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2019
  */
 public class LdapUtils {

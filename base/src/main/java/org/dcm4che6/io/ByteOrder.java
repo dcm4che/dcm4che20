@@ -1,7 +1,7 @@
 package org.dcm4che6.io;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public enum ByteOrder {

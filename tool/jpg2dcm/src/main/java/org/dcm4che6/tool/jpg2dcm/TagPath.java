@@ -9,7 +9,7 @@ import org.dcm4che6.util.TagUtils;
 import java.util.Arrays;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jun 2019
  */
 public class TagPath {

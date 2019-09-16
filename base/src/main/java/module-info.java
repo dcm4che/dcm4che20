@@ -4,7 +4,7 @@ import org.dcm4che6.io.DicomFileDetector;
 import java.nio.file.spi.FileTypeDetector;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Dec 2018
  */
 module org.dcm4che.base {

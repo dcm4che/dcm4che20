@@ -3,7 +3,7 @@ package org.dcm4che6.io;
 import java.io.IOException;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public class DicomParseException extends IOException {

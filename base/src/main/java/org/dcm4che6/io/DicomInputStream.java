@@ -13,7 +13,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public class DicomInputStream extends InputStream {

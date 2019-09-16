@@ -11,7 +11,7 @@ import java.util.List;
 import static org.dcm4che6.conf.json.SerializerUtils.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public class DeviceSerializer implements JsonbSerializer<Device> {

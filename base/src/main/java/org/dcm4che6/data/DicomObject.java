@@ -9,7 +9,7 @@ import java.util.OptionalInt;
 import java.util.stream.Stream;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public interface DicomObject extends Iterable<DicomElement> {

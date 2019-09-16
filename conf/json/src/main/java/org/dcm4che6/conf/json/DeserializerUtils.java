@@ -16,7 +16,7 @@ import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public class DeserializerUtils {

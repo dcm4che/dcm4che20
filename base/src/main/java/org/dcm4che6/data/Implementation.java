@@ -39,7 +39,7 @@
 package org.dcm4che6.data;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  */
 public class Implementation {
 

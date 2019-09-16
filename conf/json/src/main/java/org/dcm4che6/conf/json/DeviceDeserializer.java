@@ -16,7 +16,7 @@ import static org.dcm4che6.conf.json.DeserializerUtils.*;
 import static org.dcm4che6.conf.json.SerializerUtils.serializeValue;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public class DeviceDeserializer implements JsonbDeserializer<Device> {

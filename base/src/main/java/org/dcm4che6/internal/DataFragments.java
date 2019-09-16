@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.stream.Stream;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Aug 2018
  */
 class DataFragments extends DicomElementImpl {

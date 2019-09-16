@@ -3,7 +3,7 @@ package org.dcm4che6.util;
 import java.util.Objects;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  */
 public final class PersonName {
     public static final PersonName EMPTY = new PersonName(Group.EMPTY, Group.EMPTY, Group.EMPTY);

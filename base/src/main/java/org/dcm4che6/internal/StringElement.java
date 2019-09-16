@@ -11,7 +11,7 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Aug 2018
  */
 class StringElement extends DicomElementImpl {

@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public abstract class ElementDictionary {

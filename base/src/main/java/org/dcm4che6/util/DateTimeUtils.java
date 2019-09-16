@@ -11,7 +11,7 @@ import static java.time.temporal.ChronoField.*;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Apr 2019
  */
 public class DateTimeUtils {

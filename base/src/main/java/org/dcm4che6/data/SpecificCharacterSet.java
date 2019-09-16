@@ -9,7 +9,7 @@ import java.util.Arrays;
 import java.util.StringTokenizer;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public class SpecificCharacterSet {

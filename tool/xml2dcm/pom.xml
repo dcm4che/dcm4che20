@@ -4,14 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>dcm4che-tool-parent</artifactId>
-    <groupId>org.dcm4che6.tool</groupId>
+    <groupId>org.dcm4che.tool</groupId>
     <version>6.0.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>dcm4che-tool-xml2dcm</artifactId>
 
-   <dependencies>
+  <dependencies>
     <dependency>
       <groupId>org.dcm4che</groupId>
       <artifactId>dcm4che-base</artifactId>
@@ -29,7 +29,6 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>1.6.0</version>
         <executions>
           <execution>
             <id>add-version-to-jar</id>

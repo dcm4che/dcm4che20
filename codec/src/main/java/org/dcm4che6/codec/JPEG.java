@@ -1,7 +1,7 @@
 package org.dcm4che6.codec;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  *
  */
 public class JPEG {

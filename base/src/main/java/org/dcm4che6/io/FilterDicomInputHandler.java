@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Nov 2018
  */
 public class FilterDicomInputHandler implements DicomInputHandler {

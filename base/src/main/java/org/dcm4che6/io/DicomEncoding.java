@@ -4,7 +4,7 @@ import org.dcm4che6.data.UID;
 import org.dcm4che6.data.VR;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public enum DicomEncoding {

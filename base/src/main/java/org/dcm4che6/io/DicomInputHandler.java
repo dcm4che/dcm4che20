@@ -7,7 +7,7 @@ import org.dcm4che6.data.DicomObject;
 import java.io.IOException;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public interface DicomInputHandler {

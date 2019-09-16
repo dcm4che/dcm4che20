@@ -1,5 +1,5 @@
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Apr 2019
  */
 module org.dcm4che.codec {

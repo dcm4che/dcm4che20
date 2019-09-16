@@ -6,7 +6,7 @@ import org.dcm4che6.internal.StringVR;
 import org.dcm4che6.internal.VRType;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public enum VR {

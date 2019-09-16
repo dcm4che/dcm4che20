@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public class DicomObjectImpl implements DicomObject, Externalizable {

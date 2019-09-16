@@ -5,7 +5,7 @@ import javax.json.bind.serializer.SerializationContext;
 import javax.json.stream.JsonGenerator;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Sep 2019
  */
 class ExtensionSerializer implements JsonbSerializer<Extension> {

@@ -30,7 +30,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Function;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jun 2019
  */
 @CommandLine.Command(

@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Aug 2019
  */
 public class MultipartBody extends InputStream {

@@ -12,7 +12,7 @@ import org.xml.sax.helpers.DefaultHandler;
 import java.util.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Mar 2019
  */
 public class SAXHandler extends DefaultHandler {

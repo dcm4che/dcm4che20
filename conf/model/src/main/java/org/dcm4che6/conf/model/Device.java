@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Apr 2019
  */
 public class Device {

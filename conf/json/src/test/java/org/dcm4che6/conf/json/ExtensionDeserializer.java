@@ -6,7 +6,7 @@ import javax.json.stream.JsonParser;
 import java.lang.reflect.Type;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Sep 2019
  */
 class ExtensionDeserializer implements JsonbDeserializer<Extension> {

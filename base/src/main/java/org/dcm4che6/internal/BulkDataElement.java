@@ -11,7 +11,7 @@ import java.io.*;
 import java.net.URI;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Aug 2018
  */
 class BulkDataElement extends DicomElementImpl {

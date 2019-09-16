@@ -13,11 +13,12 @@ import java.util.OptionalInt;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2019
  */
 class LdapDicomConfigurationTest {
 
+    static final String DEVICE_NAME = "dcm4chee-arc-20";
     static final Code code = new Code("VALUE^Meaning^99SCHEMA");
     static final Issuer issuerOfPatientID = new Issuer("ISSUER&1.2.3&ISO");
 
@@ -26,7 +27,7 @@ class LdapDicomConfigurationTest {
         try (LdapDicomConfiguration config = new LdapDicomConfiguration()) {
             config.purgeDicomConfiguration();
             config.persist(createDevice());
-            Optional<Device> optionalDevice = config.findDevice("dcm4chee-arc");
+            Optional<Device> optionalDevice = config.findDevice(DEVICE_NAME);
             assertTrue(optionalDevice.isPresent());
             assertDevice(optionalDevice.get());
         }
@@ -39,7 +40,7 @@ class LdapDicomConfigurationTest {
             Device device = createDevice();
             config.persist(device);
             config.merge(device);
-            Optional<Device> optionalDevice = config.findDevice("dcm4chee-arc");
+            Optional<Device> optionalDevice = config.findDevice(DEVICE_NAME);
             assertTrue(optionalDevice.isPresent());
             assertDevice(optionalDevice.get());
         }
@@ -67,7 +68,7 @@ class LdapDicomConfigurationTest {
                 .setKeyStoreType("JKS")
                 .setPassword("secret");
         return new Device()
-                .setDeviceName("dcm4chee-arc")
+                .setDeviceName(DEVICE_NAME)
                 .setPrimaryDeviceTypes("ARCHIVE")
                 .setIssuerOfPatientID(issuerOfPatientID)
                 .setInstitutionCodes(code)

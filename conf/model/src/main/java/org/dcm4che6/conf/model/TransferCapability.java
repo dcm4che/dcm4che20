@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public class TransferCapability {

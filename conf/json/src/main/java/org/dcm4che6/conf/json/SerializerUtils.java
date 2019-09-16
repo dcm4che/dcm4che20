@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public class SerializerUtils {

@@ -39,7 +39,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Nov 2018
  */
 @CommandLine.Command(
@@ -68,8 +68,6 @@ public class StowRS implements Callable<Integer> {
 
     private static final String XML_1_0 = "1.0";
     private static final String XML_1_1 = "1.1";
-
-    private static final ElementDictionary STD_DICT = ElementDictionary.standardElementDictionary();
 
     @CommandLine.Parameters(
             description = "Service URL.",

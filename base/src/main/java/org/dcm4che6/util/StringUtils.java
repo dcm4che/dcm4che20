@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public class StringUtils {
@@ -96,6 +96,10 @@ public class StringUtils {
             return "";
 
         return trim.substring(s, beginIndex, index == 0 ? length : endIndex);
+    }
+
+    public static String[] split(String s, char delim) {
+        return split(s, s.length(), delim, Trim.NONE);
     }
 
     public static String[] split(String s, int length, char delim) {

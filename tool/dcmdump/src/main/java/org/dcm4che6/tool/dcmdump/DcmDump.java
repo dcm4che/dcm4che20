@@ -16,7 +16,7 @@ import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Nov 2018
  */
 @CommandLine.Command(

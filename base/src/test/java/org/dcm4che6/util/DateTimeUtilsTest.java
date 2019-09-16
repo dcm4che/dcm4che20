@@ -10,7 +10,7 @@ import java.time.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Apr 2019
  */
 class DateTimeUtilsTest {

@@ -5,7 +5,7 @@ import org.dcm4che6.util.StringUtils;
 import java.util.Optional;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jun 2019
  */
 public class KeyStoreConfiguration {

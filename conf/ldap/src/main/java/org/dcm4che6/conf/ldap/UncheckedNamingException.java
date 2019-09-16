@@ -4,7 +4,7 @@ import javax.naming.NamingException;
 import java.util.Objects;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2019
  */
 public class UncheckedNamingException extends RuntimeException {

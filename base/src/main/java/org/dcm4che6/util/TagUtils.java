@@ -5,7 +5,7 @@ import org.dcm4che6.data.Tag;
 import java.util.OptionalInt;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 public class TagUtils {

@@ -7,7 +7,7 @@ import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Mar 2019
  */
 public class OptionalFloat {

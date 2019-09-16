@@ -16,7 +16,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Aug 2019
  */
 @CommandLine.Command(
@@ -131,7 +131,7 @@ public class WadoRS implements Callable<Integer> {
     }
 
     private static void storeTo(InputStream in, Path path) throws IOException {
-        System.out.println("=> " + path.toAbsolutePath());
+        System.out.println("* " + path.toAbsolutePath());
         Files.copy(in, path, StandardCopyOption.REPLACE_EXISTING);
     }
 

@@ -16,7 +16,7 @@ import java.util.*;
 import static org.dcm4che6.conf.ldap.LdapUtils.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2019
  */
 public class LdapDicomConfiguration implements Closeable {

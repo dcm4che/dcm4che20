@@ -17,7 +17,7 @@ import java.util.zip.DeflaterOutputStream;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Aug 2018
  */
 public class MemoryCacheTest {

@@ -1,9 +1,13 @@
 package org.dcm4che6.util;
 
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+
 import java.util.Arrays;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public final class Code {
@@ -33,5 +37,13 @@ public final class Code {
     @Override
     public int hashCode() {
         return Arrays.hashCode(values);
+    }
+
+    public DicomObject toItem() {
+        DicomObject item = DicomObject.newDicomObject();
+        item.setString(Tag.CodeValue, VR.SH, values[0]);
+        item.setString(Tag.CodeMeaning, VR.LO, values[1]);
+        item.setString(Tag.CodingSchemeDesignator, VR.SH, values[2]);
+        return item;
     }
 }

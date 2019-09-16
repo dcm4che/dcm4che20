@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jun 2019
  */
 public class MultipartBody {

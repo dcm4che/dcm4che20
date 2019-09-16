@@ -19,7 +19,7 @@ import java.util.Base64;
 import java.util.Optional;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jan 2019
  */
 public class SAXWriter implements DicomInputHandler {

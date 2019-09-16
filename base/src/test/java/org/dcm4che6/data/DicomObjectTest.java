@@ -8,7 +8,7 @@ import java.io.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Oct 2018
  */
 class DicomObjectTest {

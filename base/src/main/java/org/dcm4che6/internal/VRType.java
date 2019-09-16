@@ -13,7 +13,7 @@ import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Aug 2018
  */
 public interface VRType {

@@ -10,7 +10,7 @@ import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jul 2018
  */
 class MemoryCache {

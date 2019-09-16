@@ -5,7 +5,7 @@ import org.dcm4che6.util.StringUtils;
 import java.util.*;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since May 2019
  */
 public class ApplicationEntity {

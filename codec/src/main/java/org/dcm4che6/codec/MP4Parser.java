@@ -12,7 +12,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.Date;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Jun 2019
  */
 public class MP4Parser implements CompressedPixelParser {
