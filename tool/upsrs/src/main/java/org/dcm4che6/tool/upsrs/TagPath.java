@@ -3,6 +3,7 @@ package org.dcm4che6.tool.upsrs;
 import org.dcm4che6.data.DicomElement;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.ElementDictionary;
+import org.dcm4che6.util.Code;
 import org.dcm4che6.util.StringUtils;
 import org.dcm4che6.util.TagUtils;
 
@@ -26,14 +27,25 @@ public class TagPath {
     }
 
     public void setString(DicomObject dcmobj, String value) {
-        DicomObject item = dcmobj;
         int last = tags.length - 1;
-        int i = 0;
-        while (i < last) {
-            DicomElement seq = dcmobj.get(tags[i]).orElseGet(() -> dcmobj.newDicomSequence(tags[i]));
-            item = seq.isEmpty() ? seq.addItem(DicomObject.newDicomObject()) : seq.getItem(0);
+        for (int i = 0; i < last; i++) {
+            int tag = tags[i];
+            DicomObject item = dcmobj;
+            DicomElement seq = item.get(tag).orElseGet(() -> item.newDicomSequence(tag));
+            dcmobj = seq.isEmpty() ? seq.addItem(DicomObject.newDicomObject()) : seq.getItem(0);
         }
-        item.setString(tags[last], ElementDictionary.standardElementDictionary().vrOf(tags[last]), value);
+        dcmobj.setString(tags[last], ElementDictionary.standardElementDictionary().vrOf(tags[last]), value);
+    }
+
+    public void setCode(DicomObject dcmobj, Code code) {
+        int last = tags.length - 1;
+        for (int i = 0; i < last; i++) {
+            int tag = tags[i];
+            DicomObject item = dcmobj;
+            DicomElement seq = item.get(tag).orElseGet(() -> item.newDicomSequence(tag));
+            dcmobj = seq.isEmpty() ? seq.addItem(DicomObject.newDicomObject()) : seq.getItem(0);
+        }
+        dcmobj.newDicomSequence(tags[last]).addItem(code.toItem());
     }
 
     @Override

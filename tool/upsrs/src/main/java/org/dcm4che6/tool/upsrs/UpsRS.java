@@ -109,6 +109,10 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
             description = "Set element of dataset in format <attribute=value>.")
     Map<TagPath, String> elements;
 
+    @CommandLine.Option(names = "--code",
+            description = "Set Code Item of dataset in format <sequence=code> with <code> in format <id>^<text>^<scheme>.")
+    Map<TagPath, Code> codes;
+
     @CommandLine.Option(names = "--xml11",
             description = "Set version in XML declaration of XML metadata to 1.1; 1.0 by default.")
     boolean xml11;
@@ -199,6 +203,7 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
         CommandLine cl = new CommandLine(new UpsRS());
         cl.registerConverter(Target.class, Target::new);
         cl.registerConverter(TagPath.class, TagPath::new);
+        cl.registerConverter(Code.class, Code::new);
         cl.execute(args);
     }
 
@@ -283,6 +288,9 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
         }
         if (elements != null) {
             elements.forEach((tagPath, value) -> tagPath.setString(dcmobj, value));
+        }
+        if (codes != null) {
+            codes.forEach((tagPath, code) -> tagPath.setCode(dcmobj, code));
         }
         return dcmobj;
     }
