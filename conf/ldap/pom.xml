@@ -11,6 +11,22 @@
 
   <artifactId>dcm4che-conf-ldap</artifactId>
 
+  <properties>
+    <skipTests>true</skipTests>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <skipTests>${skipTests}</skipTests>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
   <dependencies>
     <dependency>
       <groupId>org.dcm4che</groupId>
