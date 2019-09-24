@@ -180,19 +180,19 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
     @CommandLine.ArgGroup(exclusive = true)
     Exclusive exclusive = new Exclusive();
     static class Exclusive {
-        @CommandLine.Option(names = "-P, --process", required = true,
+        @CommandLine.Option(names = {"-P", "--process"}, required = true,
                 description = "Change Workitem State to IN PROGRESS with given <transaction-uid>",
                 paramLabel = "<transaction-uid>")
         String process;
-        @CommandLine.Option(names = "-C, --complete", required = true,
+        @CommandLine.Option(names = {"-C", "--complete"}, required = true,
                 description = "Change Workitem State to COMPLETED with given <transaction-uid>",
                 paramLabel = "<transaction-uid>")
         String complete;
-        @CommandLine.Option(names = "-D, --cancel", required = true,
+        @CommandLine.Option(names = {"-D", "--cancel"}, required = true,
                 description = "Change Workitem State to CANCELED with given <transaction-uid>",
                 paramLabel = "<transaction-uid>")
         String cancel;
-        @CommandLine.Option(names = "-U, --unsubsribe", required = true,
+        @CommandLine.Option(names = {"-U", "--unsubsribe"}, required = true,
                 description = "Unsubscribes from the Target Worklist or Target Workitem.")
         boolean unsubscribe;
     }
