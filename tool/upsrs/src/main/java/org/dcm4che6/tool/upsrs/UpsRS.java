@@ -534,7 +534,7 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
                                     case "workitems":
                                         return workitem;
                                     case "subscribers":
-                                        if (path[path.length - 5].equals("workitems"))
+                                        if (path[path.length - 4].equals("workitems"))
                                             return subscribers;
                                         break;
                                 }
