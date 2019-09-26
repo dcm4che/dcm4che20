@@ -226,7 +226,7 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
     private DicomObject ensureSPSStartDataTime(DicomObject dcmobj) {
         Optional<DicomElement> dicomElement = dcmobj.get(Tag.ScheduledProcedureStepStartDateTime);
         if (dicomElement.isEmpty() || dicomElement.get().isEmpty()) {
-            dcmobj.setString(Tag.ScheduledProcedureStepStartDateTime, VR.DA,
+            dcmobj.setString(Tag.ScheduledProcedureStepStartDateTime, VR.DT,
                     DateTimeUtils.formatDT(LocalDateTime.now()));
         }
         return dcmobj;
