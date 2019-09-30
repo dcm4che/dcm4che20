@@ -42,41 +42,46 @@ import java.util.concurrent.CompletionStage;
         mixinStandardHelpOptions = true,
         versionProvider = UpsRS.ModuleVersionProvider.class,
         descriptionHeading = "%n",
-        description = "UPS-RS Worklist Service User-Agent.",
+        description = {
+                "UPS-RS Worklist Service User-Agent to create, retrieve, update, search for, and change the state " +
+                        "of Workitems or to open a WebSocket channel to receive Event Reports dependend on the " +
+                        "specified Target URI:",
+                "http://../workitems?{filter}",
+                "-> search for Workitems",
+                "http://../workitems/{uid}",
+                "-> retrieve Workitem",
+                "http://../workitems[?{uid}] {xmlfile}|create",
+                "-> create Workitem",
+                "http://../workitems/{uid} {xmlfile}|update",
+                "-> update Workitem",
+                "http://../workitems/{uid>/state/{aet} -P|-C|-D {transaction-uid}",
+                "-> change Workitem state",
+                "http://../workitems/{uid}/cancelrequest/{aet}",
+                "-> request cancellation of Workitem",
+                "http://../workitems/<uid>/subscribers/{aet}[?{deletionlock}]",
+                "-> subscribe to Workitem",
+                "http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet}[?{deletionlock}]",
+                "-> subscribe to Worklist",
+                "http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet}?{filter}[&{deletionlock}]",
+                "-> subscribe to Filtered Worklist",
+                "http://../workitems/{uid}/subscribers/{aet} -u",
+                "-> unsubscribe from Workitem",
+                "http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet} -u",
+                "-> unsubscribe from Worklist",
+                "http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet} -u", "-> unsubscribe from Filtered Worklist",
+                "http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet}/suspend",
+                "-> suspend subscription from Worklist",
+                "http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet}/suspend",
+                "-> suspend subscription from Filtered Worklist",
+                "ws://../subscribers/<aet>",
+                "-> open WebSocket channel to receive Event Reports"
+        },
         parameterListHeading = "%nParameters:%n",
         optionListHeading = "%nOptions:%n",
         showDefaultValues = true,
         footerHeading = "%nExamples:%n",
         footer = {
-                "$ upsrs <base-url>/workitems[?<uid>] {xmlFile}|create",
-                "-> Create Workitem",
-                "$ upsrs <base-url>/workitems/<uid>",
-                "-> Retrieve Workitem",
-                "$ upsrs <base-url>/workitems/<uid> {xmlFile}|update",
-                "-> Update Workitem",
-                "$ upsrs -P|-C|-D {transaction-uid} <base-url>/workitems/<uid>/state",
-                "-> Change Workitem State to IN PROGRESS, COMPLETED or CANCELED",
-                "$ upsrs [--reason=<reason>] <base-url>/workitems/<uid>/cancelrequest",
-                "-> Request Cancellation of Workitem",
-                "$ upsrs <base-url>/workitems?<filter>",
-                "-> Searches for Workitems",
-                "$ upsrs <base-url>/workitems/<uid>/subscribers/<aet>[?<deletionlock>]",
-                "-> Subscribe to Workitem",
-                "$ upsrs <base-url>/workitems/1.2.840.10008.5.1.4.34.5/subscribers/<aet>[?<deletionlock>]",
-                "-> Subscribe to Global Worklist",
-                "$ upsrs <base-url>/workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/<aet>?<filter>[&<deletionlock>]",
-                "-> Subscribe to Filtered Worklist",
-                "$ upsrs -U <base-url>/workitems/<uid>/subscribers/<aet>",
-                "-> Unsubscribe from Workitem",
-                "$ upsrs -U <base-url>/workitems/1.2.840.10008.5.1.4.34.5/subscribers/<aet>",
-                "-> Unsubscribe from Global Worklist",
-                "$ upsrs -U <base-url>/workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/<aet>",
-                "-> Unsubscribe from Filtered Worklist",
-                "$ upsrs <base-url>/workitems/1.2.840.10008.5.1.4.34.5/subscribers/<aet>/suspend",
-                "-> Suspend Subscription from Global Worklist",
-                "$ upsrs <base-url>/workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/<aet>/suspend",
-                "-> Suspend Subscription from Filtered Worklist",
-                "$ upsrs ws://<host>:<port>/<base-path>/subscribers/<aet>/suspend",
+                "$ upsrs ws://<host>:<port>/<base-path>/subscribers/<aet>",
                 "-> Open WebSocket channel to receive Event Reports"
         }
 )
@@ -95,12 +100,17 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
     private static final String XML_1_1 = "1.1";
 
     @CommandLine.Parameters(
-            description = "Service URL.",
+            description = "Target URI",
             index = "0")
     Target target;
 
     @CommandLine.Parameters(
-            description = "Load dataset from specified XML file.",
+            description = {
+                    "Required to create or update Workitem. Path of XML file with dataset or " +
+                            "'create' (= minimal dataset for valid Workitem) or 'update' (= empty dataset), " +
+                            "which may be supplemented by attributes specified by -s|--code=<TagPath=String>."
+            },
+            paramLabel = "<xmlfile>|create|update",
             index = "1",
             arity = "0..1")
     Path xmlFile;
@@ -516,14 +526,6 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
                         switch (path[path.length - 1]) {
                             case "workitems":
                                 return workitems;
-                            case "state":
-                                if (path[path.length - 3].equals("workitems"))
-                                    return state;
-                                break;
-                            case "cancelrequest":
-                                if (path[path.length - 3].equals("workitems"))
-                                    return cancelrequest;
-                                break;
                             case "suspend":
                                 if (path[path.length - 3].equals("subscribers")
                                         && path[path.length - 5].equals("workitems"))
@@ -533,6 +535,14 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
                                 switch (path[path.length - 2]) {
                                     case "workitems":
                                         return workitem;
+                                    case "state":
+                                        if (path[path.length - 4].equals("workitems"))
+                                            return state;
+                                        break;
+                                    case "cancelrequest":
+                                        if (path[path.length - 4].equals("workitems"))
+                                            return cancelrequest;
+                                        break;
                                     case "subscribers":
                                         if (path[path.length - 4].equals("workitems"))
                                             return subscribers;
