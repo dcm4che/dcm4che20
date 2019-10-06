@@ -49,7 +49,7 @@ public class WadoRS implements Callable<Integer> {
     List<String> type = new ArrayList<>();
 
     @CommandLine.Option(names = { "--oauth2-bearer" },
-            description = "Specify the Bearer Token for OAUTH 2.0 server authentication.")
+            description = "Specify the Bearer Token for OAuth 2.0 server authentication.")
     String token;
 
     static class ModuleVersionProvider implements CommandLine.IVersionProvider {

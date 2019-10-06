@@ -43,46 +43,53 @@ import java.util.concurrent.CompletionStage;
         versionProvider = UpsRS.ModuleVersionProvider.class,
         descriptionHeading = "%n",
         description = {
-                "UPS-RS Worklist Service User-Agent to create, retrieve, update, search for, and change the state " +
-                        "of Workitems or to open a WebSocket channel to receive Event Reports dependend on the " +
-                        "specified Target URI:",
-                "http://../workitems?{filter}",
-                "-> search for Workitems",
-                "http://../workitems/{uid}",
-                "-> retrieve Workitem",
-                "http://../workitems[?{uid}] {xmlfile}|create",
-                "-> create Workitem",
-                "http://../workitems/{uid} {xmlfile}|update",
-                "-> update Workitem",
-                "http://../workitems/{uid>/state/{aet} -P|-C|-D {transaction-uid}",
-                "-> change Workitem state",
-                "http://../workitems/{uid}/cancelrequest/{aet}",
-                "-> request cancellation of Workitem",
-                "http://../workitems/<uid>/subscribers/{aet}[?{deletionlock}]",
-                "-> subscribe to Workitem",
-                "http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet}[?{deletionlock}]",
-                "-> subscribe to Worklist",
-                "http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet}?{filter}[&{deletionlock}]",
-                "-> subscribe to Filtered Worklist",
-                "http://../workitems/{uid}/subscribers/{aet} -u",
-                "-> unsubscribe from Workitem",
-                "http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet} -u",
-                "-> unsubscribe from Worklist",
-                "http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet} -u", "-> unsubscribe from Filtered Worklist",
-                "http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet}/suspend",
-                "-> suspend subscription from Worklist",
-                "http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet}/suspend",
-                "-> suspend subscription from Filtered Worklist",
-                "ws://../subscribers/<aet>",
-                "-> open WebSocket channel to receive Event Reports"
+                "UPS-RS Worklist Service User-Agent to create, retrieve, update, search for, change the state " +
+                        "of Workitems or to open a WebSocket channel to receive Event Reports about subscribed " +
+                        "Workitems dependent on the specified Target URI:",
+                "Create Workitem:",
+                        "  http://../workitems[?{uid}] {xmlfile}|create",
+                "Retrieve Workitem:",
+                        "  http://../workitems/{uid}",
+                "Update Workitem:",
+                        "  http://../workitems/{uid} {xmlfile}|update",
+                "Search for Workitems:",
+                        "  http://../workitems?{filter}",
+                "Change Workitem State:",
+                        "  http://../workitems/{uid>/state/{aet} --process|--cancel|--complete {transaction-uid}",
+                "Request Cancellation of Workitem:",
+                        "  http://../workitems/{uid}/cancelrequest/{aet}",
+                "Subscribe to Workitem:",
+                        "  http://../workitems/<uid>/subscribers/{aet}[?{deletionlock}]",
+                "Subscribe to Worklist:",
+                        "  http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet}[?{deletionlock}]",
+                "Subscribe to Filtered Worklist:",
+                        "  http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet}?{filter}[&{deletionlock}]",
+                "Unsubscribe from Workitem:",
+                        "  http://../workitems/{uid}/subscribers/{aet} --unsubsribe",
+                "Unsubscribe from Worklist:",
+                        "  http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet} --unsubsribe",
+                "Unsubscribe from Filtered Worklist:",
+                        "  http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet} --unsubsribe",
+                "Suspend Subscription from Worklist:",
+                        "  http://../workitems/1.2.840.10008.5.1.4.34.5/subscribers/{aet}/suspend",
+                "Suspend Subscription from Filtered Worklist:",
+                        "  http://../workitems/1.2.840.10008.5.1.4.34.5.1/subscribers/{aet}/suspend",
+                "Open WebSocket channel to receive Event Reports:",
+                        "  ws://../subscribers/<aet>"
         },
         parameterListHeading = "%nParameters:%n",
         optionListHeading = "%nOptions:%n",
         showDefaultValues = true,
         footerHeading = "%nExamples:%n",
         footer = {
-                "$ upsrs ws://<host>:<port>/<base-path>/subscribers/<aet>",
-                "-> Open WebSocket channel to receive Event Reports"
+                "$ upsrs http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/workitems/1.2.840.10008.5.1.4.34.5/subscribers/UPSRS",
+                "-> Subscribe UPSRS to Worklist",
+                "$ upsrs ws://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/ws/subscribers/UPSRS",
+                "-> Open WebSocket channel to receive Event Reports for subscriber UPSRS",
+                "$ upsrs http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/workitems create",
+                "-> Create Workitem",
+                "$ upsrs http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/workitems",
+                "-> Search for all Workitems",
         }
 )
 public class UpsRS implements Callable<Integer>, WebSocket.Listener {
@@ -106,8 +113,8 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
 
     @CommandLine.Parameters(
             description = {
-                    "Required to create or update Workitem. Path of XML file with dataset or " +
-                            "'create' (= minimal dataset for valid Workitem) or 'update' (= empty dataset), " +
+                    "Required to create or update a Workitem. Path of XML file with workitem attributes or " +
+                            "'create' (= minimal set of attributes for valid Workitem) or 'update' (= no attributes), " +
                             "which may be supplemented by attributes specified by -s|--code=<TagPath=String>."
             },
             paramLabel = "<xmlfile>|create|update",
@@ -168,7 +175,7 @@ public class UpsRS implements Callable<Integer>, WebSocket.Listener {
     List<String> type = new ArrayList<>();
 
     @CommandLine.Option(names = "--oauth2-bearer",
-            description = "Specify the Bearer Token for OAUTH 2.0 server authentication.")
+            description = "Specify the Bearer Token for OAuth 2.0 server authentication.")
     String token;
 
     @CommandLine.Option(names = "--reason",

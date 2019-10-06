@@ -18,7 +18,6 @@ public class MPEG2Parser implements CompressedPixelParser {
 
     private static final int BUFFER_SIZE = 8162;
     private static final int SEQUENCE_HEADER_STREAM_ID = (byte) 0xb3;
-    private static final int GOP_HEADER_SEARCH_RANGE = 0x100000;
     private static final int GOP_HEADER_STREAM_ID = (byte) 0xb8;
     private static final String[] ASPECT_RATIO_1_1 = { "1", "1" };
     private static final String[] ASPECT_RATIO_4_3 = { "4", "3" };
@@ -130,11 +129,10 @@ public class MPEG2Parser implements CompressedPixelParser {
     }
 
     private int findLastGOP(SeekableByteChannel channel) throws IOException {
-        long size = channel.size();
-        long startPos = size - BUFFER_SIZE;
-        long minStartPos = Math.max(0, size - GOP_HEADER_SEARCH_RANGE);
-        while (startPos > minStartPos) {
-            channel.position(startPos);
+        long pos = channel.size() - 8;
+        do {
+            pos = Math.max(0, pos + 8 - BUFFER_SIZE);
+            channel.position(pos);
             ((Buffer) buf).clear();
             channel.read(buf);
             int i = 0;
@@ -145,8 +143,7 @@ public class MPEG2Parser implements CompressedPixelParser {
                 }
                 i += data[i + 2] == 0 ? data[i + 1] == 0 ? 1 : 2 : 3;
             }
-            startPos -= BUFFER_SIZE - 8;
-        }
+        } while (pos > 0);
         throw new CompressedPixelParserException("last MPEG2 Group of Pictures not found");
     }
 
