@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
+import java.util.OptionalLong;
 
 /**
  * @author Gunter Zeilinger (gunterze@protonmail.com)
@@ -44,8 +45,9 @@ public class JPEGParser implements CompressedPixelParser {
         return codeStreamPosition;
     }
 
-    public long getPositionAfterAPPSegments() {
-        return positionAfterAPP;
+    @Override
+    public OptionalLong getPositionAfterAPPSegments() {
+        return positionAfterAPP < 0 ? OptionalLong.empty() : OptionalLong.of(positionAfterAPP);
     }
 
     @Override
@@ -169,11 +171,11 @@ public class JPEGParser implements CompressedPixelParser {
 
         JPEGParams(SeekableByteChannel channel) throws IOException {
             Segment segment;
-            while (org.dcm4che6.codec.JPEG.isAPP((segment = nextSegment(channel)).marker)) {
+            while (JPEG.isAPP((segment = nextSegment(channel)).marker)) {
                 skip(channel, segment.contentSize);
                 positionAfterAPP = channel.position();
             }
-            while (!org.dcm4che6.codec.JPEG.isSOF(segment.marker)) {
+            while (!JPEG.isSOF(segment.marker)) {
                 skip(channel, segment.contentSize);
                 segment = nextSegment(channel);
             }

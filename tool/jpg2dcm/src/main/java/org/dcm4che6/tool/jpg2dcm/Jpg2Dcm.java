@@ -1,9 +1,6 @@
 package org.dcm4che6.tool.jpg2dcm;
 
-import org.dcm4che6.codec.CompressedPixelParser;
-import org.dcm4che6.codec.JPEGParser;
-import org.dcm4che6.codec.MP4Parser;
-import org.dcm4che6.codec.MPEG2Parser;
+import org.dcm4che6.codec.*;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.UID;
@@ -87,6 +84,13 @@ public class Jpg2Dcm implements Callable<Integer> {
             })
     boolean photo;
 
+    @CommandLine.Option(names = "--noapp",
+            description = {
+                    "Remove application segments APPn from encapsulated JPEG stream",
+                    "Otherwise encapsulate JPEG stream verbatim."
+            })
+    boolean noapp;
+
     public static void main(String[] args) {
         CommandLine cl = new CommandLine(new Jpg2Dcm());
         cl.registerConverter(TagPath.class, TagPath::new);
@@ -108,12 +112,12 @@ public class Jpg2Dcm implements Callable<Integer> {
                 dos.writeDataSet(dcmobj);
                 dos.writeHeader(Tag.PixelData, VR.OB, -1);
                 dos.writeHeader(Tag.Item, VR.NONE, 0);
-                long codeStreamSize = channel.size() - parser.getCodeStreamPosition();
-                dos.writeHeader(Tag.Item, VR.NONE, (int) ((codeStreamSize + 1) & ~1));
-                channel.position(parser.getCodeStreamPosition());
-                copy(channel, dos);
-                if ((codeStreamSize & 1) != 0)
-                    dos.write(0);
+                if (noapp && parser.getPositionAfterAPPSegments().isPresent()) {
+                    copyPixelData(channel, parser.getPositionAfterAPPSegments().getAsLong(), dos,
+                            (byte) 0xFF, (byte) JPEG.SOI);
+                } else {
+                    copyPixelData(channel, parser.getCodeStreamPosition(), dos);
+                }
                 dos.writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
             }
         }
@@ -123,6 +127,17 @@ public class Jpg2Dcm implements Callable<Integer> {
                 "Encapsulated %s to %s%n  SOP Class UID: %s - %s%n  Transfer Syntax UID: %s - %s%n",
                 jpgfile, dcmfile, cuid, UID.nameOf(cuid), tsuid, UID.nameOf(tsuid)));
         return 0;
+    }
+
+    private void copyPixelData(SeekableByteChannel channel, long position, DicomOutputStream dos, byte... prefix)
+            throws IOException {
+        long codeStreamSize = channel.size() - position + prefix.length;
+        dos.writeHeader(Tag.Item, VR.NONE, (int) ((codeStreamSize + 1) & ~1));
+        dos.write(prefix);
+        channel.position(position);
+        copy(channel, dos);
+        if ((codeStreamSize & 1) != 0)
+            dos.write(0);
     }
 
     private void copy(ByteChannel in, OutputStream out) throws IOException {
