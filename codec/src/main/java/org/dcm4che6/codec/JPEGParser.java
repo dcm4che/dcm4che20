@@ -194,12 +194,12 @@ public class JPEGParser implements CompressedPixelParser {
 
         @Override
         public int rows() {
-            return sofParams.getShort(3) & 0xffff;
+            return sofParams.getShort(1) & 0xffff;
         }
 
         @Override
         public int columns() {
-            return sofParams.getShort(1) & 0xffff;
+            return sofParams.getShort(3) & 0xffff;
         }
 
         @Override
