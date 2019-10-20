@@ -68,9 +68,7 @@ public class MultipartBody extends InputStream {
                     return b;
                 }
                 in.unread(b);
-                while (--i > 0) {
-                    in.unread(delimiter[i]);
-                }
+                in.unread(delimiter, 1, i - 1);
                 return delimiter[0];
             }
         }
