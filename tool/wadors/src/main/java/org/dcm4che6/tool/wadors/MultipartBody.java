@@ -3,6 +3,7 @@ package org.dcm4che6.tool.wadors;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.BiFunction;
 
 /**
  * @author Gunter Zeilinger (gunterze@protonmail.com)
@@ -99,14 +100,19 @@ public class MultipartBody extends InputStream {
         int endName;
         while ((header = nextHeader()) != null) {
             endName = header.indexOf(':');
-            char ch = header.charAt(endName + 2);
-            headers.put(header.substring(0, endName),
-                    List.of(ch == '"'
-                            ? header.substring(endName + 2, header.lastIndexOf(ch))
-                            : header.substring(endName + 1).trim()));
+            headers.merge(header.substring(0, endName),
+                    List.of(header.substring(endName + 1).trim()),
+                    MultipartBody::merge);
         }
         eof = false;
         return headers;
+    }
+
+    private static <T> List<T> merge(List<T> l1, List<T> l2) {
+        List<T> l3 = new ArrayList<>(l1.size() + l2.size());
+        l3.addAll(l1);
+        l3.addAll(l2);
+        return l3;
     }
 
     private String nextHeader() throws IOException {
