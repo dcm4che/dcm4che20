@@ -38,6 +38,8 @@
 
 package org.dcm4che6.data;
 
+import java.lang.module.ModuleDescriptor;
+
 /**
  * @author Gunter Zeilinger (gunterze@protonmail.com)
  */
@@ -46,9 +48,14 @@ public class Implementation {
     public static final String CLASS_UID;
     public static final String VERSION_NAME;
     static  {
-        String version = Implementation.class.getModule().getDescriptor().rawVersion().orElse("6");
+        String version = version();
         CLASS_UID = "1.2.40.0.13.1.3.0." + version;
         VERSION_NAME = "dcm4che@" + version;
+    }
+
+    private static String version() {
+        ModuleDescriptor descriptor = Implementation.class.getModule().getDescriptor();
+        return descriptor != null ? descriptor.rawVersion().orElse("6") : "6";
     }
 
 }
