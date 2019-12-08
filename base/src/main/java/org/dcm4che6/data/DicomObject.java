@@ -68,6 +68,8 @@ public interface DicomObject extends Iterable<DicomElement> {
 
     Optional<String> getString(int tag);
 
+    String getStringOrElseThrow(int tag);
+
     Optional<String> getString(int tag, int index);
 
     Optional<String> getString(String privateCreator, int tag);
@@ -79,6 +81,8 @@ public interface DicomObject extends Iterable<DicomElement> {
     Optional<String[]> getStrings(String privateCreator, int tag);
 
     OptionalInt getInt(int tag);
+
+    int getIntOrElseThrow(int tag);
 
     OptionalInt getInt(int tag, int index);
 
@@ -92,6 +96,8 @@ public interface DicomObject extends Iterable<DicomElement> {
 
     OptionalFloat getFloat(int tag);
 
+    float getFloatOrElseThrow(int tag);
+
     OptionalFloat getFloat(int tag, int index);
 
     OptionalFloat getFloat(String privateCreator, int tag);
@@ -103,6 +109,8 @@ public interface DicomObject extends Iterable<DicomElement> {
     Optional<float[]> getFloats(String privateCreator, int tag);
 
     OptionalDouble getDouble(int tag);
+
+    double getDoubleOrElseThrow(int tag);
 
     OptionalDouble getDouble(int tag, int index);
 

@@ -230,6 +230,11 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
     }
 
     @Override
+    public String getStringOrElseThrow(int tag) {
+        return getString(tag).orElseThrow(() -> missing(tag));
+    }
+
+    @Override
     public Optional<String> getString(int tag, int index) {
         return get(tag).flatMap(el -> el.stringValue(index));
     }
@@ -260,6 +265,11 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
     }
 
     @Override
+    public int getIntOrElseThrow(int tag) {
+        return getInt(tag).orElseThrow(() -> missing(tag));
+    }
+
+    @Override
     public OptionalInt getInt(int tag, int index) {
         return get(tag).map(el -> el.intValue(index)).orElse(OptionalInt.empty());
     }
@@ -287,6 +297,11 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
     @Override
     public OptionalFloat getFloat(int tag) {
         return getFloat(tag, 0);
+    }
+
+    @Override
+    public float getFloatOrElseThrow(int tag) {
+        return getFloat(tag).orElseThrow(() -> missing(tag));
     }
 
     @Override
@@ -322,6 +337,11 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
     @Override
     public OptionalDouble getDouble(int tag, int index) {
         return get(tag).map(el -> el.doubleValue(index)).orElse(OptionalDouble.empty());
+    }
+
+    @Override
+    public double getDoubleOrElseThrow(int tag) {
+        return getDouble(tag, 0).orElseThrow(() -> missing(tag));
     }
 
     @Override
@@ -608,4 +628,9 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
         }
     }
 
+    private static NoSuchElementException missing(int tag) {
+        return new NoSuchElementException("Missing "
+                + StandardElementDictionary.INSTANCE.keywordOf(tag) + ' '
+                + TagUtils.toString(tag));
+    }
 }

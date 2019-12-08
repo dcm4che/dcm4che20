@@ -143,18 +143,4 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
             key.interestOpsOr(SelectionKey.OP_READ);
         }
     }
-
-    public static void main(String[] args) throws Exception {
-        DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
-        TCPConnector<Association> inst = new TCPConnector<>(
-                (connector, role) -> new Association(connector, role, serviceRegistry));
-        CompletableFuture<Void> task = CompletableFuture.runAsync(inst);
-        AAssociate.RQ rq = new AAssociate.RQ();
-        rq.putPresentationContext((byte) 1, UID.VerificationSOPClass, UID.ImplicitVRLittleEndian);
-        inst.connect(new Connection(), new Connection().setPort(11112))
-            .thenCompose(as -> as.open(rq))
-            .thenCompose(Association::release);
-        Thread.sleep(30000);
-        task.cancel(true);
-    }
 }

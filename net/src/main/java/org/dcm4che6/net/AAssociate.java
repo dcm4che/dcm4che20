@@ -263,6 +263,12 @@ public abstract class AAssociate {
             pcs.forEach(action);
         }
 
+        Stream<Byte> pcidsFor(String abstractSyntax) {
+            return pcs.entrySet().stream()
+                    .filter(e -> abstractSyntax.endsWith(e.getValue().abstractSyntax))
+                    .map(Map.Entry::getKey);
+        }
+
         public void putCommonExtendedNegotation(String cuid, String serviceClass, String... relatedSOPClasses) {
             commonExtNegMap.put(cuid, new CommonExtendedNegotation(serviceClass, relatedSOPClasses));
         }
@@ -495,6 +501,11 @@ public abstract class AAssociate {
             buffer.putShort((short) pc.itemLength());
             buffer.putShort((short) (id.intValue() << 8));
             pc.writeTo(buffer, b64);
+        }
+
+        boolean isAcceptance(Byte pcid) {
+            PresentationContext pc = pcs.get(pcid);
+            return pc != null && pc.result == Result.ACCEPTANCE;
         }
 
         public static class PresentationContext {

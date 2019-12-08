@@ -2,9 +2,12 @@ package org.dcm4che6.net;
 
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.UID;
 import org.dcm4che6.io.DicomEncoding;
 import org.dcm4che6.io.DicomInputStream;
 import org.dcm4che6.io.DicomOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +18,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 /**
@@ -22,6 +26,7 @@ import java.util.function.BiConsumer;
  * @since Nov 2019
  */
 public class Association extends TCPConnection<Association> {
+    private static final Logger LOG = LoggerFactory.getLogger(Association.class);
     private static final int user_no_reason_given = 0x010101;
     private static final int application_context_name_not_supported = 0x010102;
     private static final int calling_AE_title_not_recognized = 0x010103;
@@ -43,8 +48,10 @@ public class Association extends TCPConnection<Association> {
     private volatile AAssociate.AC aaac;
     private final BlockingQueue<ByteBuffer> pdvQueue = new LinkedBlockingQueue<>();
     private final DimseHandler dimseRQHandler;
-    private int maxPDULength;
     private final CompletableFuture<Association> aaacReceived = new CompletableFuture<>();
+    private final AtomicInteger messageID = new AtomicInteger();
+    private BlockingQueue<OutstandingRSP> outstandingRSPs;
+    private int maxPDULength;
 
     public Association(TCPConnector<Association> connector, Role role, DimseHandler dimseRQHandler) {
         super(connector, role);
@@ -61,7 +68,7 @@ public class Association extends TCPConnection<Association> {
     }
 
     private void changeState(State state) {
-        System.out.println("Enter State: " + state);
+        LOG.info("Enter State: {}", state);
         this.state = state;
     }
 
@@ -112,7 +119,7 @@ public class Association extends TCPConnection<Association> {
                 DicomObject commandSet = new DicomInputStream(commandStream).readCommandSet();
                 Dimse dimse = Dimse.of(commandSet);
                 dimse.handler.accept(this, pcid, dimse, commandSet,
-                        hasDataSet(commandSet) ? dataStream(pcid, pdv) : null);
+                        Dimse.hasDataSet(commandSet) ? dataStream(pcid, pdv) : null);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -123,17 +130,16 @@ public class Association extends TCPConnection<Association> {
         dimseRQHandler.accept(this, pcid, dimse, commandSet, dataStream);
     }
 
-    void onDimseRSP(Byte pcid, Dimse dimse, DicomObject commandSet, InputStream dataStream) {
-
+    void onDimseRSP(Byte pcid, Dimse dimse, DicomObject commandSet, DicomObject dataSet) {
+        int messageID = commandSet.getInt(Tag.MessageIDBeingRespondedTo).getAsInt();
+        OutstandingRSP outstandingRSP =
+                outstandingRSPs.stream().filter(o -> o.messageID == messageID).findFirst().get();
+        outstandingRSPs.remove(outstandingRSP);
+        outstandingRSP.futureDimseRSP.complete(new DimseRSP(dimse, commandSet, dataSet));
     }
 
     void onCancelRQ(Byte pcid, Dimse dimse, DicomObject commandSet, InputStream dataStream) {
 
-    }
-
-    private static boolean hasDataSet(DicomObject commandSet) {
-        return 0x0101 != commandSet.getInt(Tag.CommandDataSetType)
-                .orElseThrow(() -> new IllegalArgumentException("Missing Command Data Set Type (0000,0800)"));
     }
 
     private InputStream dataStream(Byte pcid, ByteBuffer pdv) {
@@ -164,9 +170,11 @@ public class Association extends TCPConnection<Association> {
         aaac = new AAssociate.AC();
         aaac.setCalledAETitle(aarq.getCalledAETitle());
         aaac.setCallingAETitle(aarq.getCallingAETitle());
+        aaac.setAsyncOpsWindow(aarq.getMaxOpsInvoked(), aarq.getMaxOpsPerformed());
         aarq.forEachPresentationContext((id, pc) ->
                 aaac.putPresentationContext(id, AAssociate.AC.Result.ACCEPTANCE, pc.transferSyntax()[0]));
         maxPDULength = aarq.getMaxPDULength();
+        outstandingRSPs = newBlockingQueue(aaac.getMaxOpsPerformed());
         return true;
     }
 
@@ -204,19 +212,32 @@ public class Association extends TCPConnection<Association> {
         return buffer;
     }
 
+    void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
+        writePDataTF(writeCommandSet(pcid, dimse, commandSet));
+    }
+
+    void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet, DataWriter dataWriter) throws IOException {
+        writePDataTF(writeDataSet(pcid, dataWriter, writeCommandSet(pcid, dimse, commandSet)));
+    }
+
     void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet, DicomObject dataSet) throws IOException {
+        writeDimse(pcid, dimse, commandSet,((out, tsuid) ->
+                new DicomOutputStream(out)
+                    .withEncoding(DicomEncoding.of(getTransferSyntax(pcid)))
+                    .writeDataSet(dataSet)));
+    }
+
+    private ByteBuffer writeDataSet(Byte pcid, DataWriter dataWriter, ByteBuffer buffer) throws IOException {
+        PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.DATA, buffer);
+        dataWriter.writeTo(pdv, getTransferSyntax(pcid));
+        return pdv.writePDVHeader(MCH.LAST_DATA);
+    }
+
+    private ByteBuffer writeCommandSet(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
         ByteBuffer buffer = ByteBufferPool.allocate(maxPDULength + 6).position(6);
         PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.COMMAND, buffer);
         new DicomOutputStream(pdv).writeCommandSet(commandSet);
-        buffer = pdv.writePDVHeader(MCH.LAST_COMMAND);
-        if (dataSet != null) {
-            pdv = new PDVOutputStream(pcid, MCH.DATA, buffer);
-            new DicomOutputStream(pdv)
-                    .withEncoding(DicomEncoding.of(getTransferSyntax(pcid)))
-                    .writeDataSet(dataSet);
-            buffer = pdv.writePDVHeader(MCH.LAST_DATA);
-        }
-        writePDataTF(buffer);
+        return pdv.writePDVHeader(MCH.LAST_COMMAND);
     }
 
     private void writePDataTF(ByteBuffer buffer) {
@@ -227,8 +248,8 @@ public class Association extends TCPConnection<Association> {
     }
 
     private void closeAfterDelay() {
+        CompletableFuture.delayedExecutor(1000, TimeUnit.MILLISECONDS).execute(this::safeClose);
         changeState(State.STA_13);
-        CompletableFuture.delayedExecutor(50, TimeUnit.MILLISECONDS).execute(this::safeClose);
     }
 
     private void safeClose() {
@@ -249,10 +270,24 @@ public class Association extends TCPConnection<Association> {
         return aaacReceived;
     }
 
-    @Override
-    public void connected() {
-        state.connected(this);
-        super.connected();
+    public CompletableFuture<DimseRSP> cecho() throws IOException {
+        return cecho(UID.VerificationSOPClass);
+    }
+
+    public CompletableFuture<DimseRSP> cecho(String abstractSyntax) throws IOException {
+        Byte pcid = pcidFor(abstractSyntax);
+        OutstandingRSP outstandingRSP = new OutstandingRSP(messageID.incrementAndGet(), new CompletableFuture<>());
+        outstandingRSPs.add(outstandingRSP);
+        writeDimse(pcid, Dimse.C_ECHO_RQ,
+                Dimse.C_ECHO_RQ.mkRQ(outstandingRSP.messageID, abstractSyntax, null, Dimse.NO_DATASET));
+        return outstandingRSP.futureDimseRSP;
+    }
+
+    private Byte pcidFor(String abstractSyntax) {
+        return aarq.pcidsFor(abstractSyntax)
+                .filter(aaac::isAcceptance)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No accepted Presentation Con"));
     }
 
     public CompletableFuture<Association> release() {
@@ -260,27 +295,34 @@ public class Association extends TCPConnection<Association> {
         return aaacReceived;
     }
 
+    @Override
+    protected void connected() {
+        state.connected(this);
+        super.connected();
+    }
+
     private enum State {
-        STA_1(true, "Idle"),
-        STA_2(false, "Transport connection open (Awaiting A-ASSOCIATE-RQ PDU)") {
+        STA_1(true, "STA_1 - Idle"),
+        STA_2(false, "STA_2 - Transport connection open (Awaiting A-ASSOCIATE-RQ PDU)") {
             @Override
             BiConsumer<Association, ByteBuffer> onAAssociateRQ() {
                 return Association::ae_6;
             }
         },
-        STA_3(true, "Awaiting local A-ASSOCIATE response primitive (from local user)") {
+        STA_3(true, "STA_3 - Awaiting local A-ASSOCIATE response primitive (from local user)"),
+        STA_4(true, "STA_4 - Awaiting transport connection opening to complete (from local transport service)") {
+            @Override
+            public void connected(Association as) {
+                as.changeState(STA_4a);
+            }
+        },
+        STA_4a(true, "STA_4a - Awaiting local A-ASSOCIATE request primitive (from local user)") {
             @Override
             public void open(Association as, AAssociate.RQ aarq) {
                 as.ae_2(aarq);
             }
         },
-        STA_4(true, "Awaiting transport connection opening to complete (from local transport service)") {
-            @Override
-            public void connected(Association as) {
-                as.changeState(STA_3);
-            }
-        },
-        STA_5(false, "Awaiting A-ASSOCIATE-AC or A-ASSOCIATE-RJ PDU"){
+        STA_5(false, "STA_5 - Awaiting A-ASSOCIATE-AC or A-ASSOCIATE-RJ PDU"){
             @Override
             BiConsumer<Association, ByteBuffer> onAAssociateAC() {
                 return Association::ae_3;
@@ -291,7 +333,7 @@ public class Association extends TCPConnection<Association> {
                 return Association::ae_4;
             }
         },
-        STA_6(false, "Association established and ready for data transfer") {
+        STA_6(false, "STA_6 - Association established and ready for data transfer") {
             @Override
             BiConsumer<Association, ByteBuffer> onPDataTF() {
                 return Association::dt_2;
@@ -307,18 +349,18 @@ public class Association extends TCPConnection<Association> {
                 as.ar_1();
             }
         },
-        STA_7(false, "Awaiting A-RELEASE-RP PDU") {
+        STA_7(false, "STA_7 - Awaiting A-RELEASE-RP PDU") {
             @Override
             BiConsumer<Association, ByteBuffer> onAReleaseRP() {
                 return Association::ar_3;
             }
         },
-        STA_8(true, "Awaiting local A-RELEASE response primitive (from local user)"),
-        STA_9(true, "Release collision requestor side; awaiting A-RELEASE response (from local user)"),
-        STA_10(false, "Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
-        STA_11(false, "Release collision requestor side; awaiting A-RELEASE-RP PDU"),
-        STA_12(true, "Release collision acceptor side; awaiting A-RELEASE response primitive (from local user)"),
-        STA_13(true, "Awaiting Transport Connection Close Indication (Association no longer exists)");
+        STA_8(true, "STA_8 - Awaiting local A-RELEASE response primitive (from local user)"),
+        STA_9(true, "STA_9 - Release collision requestor side; awaiting A-RELEASE response (from local user)"),
+        STA_10(false, "STA_10 - Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
+        STA_11(false, "STA_11 - Release collision requestor side; awaiting A-RELEASE-RP PDU"),
+        STA_12(true, "STA_12 - Release collision acceptor side; awaiting A-RELEASE response primitive (from local user)"),
+        STA_13(true, "STA_13 - Awaiting Transport Connection Close Indication (Association no longer exists)");
 
         final boolean discard;
         final String description;
@@ -412,9 +454,15 @@ public class Association extends TCPConnection<Association> {
             return;
         }
         aaac = new AAssociate.AC(buffer, pduLength);
-        changeState(State.STA_6);
+        maxPDULength = aaac.getMaxPDULength();
+        outstandingRSPs = newBlockingQueue(aaac.getMaxOpsInvoked());
+        onEstablished();
         aaacReceived.complete(this);
         action = null;
+    }
+
+    private static BlockingQueue<OutstandingRSP> newBlockingQueue(int limit) {
+        return new LinkedBlockingQueue<>(limit > 0 ? limit : Integer.MAX_VALUE);
     }
 
     private void ae_4(ByteBuffer buffer) {
@@ -439,6 +487,7 @@ public class Association extends TCPConnection<Association> {
         }
         aarq = new AAssociate.RQ(buffer, pduLength);
         action = null;
+        changeState(State.STA_3);
         if (negotiate()) {
             write(toBuffer((short) 0x0200, aaac), Association::onEstablished);
         } else {
@@ -492,6 +541,11 @@ public class Association extends TCPConnection<Association> {
         buffer.position(buffer.limit());
         safeClose();
         action = null;
+    }
+
+    private void aa_2() {
+        safeClose();
+        changeState(State.STA_1);
     }
 
     private void aa_3(ByteBuffer buffer) {
@@ -657,5 +711,20 @@ public class Association extends TCPConnection<Association> {
             throw new IllegalArgumentException("Unexpected PDV Command Fragment");
         }
         return mch;
+    }
+
+    @FunctionalInterface
+    public interface DataWriter {
+        void writeTo(OutputStream out, String tsuid) throws IOException;
+    }
+
+    private static class OutstandingRSP {
+        final int messageID;
+        final CompletableFuture<DimseRSP> futureDimseRSP;
+
+        private OutstandingRSP(int messageID, CompletableFuture<DimseRSP> futureDimseRSP) {
+            this.messageID = messageID;
+            this.futureDimseRSP = futureDimseRSP;
+        }
     }
 }

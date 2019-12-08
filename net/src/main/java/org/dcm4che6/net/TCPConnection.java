@@ -53,7 +53,7 @@ public abstract class TCPConnection<T extends TCPConnection> {
 
     protected abstract boolean onNext(ByteBuffer buffer);
 
-    public void connected() {
+    protected void connected() {
         connected.complete((T) this);
     }
 

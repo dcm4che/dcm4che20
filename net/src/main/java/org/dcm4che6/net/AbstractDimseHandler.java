@@ -25,18 +25,20 @@ public abstract class AbstractDimseHandler implements DimseHandler {
         if (!recognizedOperation.test(dimse)) {
             throw new DicomServiceException(Status.UnrecognizedOperation);
         }
-        accept(as, pcid, dimse, commandSet, readDataSet(dataStream, as.getTransferSyntax(pcid)));
+        accept(as, pcid, dimse, commandSet, dataStream != null
+                ? new DicomInputStream(dataStream)
+                    .withEncoding(DicomEncoding.of(as.getTransferSyntax(pcid)))
+                    .readDataSet()
+                : null);
     }
 
     protected abstract void accept(Association as, Byte pcid, Dimse dimse, DicomObject commandSet, DicomObject dataSet)
         throws IOException;
 
-    static DicomObject readDataSet(InputStream dataStream, String transferSyntax) throws IOException {
-        return dataStream != null
-                ? new DicomInputStream(dataStream)
-                    .withEncoding(DicomEncoding.of(transferSyntax))
-                    .readDataSet()
-                : null;
-    }
-
+    static final DimseHandler onDimseRSP = new AbstractDimseHandler(dimse -> true) {
+        @Override
+        protected void accept(Association as, Byte pcid, Dimse dimse, DicomObject commandSet, DicomObject dataSet) {
+            as.onDimseRSP(pcid, dimse, commandSet, dataSet);
+        }
+    };
 }

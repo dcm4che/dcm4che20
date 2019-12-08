@@ -24,15 +24,14 @@ public class DicomServiceRegistry implements DimseHandler {
             @Override
             protected void accept(Association as, Byte pcid, Dimse dimse, DicomObject commandSet, DicomObject dataSet)
                     throws IOException {
-                as.writeDimse(pcid, Dimse.C_ECHO_RSP, dimse.mkRSP(commandSet, 0x0101, Status.Success), null);
+                as.writeDimse(pcid, Dimse.C_ECHO_RSP, dimse.mkRSP(commandSet));
             }
         });
     }
 
     @Override
     public void accept(Association as, Byte pcid, Dimse dimse, DicomObject commandSet, InputStream dataStream) throws IOException {
-        handlerOf(as, commandSet.getString(dimse.tagOfSOPClassUID)
-                .orElseThrow(() -> missing(dimse.tagOfSOPClassUID)))
+        handlerOf(as, commandSet.getStringOrElseThrow(dimse.tagOfSOPClassUID))
                 .accept(as, pcid, dimse, commandSet, dataStream);
     }
 
@@ -56,12 +55,6 @@ public class DicomServiceRegistry implements DimseHandler {
             }
         }
         return defaultRQHandler;
-    }
-
-    private static IllegalArgumentException missing(int tag) {
-        return new IllegalArgumentException("Missing "
-                + StandardElementDictionary.INSTANCE.keywordOf(tag) + ' '
-                + TagUtils.toString(tag));
     }
 
 }

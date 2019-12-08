@@ -37,11 +37,14 @@
       <includes>
         <include>org.dcm4che:dcm4che-base</include>
         <include>org.dcm4che:dcm4che-codec</include>
+        <include>org.dcm4che:dcm4che-conf-model</include>
         <include>org.dcm4che:dcm4che-json</include>
+        <include>org.dcm4che:dcm4che-net</include>
         <include>org.dcm4che:dcm4che-xml</include>
         <include>org.dcm4che.tool:dcm4che-tool-dcm2json</include>
         <include>org.dcm4che.tool:dcm4che-tool-dcm2xml</include>
         <include>org.dcm4che.tool:dcm4che-tool-dcmdump</include>
+        <include>org.dcm4che.tool:dcm4che-tool-echoscu</include>
         <include>org.dcm4che.tool:dcm4che-tool-jpg2dcm</include>
         <include>org.dcm4che.tool:dcm4che-tool-json2dcm</include>
         <include>org.dcm4che.tool:dcm4che-tool-stowrs</include>
@@ -49,6 +52,9 @@
         <include>org.dcm4che.tool:dcm4che-tool-wadors</include>
         <include>org.dcm4che.tool:dcm4che-tool-xml2dcm</include>
         <include>org.glassfish:jakarta.json</include>
+        <include>org.slf4j:slf4j-api</include>
+        <include>ch.qos.logback:logback-core</include>
+        <include>ch.qos.logback:logback-classic</include>
         <include>info.picocli:picocli</include>
       </includes>
       <useProjectArtifact>false</useProjectArtifact>

@@ -28,6 +28,8 @@
     <jakarta.json.bind.version>1.0.1</jakarta.json.bind.version>
     <yasson.version>1.0.3</yasson.version>
     <picocli.version>4.0.0-beta-1b</picocli.version>
+    <slf4j.version>1.7.29</slf4j.version>
+    <logback.version>1.2.3</logback.version>
   </properties>
 
   <build>
@@ -39,7 +41,7 @@
         </plugin>
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.1.2</version>
+          <version>3.2.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-remote-resources-plugin</artifactId>
@@ -62,7 +64,7 @@
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.0.0-M3</version>
+          <version>3.0.0-M4</version>
           <configuration>
             <forkCount>0</forkCount>
           </configuration>
@@ -72,6 +74,11 @@
   </build>
 
   <dependencies>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
