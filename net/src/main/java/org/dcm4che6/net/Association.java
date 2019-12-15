@@ -6,8 +6,6 @@ import org.dcm4che6.data.UID;
 import org.dcm4che6.io.DicomEncoding;
 import org.dcm4che6.io.DicomInputStream;
 import org.dcm4che6.io.DicomOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,7 +24,6 @@ import java.util.function.BiConsumer;
  * @since Nov 2019
  */
 public class Association extends TCPConnection<Association> {
-    private static final Logger LOG = LoggerFactory.getLogger(Association.class);
     private static final int user_no_reason_given = 0x010101;
     private static final int application_context_name_not_supported = 0x010102;
     private static final int calling_AE_title_not_recognized = 0x010103;
@@ -37,7 +34,6 @@ public class Association extends TCPConnection<Association> {
     private static final int local_limit_exceeded = 0x000302;
 
     private static final int MAX_PDU_LENGTH = 1048576;
-
     private volatile ByteBuffer carry;
     private volatile ByteBuffer pdv;
     private volatile int pduLength;
@@ -85,8 +81,7 @@ public class Association extends TCPConnection<Association> {
                 return true;
             }
             if (action == null) {
-                action = state.action(buffer.getShort() >>> 8);
-                pduLength = buffer.getInt();
+                action = state.action(this, buffer.getShort() >>> 8, pduLength = buffer.getInt());
             }
             action.accept(this, buffer);
         } while (buffer.hasRemaining());
@@ -118,6 +113,7 @@ public class Association extends TCPConnection<Association> {
                 PDVInputStream commandStream = new PDVInputStream(pcid, requireCommandPDV(MCH.of(pdv.get())), pdv);
                 DicomObject commandSet = new DicomInputStream(commandStream).readCommandSet();
                 Dimse dimse = Dimse.of(commandSet);
+                LOG.info("{} >> {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
                 dimse.handler.accept(this, pcid, dimse, commandSet,
                         Dimse.hasDataSet(commandSet) ? dataStream(pcid, pdv) : null);
             }
@@ -213,6 +209,7 @@ public class Association extends TCPConnection<Association> {
     }
 
     void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
+        LOG.info("{} << {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
         writePDataTF(writeCommandSet(pcid, dimse, commandSet));
     }
 
@@ -242,8 +239,10 @@ public class Association extends TCPConnection<Association> {
 
     private void writePDataTF(ByteBuffer buffer) {
         buffer.flip();
+        int pduLength = buffer.remaining() - 6;
         buffer.putShort(0, (short) 0x0400);
-        buffer.putInt(2, buffer.remaining() - 6);
+        buffer.putInt(2, pduLength);
+        LOG.info("{} << P-DATA-TF[pdu-length: {}]", name, pduLength);
         write(buffer, x -> {});
     }
 
@@ -302,27 +301,27 @@ public class Association extends TCPConnection<Association> {
     }
 
     private enum State {
-        STA_1(true, "STA_1 - Idle"),
-        STA_2(false, "STA_2 - Transport connection open (Awaiting A-ASSOCIATE-RQ PDU)") {
+        STA_1(true, "Sta1 - Idle"),
+        STA_2(false, "Sta2 - Transport connection open (Awaiting A-ASSOCIATE-RQ PDU)") {
             @Override
             BiConsumer<Association, ByteBuffer> onAAssociateRQ() {
                 return Association::ae_6;
             }
         },
-        STA_3(true, "STA_3 - Awaiting local A-ASSOCIATE response primitive (from local user)"),
-        STA_4(true, "STA_4 - Awaiting transport connection opening to complete (from local transport service)") {
+        STA_3(true, "Sta3 - Awaiting local A-ASSOCIATE response primitive (from local user)"),
+        STA_4(true, "Sta4 - Awaiting transport connection opening to complete (from local transport service)") {
             @Override
             public void connected(Association as) {
                 as.changeState(STA_4a);
             }
         },
-        STA_4a(true, "STA_4a - Awaiting local A-ASSOCIATE request primitive (from local user)") {
+        STA_4a(true, "Sta4a - Awaiting local A-ASSOCIATE request primitive (from local user)") {
             @Override
             public void open(Association as, AAssociate.RQ aarq) {
                 as.ae_2(aarq);
             }
         },
-        STA_5(false, "STA_5 - Awaiting A-ASSOCIATE-AC or A-ASSOCIATE-RJ PDU"){
+        STA_5(false, "Sta5 - Awaiting A-ASSOCIATE-AC or A-ASSOCIATE-RJ PDU"){
             @Override
             BiConsumer<Association, ByteBuffer> onAAssociateAC() {
                 return Association::ae_3;
@@ -333,7 +332,7 @@ public class Association extends TCPConnection<Association> {
                 return Association::ae_4;
             }
         },
-        STA_6(false, "STA_6 - Association established and ready for data transfer") {
+        STA_6(false, "Sta6 - Association established and ready for data transfer") {
             @Override
             BiConsumer<Association, ByteBuffer> onPDataTF() {
                 return Association::dt_2;
@@ -349,18 +348,18 @@ public class Association extends TCPConnection<Association> {
                 as.ar_1();
             }
         },
-        STA_7(false, "STA_7 - Awaiting A-RELEASE-RP PDU") {
+        STA_7(false, "Sta7 - Awaiting A-RELEASE-RP PDU") {
             @Override
             BiConsumer<Association, ByteBuffer> onAReleaseRP() {
                 return Association::ar_3;
             }
         },
-        STA_8(true, "STA_8 - Awaiting local A-RELEASE response primitive (from local user)"),
-        STA_9(true, "STA_9 - Release collision requestor side; awaiting A-RELEASE response (from local user)"),
-        STA_10(false, "STA_10 - Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
-        STA_11(false, "STA_11 - Release collision requestor side; awaiting A-RELEASE-RP PDU"),
-        STA_12(true, "STA_12 - Release collision acceptor side; awaiting A-RELEASE response primitive (from local user)"),
-        STA_13(true, "STA_13 - Awaiting Transport Connection Close Indication (Association no longer exists)");
+        STA_8(true, "Sta8 - Awaiting local A-RELEASE response primitive (from local user)"),
+        STA_9(true, "Sta9 - Release collision requestor side; awaiting A-RELEASE response (from local user)"),
+        STA_10(false, "Sta10 - Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
+        STA_11(false, "Sta11 - Release collision requestor side; awaiting A-RELEASE-RP PDU"),
+        STA_12(true, "Sta12 - Release collision acceptor side; awaiting A-RELEASE response primitive (from local user)"),
+        STA_13(true, "Sta13 - Awaiting Transport Connection Close Indication (Association no longer exists)");
 
         final boolean discard;
         final String description;
@@ -375,21 +374,28 @@ public class Association extends TCPConnection<Association> {
             return description;
         }
 
-        BiConsumer<Association, ByteBuffer> action(int pduType) {
+        BiConsumer<Association, ByteBuffer> action(Association as, int pduType, int pduLength) {
             switch (pduType) {
                 case 1:
+                    LOG.info("{} >> A-ASSOCIATE-RQ[pdu-length: {}]", as, pduLength);
                     return onAAssociateRQ();
                 case 2:
+                    LOG.info("{} >> A-ASSOCIATE-AC[pdu-length: {}]", as, pduLength);
                     return onAAssociateAC();
                 case 3:
+                    LOG.info("{} >> A-ASSOCIATE-RJ", as);
                     return onAAssociateRJ();
                 case 4:
+                    LOG.info("{} >> P-DATA-TF[pdu-length: {}]", as, pduLength);
                     return onPDataTF();
                 case 5:
+                    LOG.info("{} >> A-RELEASE-RQ", as);
                     return onAReleaseRQ();
                 case 6:
+                    LOG.info("{} >> A-RELEASE-RP", as);
                     return onAReleaseRP();
                 case 7:
+                    LOG.info("{} >> A-ABORT", as);
                     return onAAbort();
             }
             return onInvalidPDU(pduType);
@@ -445,7 +451,11 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_2(AAssociate.RQ aarq) {
         this.aarq = aarq;
-        write(toBuffer((short) 0x0100, this.aarq), as -> as.changeState(State.STA_5));
+        name = aarq.getCallingAETitle() + "->" + aarq.getCalledAETitle() + "(" + id + ")";
+        ByteBuffer buffer = toBuffer((short) 0x0100, this.aarq);
+        LOG.info("{} << A-ASSOCIATE-RQ[pdu-length: {}]", name, buffer.remaining() - 6);
+        LOG.debug("{}", aarq);
+        write(buffer, as -> as.changeState(State.STA_5));
     }
 
     private void ae_3(ByteBuffer buffer) {
@@ -454,6 +464,7 @@ public class Association extends TCPConnection<Association> {
             return;
         }
         aaac = new AAssociate.AC(buffer, pduLength);
+        LOG.debug("{}", aaac);
         maxPDULength = aaac.getMaxPDULength();
         outstandingRSPs = newBlockingQueue(aaac.getMaxOpsInvoked());
         onEstablished();
@@ -486,6 +497,7 @@ public class Association extends TCPConnection<Association> {
             return;
         }
         aarq = new AAssociate.RQ(buffer, pduLength);
+        name = aarq.getCalledAETitle() + "<-" + aarq.getCallingAETitle() + "(" + id + ")";
         action = null;
         changeState(State.STA_3);
         if (negotiate()) {
@@ -527,6 +539,7 @@ public class Association extends TCPConnection<Association> {
     }
 
     private void ar_1() {
+        LOG.info("{} << A-RELEASE-RQ", name);
         write(mkAReleaseRQ(), as -> as.changeState(State.STA_7));
     }
 

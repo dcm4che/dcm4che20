@@ -1,7 +1,8 @@
 package org.dcm4che6.net;
 
 import org.dcm4che6.conf.model.Connection;
-import org.dcm4che6.data.UID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,6 +18,7 @@ import java.util.function.BiFunction;
  * @since Nov 2019
  */
 public class TCPConnector<T extends TCPConnection> implements Runnable {
+    static final Logger LOG = LoggerFactory.getLogger(TCPConnector.class);
     private final BiFunction<TCPConnector, TCPConnection.Role, T> connFactory;
     private final Selector selector;
 
@@ -41,10 +43,14 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
     public CompletableFuture<T> connect(Connection local, Connection remote) throws IOException {
         SocketChannel sc = SocketChannel.open();
         configure(sc, local);
+        SocketAddress addr = addr(remote);
         T conn = connFactory.apply(this, TCPConnection.Role.CLIENT);
-        conn.setKey(sc.register(selector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ, conn));
-        if (sc.connect(addr(remote))) {
-            conn.connected();
+        conn.setName(sc.getLocalAddress() + "->" + addr + "(" + conn.id + ")");
+        LOG.info("{}: connect", conn);
+        SelectionKey key = sc.register(selector, SelectionKey.OP_CONNECT, conn);
+        conn.setKey(key);
+        if (sc.connect(addr)) {
+            onConnectable(key);
         }
         wakeup();
         return conn.connected;
@@ -111,13 +117,18 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
         if (sc == null) return;
         sc.configureBlocking(false);
         TCPConnection conn = connFactory.apply(this, TCPConnection.Role.SERVER);
+        conn.setName(sc.getLocalAddress() + "<-" + sc.getRemoteAddress() + "(" + conn.id + ")");
+        LOG.info("{}: accepted", conn);
         conn.setKey(sc.register(selector, SelectionKey.OP_READ, conn));
     }
 
     private void onConnectable(SelectionKey key) throws IOException {
-        SocketChannel ch = (SocketChannel) key.channel();
-        if (ch.finishConnect()) {
-            ((TCPConnection) key.attachment()).connected();
+        SocketChannel ch;
+        if ((key.interestOps() & SelectionKey.OP_CONNECT) != 0
+                && (ch = (SocketChannel) key.channel()).finishConnect()) {
+            TCPConnection conn = (TCPConnection) key.attachment();
+            LOG.info("{}: connected", conn);
+            conn.connected();
             key.interestOpsAnd(~SelectionKey.OP_CONNECT);
             key.interestOpsOr(SelectionKey.OP_READ);
         }

@@ -2,8 +2,10 @@ package org.dcm4che6.net;
 
 import org.dcm4che6.data.Implementation;
 import org.dcm4che6.data.UID;
+import org.dcm4che6.util.UIDUtils;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
@@ -95,6 +97,10 @@ public abstract class AAssociate {
         this.asyncOpsWindow = maxOpsInvoked << 16 | maxOpsPerformed;
     }
 
+    public void clearAsyncOpsWindow() {
+        this.asyncOpsWindow = -1;
+    }
+
     public void putRoleSelection(String cuid, RoleSelection roleSelection) {
         roleSelectionMap.put(cuid, roleSelection);
     }
@@ -111,6 +117,78 @@ public abstract class AAssociate {
         return clone(extNegMap.get(cuid));
     }
 
+    protected String toString(String header) {
+        StringBuilder sb = new StringBuilder(512)
+                .append(header)
+                .append(System.lineSeparator())
+                .append("  called-AE-title: ")
+                .append(calledAETitle)
+                .append(System.lineSeparator())
+                .append("  calling-AE-title: ")
+                .append(callingAETitle)
+                .append(System.lineSeparator())
+                .append("  application-context-name: ");
+        UIDUtils.promptTo(applicationContextName, sb)
+                .append(System.lineSeparator())
+                .append("  implementation-class-uid: ")
+                .append(implClassUID)
+                .append(System.lineSeparator());
+        if (implVersionName != null) {
+            sb.append("  implementation-version-name: ")
+                    .append(implVersionName)
+                    .append(System.lineSeparator());
+        }
+        sb.append("  max-pdu-length: ")
+                .append(maxPDULength)
+                .append(System.lineSeparator());
+        if (asyncOpsWindow != -1) {
+            sb.append("  maximum-number-operations-invoked: ")
+                    .append(asyncOpsWindow >> 16)
+                    .append(System.lineSeparator())
+                    .append("maximum-number-operations-performed: ")
+                    .append(asyncOpsWindow & 0xffff)
+                    .append(System.lineSeparator());
+        }
+        promptUserIdentityTo(sb);
+        promptPresentationContextsTo(sb);
+        roleSelectionMap.forEach((cuid, rs) -> promptTo(cuid, rs, sb));
+        extNegMap.forEach((cuid, b) -> promptTo(cuid, b, sb));
+        promptCommonExtendedNegotationTo(sb);
+        return sb.append(']').toString();
+    }
+
+    private void promptTo(String cuid, RoleSelection roleSelection, StringBuilder sb) {
+        sb.append("  RoleSelection[")
+                .append(System.lineSeparator())
+                .append("    sop-class: ");
+        UIDUtils.promptTo(cuid, sb)
+                .append(System.lineSeparator())
+                .append("    role(s): ").append(roleSelection)
+                .append(System.lineSeparator())
+                .append("  ]");
+    }
+
+    private void promptTo(String cuid, byte[] info, StringBuilder sb) {
+        sb.append("  ExtendedNegotiation[")
+                .append(System.lineSeparator())
+                .append("    sop-class: ");
+        UIDUtils.promptTo(cuid, sb)
+                .append(System.lineSeparator())
+                .append("    info: [");
+        for (byte b : info) {
+            sb.append(b).append(", ");
+        }
+        sb.append(']')
+                .append(System.lineSeparator())
+                .append("  ]");
+    }
+
+    protected abstract void promptUserIdentityTo(StringBuilder sb);
+
+    protected abstract void promptPresentationContextsTo(StringBuilder sb);
+
+    protected void promptCommonExtendedNegotationTo(StringBuilder sb) {}
+
     static byte[] clone(byte[] value) {
         return value != null ? value.clone() : null;
     }
@@ -122,8 +200,21 @@ public abstract class AAssociate {
         buffer.get(b64);
         calledAETitle = new String(b64, 0, 0, 16).trim();
         callingAETitle = new String(b64, 0, 16, 32).trim();
+        applicationContextName = null;
+        maxPDULength = -1;
+        implClassUID = null;
+        implVersionName = null;
         while (buffer.position() < pduEnd) {
             parseItem(buffer, buffer.getInt(), b64);
+        }
+        if (applicationContextName == null) {
+            throw new IllegalArgumentException("Missing Application Context Item");
+        }
+        if (maxPDULength == -1) {
+            throw new IllegalArgumentException("Missing Maximum Length Sub-Item");
+        }
+        if (implClassUID == null) {
+            throw new IllegalArgumentException("Missing Implementation Class UID Sub-Item");
         }
     }
 
@@ -291,6 +382,26 @@ public abstract class AAssociate {
         }
 
         @Override
+        public String toString() {
+            return toString("A-ASSOCIATE-RQ[");
+        }
+
+        @Override
+        protected void promptUserIdentityTo(StringBuilder sb) {
+            if (userIdentity != null) userIdentity.promptTo(sb);
+        }
+
+        @Override
+        protected void promptPresentationContextsTo(StringBuilder sb) {
+            pcs.forEach((pcid, pc) -> pc.promptTo(pcid, sb));
+        }
+
+        @Override
+        protected void promptCommonExtendedNegotationTo(StringBuilder sb) {
+            commonExtNegMap.forEach((cuid, cen) -> cen.promptTo(cuid, sb));
+        }
+
+        @Override
         protected void parseItem(ByteBuffer buffer, int itemTypeLength, byte[] b64) {
             switch (itemTypeLength >>> 24) {
                 case 0x20:
@@ -416,6 +527,20 @@ public abstract class AAssociate {
                             ByteBufferUtils.putLengthASCII(buffer, s, b64);
                         });
             }
+
+            void promptTo(Byte pcid, StringBuilder sb) {
+                sb.append("  PresentationContext[pcid: ")
+                        .append(pcid)
+                        .append(System.lineSeparator())
+                        .append("    abstract-syntax: ");
+                UIDUtils.promptTo(abstractSyntax, sb)
+                        .append(System.lineSeparator());
+                transferSyntaxList.forEach(ts ->
+                        UIDUtils.promptTo(ts, sb.append("    transfer-syntax: "))
+                            .append(System.lineSeparator()));
+                sb.append("  ]")
+                        .append(System.lineSeparator());
+            }
         }
     }
 
@@ -444,6 +569,25 @@ public abstract class AAssociate {
 
         public void setUserIdentityServerResponse(byte[] userIdentityServerResponse) {
             this.userIdentityServerResponse = clone(userIdentityServerResponse);
+        }
+
+        @Override
+        public String toString() {
+            return toString("A-ASSOCIATE-AC[");
+        }
+
+        @Override
+        protected void promptUserIdentityTo(StringBuilder sb) {
+            if (userIdentityServerResponse != null) {
+                sb.append("  UserIdentity[server-response: byte[")
+                        .append(userIdentityServerResponse.length)
+                        .append("]]");
+            }
+        }
+
+        @Override
+        protected void promptPresentationContextsTo(StringBuilder sb) {
+            pcs.forEach((pcid, pc) -> pc.promptTo(pcid, sb));
         }
 
         @Override
@@ -534,14 +678,31 @@ public abstract class AAssociate {
                 buffer.putShort((short) 0x4000);
                 ByteBufferUtils.putLengthASCII(buffer, transferSyntax, b64);
             }
+
+            void promptTo(Byte pcid, StringBuilder sb) {
+                sb.append("  PresentationContext[pcid: ")
+                        .append(pcid)
+                        .append(", result: ")
+                        .append(result)
+                        .append(", transfer-syntax: ");
+                UIDUtils.promptTo(transferSyntax, sb)
+                        .append(']')
+                        .append(System.lineSeparator());
+            }
         }
 
         enum Result {
-            ACCEPTANCE,
-            USER_REJECTION,
-            NO_REASON,
-            ABSTRACT_SYNTAX_NOT_SUPPORTED,
-            TRANSFER_SYNTAXES_NOT_SUPPORTED;
+            ACCEPTANCE("0 - acceptance"),
+            USER_REJECTION("1 - user-rejection"),
+            NO_REASON("2 - no-reason" ),
+            ABSTRACT_SYNTAX_NOT_SUPPORTED("3 - abstract-syntax-not-supported"),
+            TRANSFER_SYNTAXES_NOT_SUPPORTED("transfer-syntaxes-not-supported");
+
+            final String prompt;
+
+            Result(String prompt) {
+                this.prompt = prompt;
+            }
 
             public static Result of(int code) {
                 try {
@@ -550,6 +711,11 @@ public abstract class AAssociate {
                     throw new IllegalArgumentException(
                             String.format("Invalid Presentation Context Result Code: %2XH", code & 0xff));
                 }
+            }
+
+            @Override
+            public String toString() {
+                return prompt;
             }
 
             public int code() {
@@ -628,11 +794,25 @@ public abstract class AAssociate {
             buffer.putShort((short) relatedSOPClassListLength());
             relatedSOPClassList.forEach(s -> ByteBufferUtils.putLengthASCII(buffer, s, b64));
         }
+
+        public void promptTo(String cuid, StringBuilder sb) {
+            sb.append("  CommonExtendedNegotation[")
+                    .append(System.lineSeparator())
+                    .append("    sop-class: ");
+            UIDUtils.promptTo(cuid, sb)
+                    .append(System.lineSeparator())
+                    .append("    service-class: ");
+            UIDUtils.promptTo(serviceClass, sb)
+                    .append(System.lineSeparator());
+            relatedSOPClassList.forEach(s ->
+                    UIDUtils.promptTo(serviceClass, sb.append("    related-general-sop-class: "))
+                            .append(System.lineSeparator()));
+        }
     }
 
     public static class UserIdentity {
         public static final int USERNAME = 1;
-        public static final int USERNAME_PASSWORD = 2;
+        public static final int USERNAME_PASSCODE = 2;
         public static final int KERBEROS = 3;
         public static final int SAML = 4;
         public static final int JWT = 5;
@@ -664,6 +844,17 @@ public abstract class AAssociate {
             return secondaryField.clone();
         }
 
+        public boolean hasUsername() {
+            return type == USERNAME || type == USERNAME_PASSCODE;
+        }
+
+        public String username() {
+            if (!hasUsername()) {
+                throw new IllegalStateException("type: " + type);
+            }
+            return new String(primaryField, StandardCharsets.UTF_8);
+        }
+
         void writeTo(ByteBuffer buffer) {
             buffer.put((byte) type);
             buffer.put(positiveResponseRequested ? (byte) 1 : 0);
@@ -677,5 +868,33 @@ public abstract class AAssociate {
             return 6 + primaryField.length + secondaryField.length;
         }
 
+        void promptTo(StringBuilder sb) {
+            sb.append("  UserIdentity[")
+                    .append(System.lineSeparator())
+                    .append("    type: ")
+                    .append(type)
+                    .append(System.lineSeparator());
+            if (hasUsername()) {
+                sb.append("    username: ").append(username());
+            } else {
+                sb.append("    primaryField: byte[")
+                        .append(primaryField.length)
+                        .append(']');
+            }
+            if (secondaryField.length > 0) {
+                sb.append(System.lineSeparator());
+                if (type == UserIdentity.USERNAME_PASSCODE) {
+                    sb.append("    passcode: ");
+                    for (int i = secondaryField.length; --i >= 0; ) {
+                        sb.append('*');
+                    }
+                } else {
+                    sb.append("    secondaryField: byte[")
+                            .append(secondaryField.length)
+                            .append(']');
+                }
+            }
+            sb.append(System.lineSeparator()).append("  ]");
+        }
     }
 }

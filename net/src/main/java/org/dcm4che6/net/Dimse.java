@@ -3,6 +3,8 @@ package org.dcm4che6.net;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.VR;
+import org.dcm4che6.util.TagUtils;
+import org.dcm4che6.util.UIDUtils;
 
 /**
  * @author Gunter Zeilinger (gunterze@protonmail.com)
@@ -161,4 +163,42 @@ public enum Dimse {
         return commandSet.getIntOrElseThrow(Tag.CommandDataSetType) != NO_DATASET;
     }
 
+    public Object toString(Byte pcid, DicomObject commandSet, String tsuid) {
+        return new Object(){
+            @Override
+            public String toString() {
+                return promptTo(pcid, commandSet, tsuid, new StringBuilder(256)).toString();
+            }
+        };
+    }
+
+    private StringBuilder promptTo(Byte pcid, DicomObject commandSet, String tsuid, StringBuilder sb) {
+        promptHeaderTo(commandSet, sb);
+        sb.append("[pcid: ").append(pcid & 0xff);
+        commandSet.getInt(Tag.Status)
+                .ifPresent(status -> sb
+                        .append(", status: ")
+                        .append(Integer.toHexString(status))
+                        .append('H'));
+        commandSet.getString(tagOfSOPClassUID)
+                .ifPresent(uid -> UIDUtils.promptTo(uid, sb
+                        .append(System.lineSeparator())
+                        .append("  sop-class: ")));
+        if (tagOfSOPInstanceUID != 0) {
+            commandSet.getString(tagOfSOPInstanceUID)
+                    .ifPresent(uid -> UIDUtils.promptTo(uid, sb
+                            .append(System.lineSeparator())
+                            .append("  sop-instance: ")));
+        }
+        UIDUtils.promptTo(tsuid, sb
+                        .append(System.lineSeparator())
+                        .append("  transfer-syntax: "));
+        return sb.append(']');
+    }
+
+    private StringBuilder promptHeaderTo(DicomObject commandSet, StringBuilder sb) {
+        return sb.append(commandSet.getIntOrElseThrow(tagOfMessageID))
+                .append(':')
+                .append(name().replace('_', '-'));
+    }
 }

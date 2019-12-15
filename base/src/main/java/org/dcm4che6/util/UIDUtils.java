@@ -1,5 +1,6 @@
 package org.dcm4che6.util;
 
+import org.dcm4che6.data.UID;
 import org.dcm4che6.io.ByteOrder;
 
 import java.math.BigInteger;
@@ -45,4 +46,7 @@ public class UIDUtils {
         return new String(cs);
     }
 
+    public static StringBuilder promptTo(String uid, StringBuilder sb) {
+        return sb.append(uid).append(" - ").append(UID.nameOf(uid));
+    }
 }

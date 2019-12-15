@@ -1,5 +1,8 @@
 package org.dcm4che6.net;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -7,6 +10,7 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -14,18 +18,32 @@ import java.util.function.Consumer;
  * @since Nov 2019
  */
 public abstract class TCPConnection<T extends TCPConnection> {
-
-    protected final TCPConnector<T> connector;
-    protected final Role role;
+    static final Logger LOG = LoggerFactory.getLogger(TCPConnection.class);
+    private static final AtomicInteger idGenerator = new AtomicInteger();
+    public final int id = idGenerator.incrementAndGet();
+    public final Role role;
+    public final TCPConnector<T> connector;
     protected final BlockingQueue<WriteAndThen<T>> writeQueue = new LinkedBlockingQueue<>();
     protected final CompletableFuture<T> connected = new CompletableFuture<>();
     protected SelectionKey key;
+    protected String name;
 
-    public enum Role { SERVER, CLIENT }
+    public enum Role {
+        SERVER,
+        CLIENT;
+    }
 
     public TCPConnection(TCPConnector<T> connector, Role role) {
         this.connector = connector;
         this.role = role;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String toString() {
+        return name;
     }
 
     void setKey(SelectionKey key) {
