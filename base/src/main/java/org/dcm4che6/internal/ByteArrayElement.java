@@ -82,4 +82,11 @@ class ByteArrayElement extends DicomElementImpl {
         }
     }
 
+    @Override
+    StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
+        appendTo.append(' ').append('[');
+        if (vr.type.appendValue(value, appendTo, maxLength)
+                .length() < maxLength) appendTo.append(']');
+        return appendTo;
+    }
 }

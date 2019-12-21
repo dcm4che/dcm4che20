@@ -26,6 +26,10 @@ public interface VRType {
         return appendTo;
     }
 
+    default StringBuilder appendValue(byte[] value, StringBuilder appendTo, int maxLength) {
+        return appendTo;
+    }
+
     default Optional<String> stringValue(DicomInput input, long valuePos, int valueLen, int index,  DicomObject dcmobj) {
         return Optional.empty();
     }

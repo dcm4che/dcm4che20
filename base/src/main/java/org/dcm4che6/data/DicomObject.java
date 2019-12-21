@@ -62,6 +62,8 @@ public interface DicomObject extends Iterable<DicomElement> {
 
     SpecificCharacterSet specificCharacterSet();
 
+    String toString(int maxWidth, int maxLines);
+
     Optional<DicomElement> get(String privateCreator, int tag);
 
     Optional<DicomElement> get(int tag);

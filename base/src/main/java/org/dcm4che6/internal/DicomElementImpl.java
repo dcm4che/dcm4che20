@@ -63,4 +63,10 @@ class DicomElementImpl implements DicomElement {
     StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
         return appendTo;
     }
+
+    @Override
+    public int promptItemsTo(StringBuilder appendTo, int maxWidth, int maxLines) {
+        return maxLines;
+    }
+
 }

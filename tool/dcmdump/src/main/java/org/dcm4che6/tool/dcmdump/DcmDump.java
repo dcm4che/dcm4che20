@@ -102,7 +102,7 @@ public class DcmDump implements Callable<Integer>, DicomInputHandler {
                 dcmObj.appendNestingLevel(
                         toPrompt(dis.getStreamPosition() - 8))
                         .append("(FFFE,E000) #").append(dcmObj.getItemLength())
-                        .append(" Item #").append(dcmSeq.size() + 1));
+                        .append(" Item #").append(dcmSeq.size()));
         return true;
     }
 

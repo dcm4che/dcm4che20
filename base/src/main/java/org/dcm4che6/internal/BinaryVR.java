@@ -215,6 +215,21 @@ public enum BinaryVR implements VRType {
     }
 
     @Override
+    public StringBuilder appendValue(byte[] value, StringBuilder appendTo, int maxLength) {
+        int n = value.length / bytes;
+        for (int index = 0; index < n; index++) {
+            if (index > 0)
+                appendTo.append('\\');
+            appendTo.append(bytesToString.apply(value, index * bytes));
+            if (appendTo.length() > maxLength) {
+                appendTo.setLength(maxLength);
+                break;
+            }
+        }
+        return appendTo;
+    }
+
+    @Override
     public Optional<String> stringValue(DicomInput input, long valpos, int vallen, int index, DicomObject dcmobj) {
         return (vallen / bytes) > index
                 ? Optional.of(dicomInputToString.apply(input, valpos + (index * bytes)))

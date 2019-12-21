@@ -112,4 +112,16 @@ class DicomSequence extends DicomElementImpl {
             ((DicomObjectImpl) item).writeItemTo(dos);
         }
     }
+
+    @Override
+    public int promptItemsTo(StringBuilder appendTo, int maxWidth, int maxLines) {
+        int i = 0;
+        for (DicomObject item : items) {
+            if (--maxLines < 0)
+                break;
+            item.appendNestingLevel(appendTo).append("Item #").append(++i).append(System.lineSeparator());
+            maxLines = ((DicomObjectImpl) item).promptTo(appendTo, maxWidth, maxLines);
+        }
+        return maxLines;
+    }
 }

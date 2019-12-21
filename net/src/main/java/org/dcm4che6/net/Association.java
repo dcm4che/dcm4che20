@@ -114,6 +114,7 @@ public class Association extends TCPConnection<Association> {
                 DicomObject commandSet = new DicomInputStream(commandStream).readCommandSet();
                 Dimse dimse = Dimse.of(commandSet);
                 LOG.info("{} >> {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
+                LOG.debug("{} >> Command:\n{}", name, commandSet);
                 dimse.handler.accept(this, pcid, dimse, commandSet,
                         Dimse.hasDataSet(commandSet) ? dataStream(pcid, pdv) : null);
             }
@@ -210,6 +211,7 @@ public class Association extends TCPConnection<Association> {
 
     void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
         LOG.info("{} << {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
+        LOG.debug("{} << Command:\n{}", name, commandSet);
         writePDataTF(writeCommandSet(pcid, dimse, commandSet));
     }
 
