@@ -24,6 +24,7 @@
     <module>upsrs</module>
     <module>wadors</module>
     <module>xml2dcm</module>
+    <module>storescp</module>
   </modules>
 
   <dependencies>

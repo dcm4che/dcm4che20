@@ -19,10 +19,10 @@ import java.util.function.BiFunction;
  */
 public class TCPConnector<T extends TCPConnection> implements Runnable {
     static final Logger LOG = LoggerFactory.getLogger(TCPConnector.class);
-    private final BiFunction<TCPConnector, TCPConnection.Role, T> connFactory;
+    private final BiFunction<TCPConnector, Connection, T> connFactory;
     private final Selector selector;
 
-    public TCPConnector(BiFunction<TCPConnector, TCPConnection.Role, T> connFactory)
+    public TCPConnector(BiFunction<TCPConnector, Connection, T> connFactory)
             throws IOException {
         this.connFactory = Objects.requireNonNull(connFactory);
         selector = Selector.open();
@@ -44,12 +44,9 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
         SocketChannel sc = SocketChannel.open();
         configure(sc, local);
         SocketAddress addr = addr(remote);
-        T conn = connFactory.apply(this, TCPConnection.Role.CLIENT);
-        conn.setName(sc.getLocalAddress() + "->" + addr + "(" + conn.id + ")");
-        LOG.info("{}: connect", conn);
+        T conn = connFactory.apply(this, local);
         SelectionKey key = sc.register(selector, SelectionKey.OP_CONNECT, conn);
-        conn.setKey(key);
-        if (sc.connect(addr)) {
+        if (conn.connect(key, addr)) {
             onConnectable(key);
         }
         wakeup();
@@ -58,7 +55,9 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
 
     private void configure(ServerSocketChannel ssc, Connection conn) throws IOException {
         ssc.configureBlocking(false);
-        ssc.bind(serverBind(conn), 0);
+        SocketAddress local = serverBind(conn);
+        LOG.info("Start listening on {}", local);
+        ssc.bind(local, 0);
     }
 
     private void configure(SocketChannel sc, Connection local) throws IOException {
@@ -116,19 +115,14 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
         SocketChannel sc = ssc.accept();
         if (sc == null) return;
         sc.configureBlocking(false);
-        TCPConnection conn = connFactory.apply(this, TCPConnection.Role.SERVER);
-        conn.setName(sc.getLocalAddress() + "<-" + sc.getRemoteAddress() + "(" + conn.id + ")");
-        LOG.info("{}: accepted", conn);
-        conn.setKey(sc.register(selector, SelectionKey.OP_READ, conn));
+        TCPConnection conn = connFactory.apply(this, (Connection) skey.attachment());
+        conn.accepted(sc.register(selector, SelectionKey.OP_READ, conn));
     }
 
     private void onConnectable(SelectionKey key) throws IOException {
-        SocketChannel ch;
         if ((key.interestOps() & SelectionKey.OP_CONNECT) != 0
-                && (ch = (SocketChannel) key.channel()).finishConnect()) {
-            TCPConnection conn = (TCPConnection) key.attachment();
-            LOG.info("{}: connected", conn);
-            conn.connected();
+                && ((SocketChannel) key.channel()).finishConnect()) {
+            ((TCPConnection) key.attachment()).connected();
             key.interestOpsAnd(~SelectionKey.OP_CONNECT);
             key.interestOpsOr(SelectionKey.OP_READ);
         }

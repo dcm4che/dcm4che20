@@ -142,10 +142,10 @@ public abstract class AAssociate {
                 .append(maxPDULength)
                 .append(System.lineSeparator());
         if (asyncOpsWindow != -1) {
-            sb.append("  maximum-number-operations-invoked: ")
+            sb.append("  max-ops-invoked: ")
                     .append(asyncOpsWindow >> 16)
                     .append(System.lineSeparator())
-                    .append("maximum-number-operations-performed: ")
+                    .append("  max-ops-performed: ")
                     .append(asyncOpsWindow & 0xffff)
                     .append(System.lineSeparator());
         }
@@ -684,9 +684,11 @@ public abstract class AAssociate {
                         .append(pcid)
                         .append(", result: ")
                         .append(result)
-                        .append(", transfer-syntax: ");
+                        .append(System.lineSeparator())
+                        .append("    transfer-syntax: ");
                 UIDUtils.promptTo(transferSyntax, sb)
-                        .append(']')
+                        .append(System.lineSeparator())
+                        .append("  ]")
                         .append(System.lineSeparator());
             }
         }

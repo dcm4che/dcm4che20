@@ -9,7 +9,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>dcm4che-tool-echoscu</artifactId>
+  <artifactId>dcm4che-tool-storescp</artifactId>
 
   <dependencies>
     <dependency>
@@ -64,7 +64,7 @@
                 <argument>--file</argument>
                 <argument>${project.build.finalName}.jar</argument>
                 <argument>--main-class</argument>
-                <argument>org.dcm4che6.tool.echoscu.EchoSCU</argument>
+                <argument>org.dcm4che6.tool.storescp.StoreSCP</argument>
               </arguments>
             </configuration>
           </execution>

@@ -1,5 +1,6 @@
 package org.dcm4che6.net;
 
+import org.dcm4che6.conf.model.Connection;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.UID;
@@ -10,7 +11,9 @@ import org.dcm4che6.io.DicomOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -45,18 +48,32 @@ public class Association extends TCPConnection<Association> {
     private final BlockingQueue<ByteBuffer> pdvQueue = new LinkedBlockingQueue<>();
     private final DimseHandler dimseRQHandler;
     private final CompletableFuture<Association> aaacReceived = new CompletableFuture<>();
+    private final CompletableFuture<Association> arrpReceived = new CompletableFuture<>();
     private final AtomicInteger messageID = new AtomicInteger();
     private BlockingQueue<OutstandingRSP> outstandingRSPs;
     private int maxPDULength;
+    private volatile String asname;
 
-    public Association(TCPConnector<Association> connector, Role role, DimseHandler dimseRQHandler) {
-        super(connector, role);
+    public Association(TCPConnector<Association> connector, Connection local, DimseHandler dimseRQHandler) {
+        super(connector, local);
         this.dimseRQHandler = dimseRQHandler;
-        if (role == Role.SERVER) {
-            ae_5();
-        } else {
-            ae_1();
-        }
+    }
+
+    @Override
+    void accepted(SelectionKey key) throws IOException {
+        super.accepted(key);
+        ae_5();
+    }
+
+    @Override
+    boolean connect(SelectionKey key, SocketAddress remote) throws IOException {
+        boolean connect = super.connect(key, remote);
+        ae_1();
+        return connect;
+    }
+
+    public String toString() {
+        return asname != null ? asname : super.toString();
     }
 
     AAssociate.CommonExtendedNegotation commonExtendedNegotationFor(String cuid) {
@@ -64,7 +81,7 @@ public class Association extends TCPConnection<Association> {
     }
 
     private void changeState(State state) {
-        LOG.info("Enter State: {}", state);
+        LOG.debug("{}: {}", this, state);
         this.state = state;
     }
 
@@ -113,8 +130,8 @@ public class Association extends TCPConnection<Association> {
                 PDVInputStream commandStream = new PDVInputStream(pcid, requireCommandPDV(MCH.of(pdv.get())), pdv);
                 DicomObject commandSet = new DicomInputStream(commandStream).readCommandSet();
                 Dimse dimse = Dimse.of(commandSet);
-                LOG.info("{} >> {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
-                LOG.debug("{} >> Command:\n{}", name, commandSet);
+                LOG.info("{} >> {}", this, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
+                LOG.debug("{} >> Command:\n{}", this, commandSet);
                 dimse.handler.accept(this, pcid, dimse, commandSet,
                         Dimse.hasDataSet(commandSet) ? dataStream(pcid, pdv) : null);
             }
@@ -167,7 +184,6 @@ public class Association extends TCPConnection<Association> {
         aaac = new AAssociate.AC();
         aaac.setCalledAETitle(aarq.getCalledAETitle());
         aaac.setCallingAETitle(aarq.getCallingAETitle());
-        aaac.setAsyncOpsWindow(aarq.getMaxOpsInvoked(), aarq.getMaxOpsPerformed());
         aarq.forEachPresentationContext((id, pc) ->
                 aaac.putPresentationContext(id, AAssociate.AC.Result.ACCEPTANCE, pc.transferSyntax()[0]));
         maxPDULength = aarq.getMaxPDULength();
@@ -210,9 +226,10 @@ public class Association extends TCPConnection<Association> {
     }
 
     void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
-        LOG.info("{} << {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
-        LOG.debug("{} << Command:\n{}", name, commandSet);
-        writePDataTF(writeCommandSet(pcid, dimse, commandSet));
+        ByteBuffer buffer = writeCommandSet(pcid, dimse, commandSet);
+        LOG.info("{} << {}", this, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
+        LOG.debug("{} << Command:\n{}", this, commandSet);
+        writePDataTF(buffer);
     }
 
     void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet, DataWriter dataWriter) throws IOException {
@@ -244,7 +261,7 @@ public class Association extends TCPConnection<Association> {
         int pduLength = buffer.remaining() - 6;
         buffer.putShort(0, (short) 0x0400);
         buffer.putInt(2, pduLength);
-        LOG.info("{} << P-DATA-TF[pdu-length: {}]", name, pduLength);
+        LOG.info("{} << P-DATA-TF[pdu-length: {}]", this, pduLength);
         write(buffer, x -> {});
     }
 
@@ -293,7 +310,7 @@ public class Association extends TCPConnection<Association> {
 
     public CompletableFuture<Association> release() {
         state.release(this);
-        return aaacReceived;
+        return arrpReceived;
     }
 
     @Override
@@ -453,9 +470,9 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_2(AAssociate.RQ aarq) {
         this.aarq = aarq;
-        name = aarq.getCallingAETitle() + "->" + aarq.getCalledAETitle() + "(" + id + ")";
+        asname = aarq.getCallingAETitle() + "->" + aarq.getCalledAETitle() + "(" + id + ")";
         ByteBuffer buffer = toBuffer((short) 0x0100, this.aarq);
-        LOG.info("{} << A-ASSOCIATE-RQ[pdu-length: {}]", name, buffer.remaining() - 6);
+        LOG.info("{} << A-ASSOCIATE-RQ[pdu-length: {}]", this, buffer.remaining() - 6);
         LOG.debug("{}", aarq);
         write(buffer, as -> as.changeState(State.STA_5));
     }
@@ -499,14 +516,22 @@ public class Association extends TCPConnection<Association> {
             return;
         }
         aarq = new AAssociate.RQ(buffer, pduLength);
-        name = aarq.getCalledAETitle() + "<-" + aarq.getCallingAETitle() + "(" + id + ")";
+        asname = aarq.getCalledAETitle() + "<-" + aarq.getCallingAETitle() + "(" + id + ")";
+        LOG.debug("{}", aarq);
         action = null;
         changeState(State.STA_3);
         if (negotiate()) {
-            write(toBuffer((short) 0x0200, aaac), Association::onEstablished);
+            writeAAAC();
         } else {
             write(mkAAssociateRJ(), Association::closeAfterDelay);
         }
+    }
+
+    private void writeAAAC() {
+        ByteBuffer buffer = toBuffer((short) 0x0200, aaac);
+        LOG.info("{} << A-ASSOCIATE-AC[pdu-length: {}]", this, buffer.remaining() - 6);
+        LOG.debug("{}", aaac);
+        write(buffer, Association::onEstablished);
     }
 
     private void onEstablished() {
@@ -541,18 +566,20 @@ public class Association extends TCPConnection<Association> {
     }
 
     private void ar_1() {
-        LOG.info("{} << A-RELEASE-RQ", name);
+        LOG.info("{} << A-RELEASE-RQ", this);
         write(mkAReleaseRQ(), as -> as.changeState(State.STA_7));
     }
 
     private void ar_2(ByteBuffer buffer) {
         buffer.position(buffer.limit());
         changeState(State.STA_8);
+        LOG.info("{} << A-RELEASE-RP", this);
         write(mkAReleaseRP(), Association::closeAfterDelay);
         action = null;
     }
 
     private void ar_3(ByteBuffer buffer) {
+        arrpReceived.complete(this);
         buffer.position(buffer.limit());
         safeClose();
         action = null;

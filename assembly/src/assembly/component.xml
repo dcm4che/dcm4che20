@@ -47,6 +47,7 @@
         <include>org.dcm4che.tool:dcm4che-tool-echoscu</include>
         <include>org.dcm4che.tool:dcm4che-tool-jpg2dcm</include>
         <include>org.dcm4che.tool:dcm4che-tool-json2dcm</include>
+        <include>org.dcm4che.tool:dcm4che-tool-storescp</include>
         <include>org.dcm4che.tool:dcm4che-tool-stowrs</include>
         <include>org.dcm4che.tool:dcm4che-tool-upsrs</include>
         <include>org.dcm4che.tool:dcm4che-tool-wadors</include>

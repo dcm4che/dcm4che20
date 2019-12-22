@@ -1,9 +1,11 @@
 package org.dcm4che6.net;
 
+import org.dcm4che6.conf.model.Connection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -21,33 +23,44 @@ public abstract class TCPConnection<T extends TCPConnection> {
     static final Logger LOG = LoggerFactory.getLogger(TCPConnection.class);
     private static final AtomicInteger idGenerator = new AtomicInteger();
     public final int id = idGenerator.incrementAndGet();
-    public final Role role;
     public final TCPConnector<T> connector;
+    public final Connection local;
     protected final BlockingQueue<WriteAndThen<T>> writeQueue = new LinkedBlockingQueue<>();
     protected final CompletableFuture<T> connected = new CompletableFuture<>();
+    protected final CompletableFuture<T> closed = new CompletableFuture<>();
+    protected Role role;
     protected SelectionKey key;
-    protected String name;
+    private String name;
 
     public enum Role {
-        SERVER,
-        CLIENT;
+        ACCEPTOR,
+        REQUESTOR;
     }
 
-    public TCPConnection(TCPConnector<T> connector, Role role) {
+    public TCPConnection(TCPConnector<T> connector, Connection local) {
         this.connector = connector;
-        this.role = role;
+        this.local = local;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    void accepted(SelectionKey key) throws IOException {
+        SocketChannel sc = (SocketChannel) key.channel();
+        this.name = sc.getLocalAddress() + "<-" + sc.getRemoteAddress() + "(" + id + ")";
+        this.key = key;
+        this.role = Role.ACCEPTOR;
+        LOG.info("{}: accepted", name);
+    }
+
+    boolean connect(SelectionKey key, SocketAddress remote) throws IOException {
+        SocketChannel sc = (SocketChannel) key.channel();
+        this.name = sc.getLocalAddress() + "->" + remote + "(" + id + ")";
+        this.key = key;
+        this.role = Role.REQUESTOR;
+        LOG.info("{}: connect", name);
+        return sc.connect(remote);
     }
 
     public String toString() {
         return name;
-    }
-
-    void setKey(SelectionKey key) {
-        this.key = key;
     }
 
     public boolean write(ByteBuffer src, Consumer<T> action) {
@@ -62,7 +75,13 @@ public abstract class TCPConnection<T extends TCPConnection> {
     }
 
     public void close() throws IOException {
+        LOG.info("{}: close", name);
         key.channel().close();
+        closed.complete((T) this);
+    }
+
+    public CompletableFuture<T> onClose() {
+        return closed;
     }
 
     void continueReceive() throws IOException {
@@ -72,6 +91,7 @@ public abstract class TCPConnection<T extends TCPConnection> {
     protected abstract boolean onNext(ByteBuffer buffer);
 
     protected void connected() {
+        LOG.info("{}: connected", name);
         connected.complete((T) this);
     }
 
