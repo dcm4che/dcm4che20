@@ -579,8 +579,7 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
     @Override
     public DicomObject createFileMetaInformation(String tsuid) {
         return DicomObject.createFileMetaInformation(
-                getString(Tag.SOPInstanceUID).orElse(null),
-                getString(Tag.SOPClassUID).orElse(null),
+                getStringOrElseThrow(Tag.SOPClassUID), getStringOrElseThrow(Tag.SOPInstanceUID),
                 tsuid);
     }
 

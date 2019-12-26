@@ -13,7 +13,7 @@ import org.dcm4che6.util.UIDUtils;
 public enum Dimse {
     C_STORE_RSP (0x8001, Tag.AffectedSOPClassUID, Tag.AffectedSOPInstanceUID, Tag.MessageIDBeingRespondedTo,
             0, null, AbstractDimseHandler.onDimseRSP::accept),
-    C_STORE_RQ (0x0001, Tag.AffectedSOPClassUID, 0, Tag.MessageID,
+    C_STORE_RQ (0x0001, Tag.AffectedSOPClassUID, Tag.AffectedSOPInstanceUID, Tag.MessageID,
             Status.SOPclassNotSupported, C_STORE_RSP, Association::onDimseRQ),
     C_GET_RSP (0x8010, Tag.AffectedSOPClassUID, 0, Tag.MessageIDBeingRespondedTo,
             0, null, AbstractDimseHandler.onDimseRSP::accept),

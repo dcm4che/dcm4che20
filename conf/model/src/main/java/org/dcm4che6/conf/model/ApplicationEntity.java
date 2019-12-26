@@ -10,16 +10,32 @@ import java.util.*;
  */
 public class ApplicationEntity {
 
-    private String aeTitle = "*";
-    private String description;
-    private String[] applicationClusters = {};
-    private String[] supportedCharacterSets = {};
-    private boolean acceptor = true;
-    private boolean initiator = true;
-    private Boolean installed;
+    private volatile String aeTitle = "*";
+    private volatile String description;
+    private volatile String[] applicationClusters = {};
+    private volatile String[] supportedCharacterSets = {};
+    private volatile boolean acceptor = true;
+    private volatile boolean initiator = true;
+    private volatile Boolean installed;
+    private volatile Device device;
 
     private final List<Connection> conns = new ArrayList<>();
     private final List<TransferCapability> tcs = new ArrayList<>();
+
+    public Optional<Device> getDevice() {
+        return Optional.ofNullable(device);
+    }
+
+    public ApplicationEntity setDevice(Device device) {
+        if (this.device != device) {
+            if (this.device != null && device != null)
+                throw new IllegalStateException("ApplicationEntity already contained by " + device);
+            if (device != null)
+                conns.forEach(conn -> conn.setDevice(device));
+            this.device = device;
+        }
+        return this;
+    }
 
     public String getAETitle() {
         return aeTitle;
@@ -84,6 +100,10 @@ public class ApplicationEntity {
         return this;
     }
 
+    public boolean isInstalled() {
+        return (device == null || device.isInstalled()) && installed != Boolean.FALSE;
+    }
+
     public List<Connection> getConnections() {
         return Collections.unmodifiableList(conns);
     }
@@ -99,12 +119,31 @@ public class ApplicationEntity {
     }
 
     public ApplicationEntity addConnection(Connection conn) {
-        conns.add(Objects.requireNonNull(conn));
+        conns.add(conn.setDevice(device));
         return this;
+    }
+
+    public boolean hasConnection(Connection conn) {
+        return conns.contains(conn);
     }
 
     public List<TransferCapability> getTransferCapabilities() {
         return Collections.unmodifiableList(tcs);
+    }
+
+    public Optional<TransferCapability> getTransferCapabilityOrDefault(
+            TransferCapability.Role role, String abstractSyntax) {
+        return getTransferCapability(role, abstractSyntax).or(() -> getDefaultTransferCapability(role));
+    }
+
+    public Optional<TransferCapability> getDefaultTransferCapability(TransferCapability.Role role) {
+        return getTransferCapability(role, "*");
+    }
+
+    public Optional<TransferCapability> getTransferCapability(TransferCapability.Role role, String abstractSyntax) {
+        return tcs.stream()
+                .filter(tc -> tc.getRole().equals(role) && tc.getSOPClass().equals(abstractSyntax))
+                .findFirst();
     }
 
     public ApplicationEntity removeTransferCapability(TransferCapability tc) {

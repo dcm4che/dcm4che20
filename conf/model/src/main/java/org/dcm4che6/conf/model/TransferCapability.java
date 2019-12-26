@@ -6,6 +6,7 @@ import org.dcm4che6.util.StringUtils;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * @author Gunter Zeilinger (gunterze@protonmail.com)
@@ -53,5 +54,13 @@ public class TransferCapability {
     public TransferCapability setTransferSyntaxes(String... transferSyntaxes) {
         this.transferSyntaxes = Objects.requireNonNullElse(transferSyntaxes, StringUtils.EMPTY_STRINGS);
         return this;
+    }
+
+    public Optional<String> selectTransferSyntax(Predicate<String> predicate) {
+        return List.of(transferSyntaxes).stream().filter(predicate).findFirst();
+    }
+
+    public boolean anyTransferSyntax() {
+        return List.of(transferSyntaxes).contains("*");
     }
 }

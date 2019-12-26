@@ -1,5 +1,7 @@
 package org.dcm4che6.net;
 
+import org.dcm4che6.conf.model.ApplicationEntity;
+import org.dcm4che6.conf.model.TransferCapability;
 import org.dcm4che6.data.Implementation;
 import org.dcm4che6.data.UID;
 import org.dcm4che6.util.UIDUtils;
@@ -8,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
 /**
@@ -99,6 +102,10 @@ public abstract class AAssociate {
 
     public void clearAsyncOpsWindow() {
         this.asyncOpsWindow = -1;
+    }
+
+    public boolean hasAsyncOpsWindow() {
+        return asyncOpsWindow != -1;
     }
 
     public void putRoleSelection(String cuid, RoleSelection roleSelection) {
@@ -498,8 +505,16 @@ public abstract class AAssociate {
                 return abstractSyntax;
             }
 
+            public String anyTransferSyntax() {
+                return transferSyntaxList.get(0);
+            }
+
             public String[] transferSyntax() {
                 return transferSyntaxList.toArray(new String[0]);
+            }
+
+            public boolean containsTransferSyntax(String transferSyntax) {
+                return transferSyntaxList.contains(transferSyntax);
             }
 
             private void parseSubItem(int itemType, ByteBuffer buffer, int itemLength, byte[] b64) {
@@ -744,6 +759,12 @@ public abstract class AAssociate {
         RoleSelection(boolean scu, boolean scp) {
             this.scu = scu;
             this.scp = scp;
+        }
+
+        static RoleSelection of(boolean scu, boolean scp) {
+            return scu
+                    ? (scp ? BOTH : SCU)
+                    : (scp ? SCP : NONE);
         }
 
         static RoleSelection parse(ByteBuffer bb) {
