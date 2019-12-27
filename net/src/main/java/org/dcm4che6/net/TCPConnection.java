@@ -101,8 +101,9 @@ public abstract class TCPConnection<T extends TCPConnection> {
         while ((writeAndThen = writeQueue.peek()) != null) {
             ch.write(writeAndThen.buffer);
             if (writeAndThen.buffer.hasRemaining()) return;
+            ByteBufferPool.free(writeAndThen.buffer);
             writeAndThen.action.accept((T) this);
-            ByteBufferPool.free(writeQueue.remove().buffer);
+            writeQueue.poll();
         }
         key.interestOpsAnd(~SelectionKey.OP_WRITE);
     }

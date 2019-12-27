@@ -98,14 +98,17 @@ public class Association extends TCPConnection<Association> {
 
     @Override
     protected boolean onNext(ByteBuffer buffer) {
-        buffer = takeCarry(buffer);
+        if (carry != null) {
+            buffer = cat(carry, buffer);
+            carry = null;
+        }
         do {
             if (state.discard) {
                 ByteBufferPool.free(buffer);
                 return true;
             }
             if (buffer.remaining() < 10) {
-                setCarry(buffer);
+                carry = buffer;
                 return true;
             }
             if (action == null) {
@@ -116,24 +119,16 @@ public class Association extends TCPConnection<Association> {
         return true;
     }
 
-    private ByteBuffer takeCarry(ByteBuffer buffer) {
-        if (carry != null) {
-            carry.put(buffer);
-            ByteBufferPool.free(buffer);
-            buffer = carry;
-            buffer.flip();
-            carry = null;
-        }
-        return buffer;
+    private static ByteBuffer cat(ByteBuffer bb1, ByteBuffer bb2) {
+        ByteBuffer bb = ByteBufferPool.allocate(bb1.remaining() + bb2.remaining());
+        bb.put(bb1);
+        bb.put(bb2);
+        ByteBufferPool.free(bb1);
+        ByteBufferPool.free(bb2);
+        return bb.flip();
     }
 
-    private void setCarry(ByteBuffer buffer) {
-        carry = ByteBufferPool.allocate();
-        carry.put(buffer);
-        ByteBufferPool.free(buffer);
-    }
-
-    private void run()  {
+    private void run() {
         try {
             ByteBuffer pdv;
             LOG.debug("{}: Start processing PDVs", asname);
@@ -188,17 +183,16 @@ public class Association extends TCPConnection<Association> {
         try {
             ByteBuffer pdv = pdvQueue.poll();
             if (pdv == null) {
-                LOG.debug("{}: Wait for PDV", asname);
+                LOG.trace("{}: Wait for PDV", asname);
                 pdv = pdvQueue.take();
             }
             if (pdv == END_OF_PDVS) {
-                LOG.debug("{}: End of PDVs", asname);
+                LOG.trace("{}: End of PDVs", asname);
                 if (required) {
                     throw new IllegalStateException("Unexpected End of PDVs");
                 }
             } else {
-                LOG.debug("{}: Process {}[pcid: {}, length: {}]", asname,
-                        MCH.of(pdv.get(1)), pdv.get(0) & 0xff, pdv.remaining());
+                LOG.trace("{}: Process PDV@{} - remaining: {}", asname, System.identityHashCode(pdv), pdvQueue.size());
             }
             return pdv;
         } catch (InterruptedException e) {
@@ -553,7 +547,7 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_3(ByteBuffer buffer) {
         if (buffer.remaining() < pduLength) {
-            setCarry(buffer);
+            carry = buffer;
             return;
         }
         aaac = new AAssociate.AC(buffer, pduLength);
@@ -571,7 +565,7 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_4(ByteBuffer buffer) {
         if (buffer.remaining() < pduLength) {
-            setCarry(buffer);
+            carry = buffer;
             return;
         }
         resultSourceReason = buffer.getInt();
@@ -586,7 +580,7 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_6(ByteBuffer buffer) {
         if (buffer.remaining() < pduLength) {
-            setCarry(buffer);
+            carry = buffer;
             return;
         }
         aarq = new AAssociate.RQ(buffer, pduLength);
@@ -618,7 +612,7 @@ public class Association extends TCPConnection<Association> {
     }
 
     private void markEndOfPDVs() {
-        LOG.debug("{}: Queue End of PDVs", asname);
+        LOG.trace("{}: Queue End of PDVs - priors {}", asname, pdvQueue.size());
         pdvQueue.offer(END_OF_PDVS);
     }
 
@@ -626,7 +620,7 @@ public class Association extends TCPConnection<Association> {
         while (pduLength > 0) {
             if (pdv == null) {
                 if (buffer.remaining() < 6) {
-                    setCarry(buffer);
+                    carry = buffer;
                     return;
                 }
                 pduLength -= 4;
@@ -637,16 +631,18 @@ public class Association extends TCPConnection<Association> {
                         pdvLen);
                 pdv = ByteBufferPool.allocate(pdvLen);
             }
-            for (int i = 0, n = Math.min(pdv.remaining(), buffer.remaining()); i < n; i++) {
-                pdv.put(buffer.get());
-            }
-            if (pdv.hasRemaining()) {
-                return;
+            if (buffer.remaining() > pdv.remaining()) {
+                int limit = buffer.limit();
+                pdv.put(buffer.limit(buffer.position() + pdv.remaining()));
+                buffer.limit(limit);
+            } else {
+                if (pdv.put(buffer).hasRemaining()) {
+                    return;
+                }
             }
             pdv.flip();
             pduLength -= pdv.remaining();
-            LOG.debug("{}: Queue {}[pcid: {}, length: {}]", this,
-                    MCH.of(pdv.get(1)), pdv.get(0) & 0xff, pdv.remaining());
+            LOG.trace("{}: Queue PDV@{} - priors: {}", this, System.identityHashCode(pdv), pdvQueue.size());
             pdvQueue.offer(pdv);
             pdv = null;
         }
@@ -806,9 +802,11 @@ public class Association extends TCPConnection<Association> {
         }
 
         private boolean eof() {
+            if (pdv == null) return true;
             while (!pdv.hasRemaining()) {
                 ByteBufferPool.free(pdv);
                 if (mch.last) {
+                    pdv = null;
                     return true;
                 }
                 pdv = nextPDV(true);
