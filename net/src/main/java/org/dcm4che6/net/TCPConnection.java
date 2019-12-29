@@ -31,6 +31,7 @@ public abstract class TCPConnection<T extends TCPConnection> {
     protected Role role;
     protected SelectionKey key;
     private String name;
+    private volatile int writeQueueMaxSize;
 
     public enum Role {
         ACCEPTOR,
@@ -59,13 +60,21 @@ public abstract class TCPConnection<T extends TCPConnection> {
         return sc.connect(remote);
     }
 
+    @Override
     public String toString() {
         return name;
     }
 
+    public int writeQueueMaxSize() {
+        return writeQueueMaxSize;
+    }
+
     public boolean write(ByteBuffer src, Consumer<T> action) {
+        LOG.trace("{}: WriteQueue[size: {}] << ByteBuffer@{}", this,
+                writeQueue.size(), System.identityHashCode(src));
         key.interestOpsOr(SelectionKey.OP_WRITE);
         boolean offer = writeQueue.offer(new WriteAndThen<T>(src, action));
+        writeQueueMaxSize = Math.max(writeQueueMaxSize, writeQueue.size());
         connector.wakeup();
         return offer;
     }
@@ -78,6 +87,7 @@ public abstract class TCPConnection<T extends TCPConnection> {
         LOG.info("{}: close", name);
         key.channel().close();
         closed.complete((T) this);
+        LOG.debug("{}: WriteQueue[max-size: {}]", this, writeQueueMaxSize);
     }
 
     public CompletableFuture<T> onClose() {
@@ -99,6 +109,8 @@ public abstract class TCPConnection<T extends TCPConnection> {
         SocketChannel ch = (SocketChannel) key.channel();
         WriteAndThen<T> writeAndThen;
         while ((writeAndThen = writeQueue.peek()) != null) {
+            LOG.trace("{} << ByteBuffer@{} << WriteQueue[size: {}]", this,
+                    System.identityHashCode(writeAndThen.buffer), writeQueue.size());
             ch.write(writeAndThen.buffer);
             if (writeAndThen.buffer.hasRemaining()) return;
             ByteBufferPool.free(writeAndThen.buffer);

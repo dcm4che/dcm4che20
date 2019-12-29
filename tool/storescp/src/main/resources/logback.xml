@@ -1,11 +1,18 @@
 <configuration>
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%date{HH:mm:ss.SSS} %-5level - %msg%n</pattern>
+      <if condition='property("logging").equalsIgnoreCase("trace")'>
+        <then>
+          <pattern>%date{HH:mm:ss.SSS} [%thread] %-5level %logger{0} - %msg%n</pattern>
+        </then>
+        <else>
+          <pattern>%date{HH:mm:ss.SSS} %-5level - %msg%n</pattern>
+        </else>
+      </if>
     </encoder>
   </appender>
 
-  <root level="DEBUG">
+  <root level="${logging:-INFO}">
     <appender-ref ref="STDOUT" />
   </root>
 

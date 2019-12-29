@@ -39,6 +39,11 @@ public class Connection {
         return this;
     }
 
+    @Override
+    public String toString() {
+        return "Connection[" + hostname + ':' + port + ']';
+    }
+
     public Optional<String> getName() {
         return Optional.ofNullable(name);
     }

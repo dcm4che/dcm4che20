@@ -56,6 +56,8 @@
         <include>org.slf4j:slf4j-api</include>
         <include>ch.qos.logback:logback-core</include>
         <include>ch.qos.logback:logback-classic</include>
+        <include>org.codehaus.janino:janino</include>
+        <include>org.codehaus.janino:commons-compiler</include>
         <include>info.picocli:picocli</include>
       </includes>
       <useProjectArtifact>false</useProjectArtifact>

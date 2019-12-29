@@ -60,6 +60,7 @@ public class Association extends TCPConnection<Association> {
     private int maxPDULength;
     private volatile String asname;
     private volatile ApplicationEntity ae;
+    private volatile int pdvQueueMaxSize;
 
     public interface Handler extends DimseHandler {
         void onAAssociateRQ(Association as) throws AAssociateRJ;
@@ -83,8 +84,13 @@ public class Association extends TCPConnection<Association> {
         return connect;
     }
 
+    @Override
     public String toString() {
         return asname != null ? asname : super.toString();
+    }
+
+    public int pdvQueueMaxSize() {
+        return pdvQueueMaxSize;
     }
 
     AAssociate.CommonExtendedNegotation commonExtendedNegotationFor(String cuid) {
@@ -131,7 +137,6 @@ public class Association extends TCPConnection<Association> {
     private void run() {
         try {
             ByteBuffer pdv;
-            LOG.debug("{}: Start processing PDVs", asname);
             while ((pdv = nextPDV(false)) != END_OF_PDVS) {
                 Byte pcid = requireAcceptedPresentationContext(pdv.get());
                 PDVInputStream commandStream = new PDVInputStream(pcid, requireCommandPDV(MCH.of(pdv.get())), pdv);
@@ -149,7 +154,8 @@ public class Association extends TCPConnection<Association> {
                 }
                 dimse.handler.accept(this, pcid, dimse, commandSet, dataStream);
             }
-            LOG.debug("{}: Finish processing PDVs", asname);
+            state.onEndOfPDVs(this);
+            LOG.debug("{}: PDVQueue[max-size: {}]", asname, pdvQueueMaxSize);
         } catch (Throwable e) {
             e.printStackTrace();
         }
@@ -183,16 +189,21 @@ public class Association extends TCPConnection<Association> {
         try {
             ByteBuffer pdv = pdvQueue.poll();
             if (pdv == null) {
-                LOG.trace("{}: Wait for PDV", asname);
+                LOG.trace("{}: Awaiting PDV", asname);
                 pdv = pdvQueue.take();
             }
             if (pdv == END_OF_PDVS) {
-                LOG.trace("{}: End of PDVs", asname);
+                LOG.trace("{}: PDVQueue[size: {}] >> END_OF_PDVS", asname, pdvQueue.size());
                 if (required) {
                     throw new IllegalStateException("Unexpected End of PDVs");
                 }
-            } else {
-                LOG.trace("{}: Process PDV@{} - remaining: {}", asname, System.identityHashCode(pdv), pdvQueue.size());
+            } else if (LOG.isTraceEnabled()) {
+                LOG.trace("{}: PDVQueue[size: {}] >> PDV[pcid: {}, mch: {}, length: {}]@{}", asname,
+                        pdvQueue.size(),
+                        pdv.get(0) & 0xff,
+                        pdv.get(1) & 0x3,
+                        pdv.remaining(),
+                        System.identityHashCode(pdv));
             }
             return pdv;
         } catch (InterruptedException e) {
@@ -275,10 +286,6 @@ public class Association extends TCPConnection<Association> {
 
     private ByteBuffer mkAReleaseRQ() {
         return toBuffer((short) 0x0500, 0);
-    }
-
-    private ByteBuffer mkAReleaseRP() {
-        return toBuffer((short) 0x0600, 0);
     }
 
     private ByteBuffer mkAAbort() {
@@ -441,9 +448,14 @@ public class Association extends TCPConnection<Association> {
                 return Association::ar_3;
             }
         },
-        STA_8(true, "Sta8 - Awaiting local A-RELEASE response primitive (from local user)"),
         STA_9(true, "Sta9 - Release collision requestor side; awaiting A-RELEASE response (from local user)"),
         STA_10(false, "Sta10 - Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
+        STA_8(true, "Sta8 - Awaiting local A-RELEASE response primitive (from local user)") {
+            @Override
+            public void onEndOfPDVs(Association as) {
+                as.writeARRP();
+            }
+        },
         STA_11(false, "Sta11 - Release collision requestor side; awaiting A-RELEASE-RP PDU"),
         STA_12(true, "Sta12 - Release collision acceptor side; awaiting A-RELEASE response primitive (from local user)"),
         STA_13(true, "Sta13 - Awaiting Transport Connection Close Indication (Association no longer exists)");
@@ -530,6 +542,9 @@ public class Association extends TCPConnection<Association> {
         public void release(Association as) {
             throw new IllegalStateException(toString());
         }
+
+        public void onEndOfPDVs(Association association) {
+        }
     }
 
     private void ae_1() {
@@ -606,13 +621,19 @@ public class Association extends TCPConnection<Association> {
         write(buffer, Association::onEstablished);
     }
 
+    private void writeARRP() {
+        LOG.info("{} << A-RELEASE-RP", this);
+        write(toBuffer((short) 0x0600, 0), Association::closeAfterDelay);
+    }
+
     private void onEstablished() {
         changeState(State.STA_6);
         CompletableFuture.runAsync(this::run);
     }
 
     private void markEndOfPDVs() {
-        LOG.trace("{}: Queue End of PDVs - priors {}", asname, pdvQueue.size());
+        key.interestOpsAnd(~SelectionKey.OP_READ);
+        LOG.trace("{}: END_OF_PDVS >> PDVQueue[size: {}]", asname, pdvQueue.size());
         pdvQueue.offer(END_OF_PDVS);
     }
 
@@ -625,10 +646,12 @@ public class Association extends TCPConnection<Association> {
                 }
                 pduLength -= 4;
                 int pdvLen = buffer.getInt();
-                LOG.debug("{} >> {}[pcid: {}, length: {}]", this,
-                        MCH.of(buffer.get(buffer.position() + 1)),
-                        buffer.get(buffer.position()) & 0xff,
-                        pdvLen);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} >> PDV[pcid: {}, mch: {}, length: {}]", this,
+                            buffer.get(buffer.position()) & 0xff,
+                            buffer.get(buffer.position() + 1) & 0x3,
+                            pdvLen);
+                }
                 pdv = ByteBufferPool.allocate(pdvLen);
             }
             if (buffer.remaining() > pdv.remaining()) {
@@ -642,8 +665,16 @@ public class Association extends TCPConnection<Association> {
             }
             pdv.flip();
             pduLength -= pdv.remaining();
-            LOG.trace("{}: Queue PDV@{} - priors: {}", this, System.identityHashCode(pdv), pdvQueue.size());
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("{}: PDV[pcid: {}, mch: {}, length: {}]@{} >> PDVQueue[size: {}]", this,
+                        pdv.get(0) & 0xff,
+                        pdv.get(1) & 0x3,
+                        pdv.remaining(),
+                        System.identityHashCode(pdv),
+                        pdvQueue.size());
+            }
             pdvQueue.offer(pdv);
+            pdvQueueMaxSize = Math.max(pdvQueueMaxSize, pdvQueue.size());
             pdv = null;
         }
         action = null;
@@ -656,10 +687,8 @@ public class Association extends TCPConnection<Association> {
 
     private void ar_2(ByteBuffer buffer) {
         buffer.position(buffer.limit());
-        markEndOfPDVs();
         changeState(State.STA_8);
-        LOG.info("{} << A-RELEASE-RP", this);
-        write(mkAReleaseRP(), Association::closeAfterDelay);
+        markEndOfPDVs();
         action = null;
     }
 
@@ -753,7 +782,7 @@ public class Association extends TCPConnection<Association> {
 
         ByteBuffer writePDVHeader(MCH mch) {
             int pdvLen = pdu.position() - pdvPosition - 4;
-            LOG.debug("{} << {}[pcid: {}, length: {}]", asname, mch, pcid, pdvLen);
+            LOG.debug("{} << PDV[pcid: {}, mch: {}, length: {}]", asname, pcid, mch.value(), pdvLen);
             pdu.putInt(pdvPosition, pdvLen);
             pdu.put(pdvPosition + 4, pcid);
             pdu.put(pdvPosition + 5, mch.value());
@@ -817,7 +846,7 @@ public class Association extends TCPConnection<Association> {
         }
     }
 
-    private static byte requirePresentationContextID(byte pcid, byte expected) {
+    private static Byte requirePresentationContextID(Byte pcid, Byte expected) {
         if (pcid != expected) {
             throw new IllegalArgumentException(
                     "Unexpected Presentation Context ID: " + (pcid & 0xff) + " - expected "+ (pcid & 0xff));

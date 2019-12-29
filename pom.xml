@@ -30,6 +30,7 @@
     <picocli.version>4.0.0-beta-1b</picocli.version>
     <slf4j.version>1.7.29</slf4j.version>
     <logback.version>1.2.3</logback.version>
+    <janino.version>3.0.6</janino.version>
   </properties>
 
   <build>

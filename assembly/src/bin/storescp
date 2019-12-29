@@ -44,6 +44,8 @@ MP="$MP:$DCM4CHE_HOME/lib/dcm4che-net-${project.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/slf4j-api-${slf4j.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/logback-core-${logback.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/logback-classic-${logback.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/janino-${janino.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/commons-compiler-${janino.version}.jar"
 MP="$MP:$DCM4CHE_HOME/lib/picocli-${picocli.version}.jar"
 
 # For Cygwin, switch paths to Windows format before running java

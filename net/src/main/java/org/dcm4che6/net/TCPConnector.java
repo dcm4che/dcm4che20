@@ -85,29 +85,45 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                selector.select();
-                for (SelectionKey key : selector.selectedKeys()) {
-                    try {
-                        if (key.isAcceptable()) {
-                            onAcceptable(key);
-                        }
-                        if (key.isConnectable()) {
-                            onConnectable(key);
-                        }
-                        if (key.isWritable()) {
-                            ((TCPConnection) key.attachment()).onWritable();
-                        }
-                        if (key.isReadable()) {
-                            onReadable(key);
-                        }
-                    } catch (CancelledKeyException e) {
-//                        e.printStackTrace();
-                    }
+                if (selector.selectNow(this::onReady) == 0) {
+                    LOG.trace("Awaiting ready channels");
+                    selector.select(this::onReady);
                 }
             }
         } catch (Throwable e) {
             e.printStackTrace();
         }
+    }
+
+    private void onReady(SelectionKey key) {
+        try {
+            int readyOps = key.readyOps();
+            if (LOG.isTraceEnabled()) LOG.trace("{}: {}", key.attachment(),  opsAsString(readyOps));
+            if ((readyOps & SelectionKey.OP_ACCEPT) != 0) {
+                onAcceptable(key);
+            }
+            if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
+                onConnectable(key);
+            }
+            if ((readyOps & SelectionKey.OP_WRITE) != 0) {
+                ((TCPConnection) key.attachment()).onWritable();
+            }
+            if ((readyOps & SelectionKey.OP_READ) != 0) {
+                onReadable(key);
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Object opsAsString(int readyOps) {
+        StringBuilder sb = new StringBuilder();
+        if ((readyOps & SelectionKey.OP_READ) != 0) sb.append("readable, ");
+        if ((readyOps & SelectionKey.OP_WRITE) != 0) sb.append("writeable, ");
+        if ((readyOps & SelectionKey.OP_CONNECT) != 0) sb.append("connectable, ");
+        if ((readyOps & SelectionKey.OP_ACCEPT) != 0) sb.append("acceptable, ");
+        if (sb.length() > 0) sb.setLength(sb.length() - 2);
+        return sb;
     }
 
     void onAcceptable(SelectionKey skey) throws IOException {
