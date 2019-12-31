@@ -302,9 +302,7 @@ public class Association extends TCPConnection<Association> {
     }
 
     public void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
-        LOG.info("{} << {}", this, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
-        LOG.debug("{} << Command:\n{}", this, commandSet);
-        writePDataTF(writeCommandSet(pcid, dimse, commandSet));
+         writePDataTF(writeCommandSet(pcid, dimse, commandSet));
     }
 
     void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet, DataWriter dataWriter) throws IOException {
@@ -319,12 +317,16 @@ public class Association extends TCPConnection<Association> {
     }
 
     private ByteBuffer writeDataSet(Byte pcid, DataWriter dataWriter, ByteBuffer buffer) throws IOException {
+        LOG.debug("{} << Data start", this);
         PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.DATA_PDV, buffer);
         dataWriter.writeTo(pdv, getTransferSyntax(pcid));
+        LOG.debug("{} << Data finished", this);
         return pdv.writePDVHeader(MCH.LAST_DATA_PDV);
     }
 
     private ByteBuffer writeCommandSet(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
+        LOG.info("{} << {}", this, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
+        LOG.debug("{} << Command:\n{}", this, commandSet);
         ByteBuffer buffer = ByteBufferPool.allocate(maxPDULength + 6).position(6);
         PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.COMMAND_PDV, buffer);
         new DicomOutputStream(pdv).writeCommandSet(commandSet);
@@ -363,22 +365,52 @@ public class Association extends TCPConnection<Association> {
         return aaacReceived;
     }
 
-    public CompletableFuture<DimseRSP> cecho() throws IOException {
+    public CompletableFuture<DimseRSP> cecho() throws IOException, InterruptedException {
         return cecho(UID.VerificationSOPClass);
     }
 
-    public CompletableFuture<DimseRSP> cecho(String abstractSyntax) throws IOException {
+    public CompletableFuture<DimseRSP> cecho(String sopClassUID) throws IOException, InterruptedException {
+        int msgid = messageID.incrementAndGet();
+        return invoke(sopClassUID, msgid, Dimse.C_ECHO_RQ,
+                Dimse.C_ECHO_RQ.mkRQ(msgid, sopClassUID, null, Dimse.NO_DATASET));
+    }
+
+    public CompletableFuture<DimseRSP> cstore(String sopClassUID, String sopInstanceUID,
+            DataWriter dataWriter, String transferSyntax) throws IOException, InterruptedException {
+        int msgid = messageID.incrementAndGet();
+        return invoke(sopClassUID, msgid, Dimse.C_STORE_RQ,
+                Dimse.C_STORE_RQ.mkRQ(msgid, sopClassUID, sopInstanceUID, Dimse.WITH_DATASET),
+                dataWriter, transferSyntax);
+    }
+
+    private CompletableFuture<DimseRSP> invoke(String abstractSyntax, int msgid, Dimse dimse, DicomObject commandSet)
+            throws IOException, InterruptedException {
         Byte pcid = pcidFor(abstractSyntax);
-        OutstandingRSP outstandingRSP = new OutstandingRSP(messageID.incrementAndGet(), new CompletableFuture<>());
-        outstandingRSPs.add(outstandingRSP);
-        writeDimse(pcid, Dimse.C_ECHO_RQ,
-                Dimse.C_ECHO_RQ.mkRQ(outstandingRSP.messageID, abstractSyntax, null, Dimse.NO_DATASET));
+        OutstandingRSP outstandingRSP = new OutstandingRSP(msgid, new CompletableFuture<>());
+        outstandingRSPs.put(outstandingRSP);
+        writeDimse(pcid, dimse, commandSet);
+        return outstandingRSP.futureDimseRSP;
+    }
+
+    private CompletableFuture<DimseRSP> invoke(String abstractSyntax, int msgid, Dimse dimse, DicomObject commandSet,
+            DataWriter dataWriter, String transferSyntax) throws IOException, InterruptedException {
+        Byte pcid = pcidFor(abstractSyntax, transferSyntax);
+        OutstandingRSP outstandingRSP = new OutstandingRSP(msgid, new CompletableFuture<>());
+        outstandingRSPs.put(outstandingRSP);
+        writeDimse(pcid, dimse, commandSet, dataWriter);
         return outstandingRSP.futureDimseRSP;
     }
 
     private Byte pcidFor(String abstractSyntax) {
         return aarq.pcidsFor(abstractSyntax)
                 .filter(aaac::isAcceptance)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No accepted Presentation Context"));
+    }
+
+    private Byte pcidFor(String abstractSyntax, String transferSyntax) {
+        return aarq.pcidsFor(abstractSyntax, transferSyntax)
+                .filter(pcid -> aaac.acceptedTransferSyntax(pcid, transferSyntax))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No accepted Presentation Context"));
     }
@@ -443,6 +475,11 @@ public class Association extends TCPConnection<Association> {
             }
         },
         STA_7(false, "Sta7 - Awaiting A-RELEASE-RP PDU") {
+            @Override
+            BiConsumer<Association, ByteBuffer> onPDataTF() {
+                return Association::dt_2;
+            }
+
             @Override
             BiConsumer<Association, ByteBuffer> onAReleaseRP() {
                 return Association::ar_3;
@@ -696,6 +733,7 @@ public class Association extends TCPConnection<Association> {
         arrpReceived.complete(this);
         buffer.position(buffer.limit());
         safeClose();
+        markEndOfPDVs();
         action = null;
     }
 

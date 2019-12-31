@@ -44,6 +44,7 @@ public class EchoSCU implements Callable<Integer> {
 
     @CommandLine.Parameters(
             description = "tcp/ip port number of peer",
+            showDefaultValue = CommandLine.Help.Visibility.NEVER,
             index = "1")
     int port;
 

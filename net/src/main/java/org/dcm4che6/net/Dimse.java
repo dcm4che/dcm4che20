@@ -58,6 +58,7 @@ public enum Dimse {
     C_CANCEL_RQ (0x0FFF, 0, 0, Tag.MessageIDBeingRespondedTo,
             0, null, Association::onCancelRQ);
 
+    static int WITH_DATASET = 0;
     public static int NO_DATASET = 0x0101;
     public final int commandField;
     public final int tagOfSOPClassUID;

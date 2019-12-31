@@ -20,11 +20,12 @@
     <module>echoscu</module>
     <module>jpg2dcm</module>
     <module>json2dcm</module>
+    <module>storescp</module>
+    <module>storescu</module>
     <module>stowrs</module>
     <module>upsrs</module>
     <module>wadors</module>
     <module>xml2dcm</module>
-    <module>storescp</module>
   </modules>
 
   <dependencies>
