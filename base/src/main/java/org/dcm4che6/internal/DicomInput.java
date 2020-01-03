@@ -159,6 +159,11 @@ class DicomInput {
         public DicomElement containedBy() {
             return dataFragments;
         }
+        
+        @Override
+        public long valuePosition() {
+            return valuePos;
+        }
 
         @Override
         public int valueLength() {

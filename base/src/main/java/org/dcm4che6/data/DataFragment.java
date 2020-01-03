@@ -9,6 +9,8 @@ import java.io.OutputStream;
  */
 public interface DataFragment {
     DicomElement containedBy();
+    
+    long valuePosition();
 
     int valueLength();
 
