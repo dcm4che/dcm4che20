@@ -23,6 +23,8 @@ import java.util.stream.Stream;
  */
 public class DicomObjectImpl implements DicomObject, Externalizable {
 
+    private static final int TO_STRING_LINES = 50;
+    private static final int TO_STRING_WIDTH = 78;
     private final DicomInput dicomInput;
     private final long streamPosition;
     private final int itemLength;
@@ -145,6 +147,30 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
                 : (specificCharacterSet = dcmSeq != null
                     ? dcmSeq.containedBy().specificCharacterSet()
                     : SpecificCharacterSet.getDefaultCharacterSet());
+    }
+
+    @Override
+    public String toString() {
+        return toString(TO_STRING_WIDTH, TO_STRING_LINES);
+    }
+
+    @Override
+    public String toString(int maxWidth, int maxLines) {
+        StringBuilder appendTo = new StringBuilder(512);
+        if (promptTo(appendTo, maxWidth, maxLines) < 0)
+            appendTo.append("...").append(System.lineSeparator());
+        return appendTo.toString();
+    }
+
+    int promptTo(StringBuilder appendTo, int maxWidth, int maxLines) {
+        Iterator<DicomElement> iter = iterator();
+        while (iter.hasNext() && maxLines-- > 0) {
+            int maxLength = appendTo.length() + maxWidth;
+            DicomElement dcmElm = iter.next();
+            dcmElm.promptTo(appendTo, maxLength).append(System.lineSeparator());
+            maxLines = dcmElm.promptItemsTo(appendTo, maxWidth, maxLines);
+        }
+        return maxLines;
     }
 
     private DicomElement firstElement() {
@@ -563,8 +589,7 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
     @Override
     public DicomObject createFileMetaInformation(String tsuid) {
         return DicomObject.createFileMetaInformation(
-                getString(Tag.SOPInstanceUID).orElse(null),
-                getString(Tag.SOPClassUID).orElse(null),
+                getStringOrElseThrow(Tag.SOPClassUID), getStringOrElseThrow(Tag.SOPInstanceUID),
                 tsuid);
     }
 

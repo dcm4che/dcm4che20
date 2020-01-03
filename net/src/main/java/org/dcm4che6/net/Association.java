@@ -1,5 +1,9 @@
 package org.dcm4che6.net;
 
+import org.dcm4che6.conf.model.ApplicationEntity;
+import org.dcm4che6.conf.model.Connection;
+import org.dcm4che6.conf.model.Device;
+import org.dcm4che6.conf.model.TransferCapability;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.UID;
@@ -10,8 +14,11 @@ import org.dcm4che6.io.DicomOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -34,6 +41,8 @@ public class Association extends TCPConnection<Association> {
     private static final int local_limit_exceeded = 0x000302;
 
     private static final int MAX_PDU_LENGTH = 1048576;
+    private static final ByteBuffer END_OF_PDVS = ByteBuffer.allocate(0);
+
     private volatile ByteBuffer carry;
     private volatile ByteBuffer pdv;
     private volatile int pduLength;
@@ -43,20 +52,45 @@ public class Association extends TCPConnection<Association> {
     private volatile AAssociate.RQ aarq;
     private volatile AAssociate.AC aaac;
     private final BlockingQueue<ByteBuffer> pdvQueue = new LinkedBlockingQueue<>();
-    private final DimseHandler dimseRQHandler;
+    private final Handler handler;
     private final CompletableFuture<Association> aaacReceived = new CompletableFuture<>();
+    private final CompletableFuture<Association> arrpReceived = new CompletableFuture<>();
     private final AtomicInteger messageID = new AtomicInteger();
     private BlockingQueue<OutstandingRSP> outstandingRSPs;
     private int maxPDULength;
+    private volatile String asname;
+    private volatile ApplicationEntity ae;
+    private volatile int pdvQueueMaxSize;
 
-    public Association(TCPConnector<Association> connector, Role role, DimseHandler dimseRQHandler) {
-        super(connector, role);
-        this.dimseRQHandler = dimseRQHandler;
-        if (role == Role.SERVER) {
-            ae_5();
-        } else {
-            ae_1();
-        }
+    public interface Handler extends DimseHandler {
+        void onAAssociateRQ(Association as) throws AAssociateRJ;
+    }
+
+    public Association(TCPConnector<Association> connector, Connection local, Handler handler) {
+        super(connector, local);
+        this.handler = handler;
+    }
+
+    @Override
+    void accepted(SelectionKey key) throws IOException {
+        super.accepted(key);
+        ae_5();
+    }
+
+    @Override
+    boolean connect(SelectionKey key, SocketAddress remote) throws IOException {
+        boolean connect = super.connect(key, remote);
+        ae_1();
+        return connect;
+    }
+
+    @Override
+    public String toString() {
+        return asname != null ? asname : super.toString();
+    }
+
+    public int pdvQueueMaxSize() {
+        return pdvQueueMaxSize;
     }
 
     AAssociate.CommonExtendedNegotation commonExtendedNegotationFor(String cuid) {
@@ -64,66 +98,71 @@ public class Association extends TCPConnection<Association> {
     }
 
     private void changeState(State state) {
-        LOG.info("Enter State: {}", state);
+        LOG.debug("{}: {}", this, state);
         this.state = state;
     }
 
     @Override
     protected boolean onNext(ByteBuffer buffer) {
-        buffer = takeCarry(buffer);
+        if (carry != null) {
+            buffer = cat(carry, buffer);
+            carry = null;
+        }
         do {
             if (state.discard) {
                 ByteBufferPool.free(buffer);
                 return true;
             }
-            if (buffer.remaining() < 6) {
-                setCarry(buffer);
+            if (buffer.remaining() < 10) {
+                carry = buffer;
                 return true;
             }
             if (action == null) {
-                action = state.action(this, buffer.getShort() >>> 8, pduLength = buffer.getInt());
+                action = state.action(this, buffer.getShort() >>> 8, pduLength = buffer.getInt(), buffer);
             }
             action.accept(this, buffer);
         } while (buffer.hasRemaining());
         return true;
     }
 
-    private ByteBuffer takeCarry(ByteBuffer buffer) {
-        if (carry != null) {
-            carry.put(buffer);
-            ByteBufferPool.free(buffer);
-            buffer = carry;
-            buffer.flip();
-            carry = null;
-        }
-        return buffer;
+    private static ByteBuffer cat(ByteBuffer bb1, ByteBuffer bb2) {
+        ByteBuffer bb = ByteBufferPool.allocate(bb1.remaining() + bb2.remaining());
+        bb.put(bb1);
+        bb.put(bb2);
+        ByteBufferPool.free(bb1);
+        ByteBufferPool.free(bb2);
+        return bb.flip();
     }
 
-    private void setCarry(ByteBuffer buffer) {
-        carry = ByteBufferPool.allocate();
-        carry.put(buffer);
-        ByteBufferPool.free(buffer);
-    }
-
-    private void run()  {
+    private void run() {
         try {
             ByteBuffer pdv;
-            while ((pdv = nextPDV()).hasRemaining()) {
+            while ((pdv = nextPDV(false)) != END_OF_PDVS) {
                 Byte pcid = requireAcceptedPresentationContext(pdv.get());
                 PDVInputStream commandStream = new PDVInputStream(pcid, requireCommandPDV(MCH.of(pdv.get())), pdv);
                 DicomObject commandSet = new DicomInputStream(commandStream).readCommandSet();
                 Dimse dimse = Dimse.of(commandSet);
-                LOG.info("{} >> {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
-                dimse.handler.accept(this, pcid, dimse, commandSet,
-                        Dimse.hasDataSet(commandSet) ? dataStream(pcid, pdv) : null);
+                LOG.info("{} >> {}", this, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
+                LOG.debug("{} >> Command:\n{}", this, commandSet);
+                InputStream dataStream = null;
+                if (Dimse.hasDataSet(commandSet)) {
+                    pdv = nextPDV(true);
+                    dataStream = new PDVInputStream(
+                            requirePresentationContextID(pdv.get(), pcid),
+                            requireDataPDV(MCH.of(pdv.get())),
+                            pdv);
+                }
+                dimse.handler.accept(this, pcid, dimse, commandSet, dataStream);
             }
-        } catch (IOException e) {
+            state.onEndOfPDVs(this);
+            LOG.debug("{}: PDVQueue[max-size: {}]", asname, pdvQueueMaxSize);
+        } catch (Throwable e) {
             e.printStackTrace();
         }
     }
 
     void onDimseRQ(Byte pcid, Dimse dimse, DicomObject commandSet, InputStream dataStream) throws IOException {
-        dimseRQHandler.accept(this, pcid, dimse, commandSet, dataStream);
+        handler.accept(this, pcid, dimse, commandSet, dataStream);
     }
 
     void onDimseRSP(Byte pcid, Dimse dimse, DicomObject commandSet, DicomObject dataSet) {
@@ -138,13 +177,6 @@ public class Association extends TCPConnection<Association> {
 
     }
 
-    private InputStream dataStream(Byte pcid, ByteBuffer pdv) {
-        return new PDVInputStream(
-                requirePresentationContextID(pdv.get(), pcid),
-                requireDataPDV(MCH.of(pdv.get())),
-                pdv);
-    }
-
     private Byte requireAcceptedPresentationContext(Byte pcid) {
         AAssociate.AC.PresentationContext pc = aaac.getPresentationContext(pcid);
         if (pc == null || pc.result != AAssociate.AC.Result.ACCEPTANCE) {
@@ -153,25 +185,94 @@ public class Association extends TCPConnection<Association> {
         return pcid;
     }
 
-    private ByteBuffer nextPDV() {
+    private ByteBuffer nextPDV(boolean required) {
         try {
-            return pdvQueue.take();
+            ByteBuffer pdv = pdvQueue.poll();
+            if (pdv == null) {
+                LOG.trace("{}: Awaiting PDV", asname);
+                pdv = pdvQueue.take();
+            }
+            if (pdv == END_OF_PDVS) {
+                LOG.trace("{}: PDVQueue[size: {}] >> END_OF_PDVS", asname, pdvQueue.size());
+                if (required) {
+                    throw new IllegalStateException("Unexpected End of PDVs");
+                }
+            } else if (LOG.isTraceEnabled()) {
+                LOG.trace("{}: PDVQueue[size: {}] >> PDV[pcid: {}, mch: {}, length: {}]@{}", asname,
+                        pdvQueue.size(),
+                        pdv.get(0) & 0xff,
+                        pdv.get(1) & 0x3,
+                        pdv.remaining(),
+                        System.identityHashCode(pdv));
+            }
+            return pdv;
         } catch (InterruptedException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
 
-    private boolean negotiate() {
+    public void onAAssociateRQ() throws AAssociateRJ {
+        ae = aeOf(aarq.getCalledAETitle());
+        if (ae == null) {
+            throw new AAssociateRJ(called_AE_title_not_recognized);
+        }
         aaac = new AAssociate.AC();
         aaac.setCalledAETitle(aarq.getCalledAETitle());
         aaac.setCallingAETitle(aarq.getCallingAETitle());
-        aaac.setAsyncOpsWindow(aarq.getMaxOpsInvoked(), aarq.getMaxOpsPerformed());
-        aarq.forEachPresentationContext((id, pc) ->
-                aaac.putPresentationContext(id, AAssociate.AC.Result.ACCEPTANCE, pc.transferSyntax()[0]));
-        maxPDULength = aarq.getMaxPDULength();
-        outstandingRSPs = newBlockingQueue(aaac.getMaxOpsPerformed());
-        return true;
+        if (aarq.hasAsyncOpsWindow()) {
+            aaac.setAsyncOpsWindow(aarq.getMaxOpsInvoked(), aarq.getMaxOpsPerformed());
+        }
+        aarq.forEachPresentationContext(this::negotiate);
+    }
+
+    private void negotiate(Byte pcid, AAssociate.RQ.PresentationContext pc) {
+        Optional<TransferCapability> tc = getTransferCapability(pc.abstractSyntax());
+        if (tc.isPresent()) {
+            Optional<String> ts = tc.get().selectTransferSyntax(pc::containsTransferSyntax);
+            if (ts.isPresent()) {
+                aaac.putPresentationContext(pcid, AAssociate.AC.Result.ACCEPTANCE, ts.get());
+            } else {
+                aaac.putPresentationContext(pcid,
+                        tc.get().anyTransferSyntax()
+                                ? AAssociate.AC.Result.ACCEPTANCE
+                                : AAssociate.AC.Result.TRANSFER_SYNTAXES_NOT_SUPPORTED,
+                        pc.anyTransferSyntax());
+            }
+        } else {
+            aaac.putPresentationContext(pcid,
+                    AAssociate.AC.Result.ABSTRACT_SYNTAX_NOT_SUPPORTED, pc.anyTransferSyntax());
+        }
+    }
+
+    private Optional<TransferCapability> getTransferCapability(String abstractSyntax) {
+        AAssociate.RoleSelection roleSelection = aarq.getRoleSelection(abstractSyntax);
+        if (roleSelection == null) {
+            return ae.getTransferCapabilityOrDefault(TransferCapability.Role.SCP, abstractSyntax);
+        }
+        Optional<TransferCapability> scuTC = roleSelection.scu
+                ? ae.getTransferCapabilityOrDefault(TransferCapability.Role.SCU, abstractSyntax)
+                : Optional.empty();
+        Optional<TransferCapability> scpTC = roleSelection.scp
+                ? ae.getTransferCapabilityOrDefault(TransferCapability.Role.SCP, abstractSyntax)
+                : Optional.empty();
+        aaac.putRoleSelection(abstractSyntax,
+                roleSelection = AAssociate.RoleSelection.of(scuTC.isPresent(), scpTC.isPresent()));
+        return roleSelection == AAssociate.RoleSelection.SCU ? scuTC : scpTC;
+    }
+
+    private ApplicationEntity aeOf(String aeTitle) {
+        Optional<Device> optDevice = local.getDevice();
+        if (optDevice.isPresent()) {
+            Optional<ApplicationEntity> optAE = optDevice.get().getApplicationEntityOrDefault(aeTitle);
+            if (optAE.isPresent()) {
+                ApplicationEntity ae = optAE.get();
+                if (ae.isInstalled() && ae.hasConnection(local)) {
+                    return ae;
+                }
+            }
+        }
+        return null;
     }
 
     private static ByteBuffer toBuffer(short pduType, AAssociate aaxx) {
@@ -183,16 +284,8 @@ public class Association extends TCPConnection<Association> {
         return buffer;
     }
 
-    private ByteBuffer mkAAssociateRJ() {
-        return toBuffer((short) 0x0300, resultSourceReason);
-    }
-
     private ByteBuffer mkAReleaseRQ() {
         return toBuffer((short) 0x0500, 0);
-    }
-
-    private ByteBuffer mkAReleaseRP() {
-        return toBuffer((short) 0x0600, 0);
     }
 
     private ByteBuffer mkAAbort() {
@@ -208,9 +301,8 @@ public class Association extends TCPConnection<Association> {
         return buffer;
     }
 
-    void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
-        LOG.info("{} << {}", name, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
-        writePDataTF(writeCommandSet(pcid, dimse, commandSet));
+    public void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
+         writePDataTF(writeCommandSet(pcid, dimse, commandSet));
     }
 
     void writeDimse(Byte pcid, Dimse dimse, DicomObject commandSet, DataWriter dataWriter) throws IOException {
@@ -225,16 +317,20 @@ public class Association extends TCPConnection<Association> {
     }
 
     private ByteBuffer writeDataSet(Byte pcid, DataWriter dataWriter, ByteBuffer buffer) throws IOException {
-        PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.DATA, buffer);
+        LOG.debug("{} << Data start", this);
+        PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.DATA_PDV, buffer);
         dataWriter.writeTo(pdv, getTransferSyntax(pcid));
-        return pdv.writePDVHeader(MCH.LAST_DATA);
+        LOG.debug("{} << Data finished", this);
+        return pdv.writePDVHeader(MCH.LAST_DATA_PDV);
     }
 
     private ByteBuffer writeCommandSet(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
+        LOG.info("{} << {}", this, dimse.toString(pcid, commandSet, getTransferSyntax(pcid)));
+        LOG.debug("{} << Command:\n{}", this, commandSet);
         ByteBuffer buffer = ByteBufferPool.allocate(maxPDULength + 6).position(6);
-        PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.COMMAND, buffer);
+        PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.COMMAND_PDV, buffer);
         new DicomOutputStream(pdv).writeCommandSet(commandSet);
-        return pdv.writePDVHeader(MCH.LAST_COMMAND);
+        return pdv.writePDVHeader(MCH.LAST_COMMAND_PDV);
     }
 
     private void writePDataTF(ByteBuffer buffer) {
@@ -242,7 +338,7 @@ public class Association extends TCPConnection<Association> {
         int pduLength = buffer.remaining() - 6;
         buffer.putShort(0, (short) 0x0400);
         buffer.putInt(2, pduLength);
-        LOG.info("{} << P-DATA-TF[pdu-length: {}]", name, pduLength);
+        LOG.debug("{} << P-DATA-TF[pdu-length: {}]", this, pduLength);
         write(buffer, x -> {});
     }
 
@@ -260,7 +356,7 @@ public class Association extends TCPConnection<Association> {
         changeState(State.STA_1);
     }
 
-    String getTransferSyntax(Byte pcid) {
+    public String getTransferSyntax(Byte pcid) {
         return aaac.getPresentationContext(pcid).transferSyntax;
     }
 
@@ -269,16 +365,39 @@ public class Association extends TCPConnection<Association> {
         return aaacReceived;
     }
 
-    public CompletableFuture<DimseRSP> cecho() throws IOException {
+    public CompletableFuture<DimseRSP> cecho() throws IOException, InterruptedException {
         return cecho(UID.VerificationSOPClass);
     }
 
-    public CompletableFuture<DimseRSP> cecho(String abstractSyntax) throws IOException {
+    public CompletableFuture<DimseRSP> cecho(String sopClassUID) throws IOException, InterruptedException {
+        int msgid = messageID.incrementAndGet();
+        return invoke(sopClassUID, msgid, Dimse.C_ECHO_RQ,
+                Dimse.C_ECHO_RQ.mkRQ(msgid, sopClassUID, null, Dimse.NO_DATASET));
+    }
+
+    public CompletableFuture<DimseRSP> cstore(String sopClassUID, String sopInstanceUID,
+            DataWriter dataWriter, String transferSyntax) throws IOException, InterruptedException {
+        int msgid = messageID.incrementAndGet();
+        return invoke(sopClassUID, msgid, Dimse.C_STORE_RQ,
+                Dimse.C_STORE_RQ.mkRQ(msgid, sopClassUID, sopInstanceUID, Dimse.WITH_DATASET),
+                dataWriter, transferSyntax);
+    }
+
+    private CompletableFuture<DimseRSP> invoke(String abstractSyntax, int msgid, Dimse dimse, DicomObject commandSet)
+            throws IOException, InterruptedException {
         Byte pcid = pcidFor(abstractSyntax);
-        OutstandingRSP outstandingRSP = new OutstandingRSP(messageID.incrementAndGet(), new CompletableFuture<>());
-        outstandingRSPs.add(outstandingRSP);
-        writeDimse(pcid, Dimse.C_ECHO_RQ,
-                Dimse.C_ECHO_RQ.mkRQ(outstandingRSP.messageID, abstractSyntax, null, Dimse.NO_DATASET));
+        OutstandingRSP outstandingRSP = new OutstandingRSP(msgid, new CompletableFuture<>());
+        outstandingRSPs.put(outstandingRSP);
+        writeDimse(pcid, dimse, commandSet);
+        return outstandingRSP.futureDimseRSP;
+    }
+
+    private CompletableFuture<DimseRSP> invoke(String abstractSyntax, int msgid, Dimse dimse, DicomObject commandSet,
+            DataWriter dataWriter, String transferSyntax) throws IOException, InterruptedException {
+        Byte pcid = pcidFor(abstractSyntax, transferSyntax);
+        OutstandingRSP outstandingRSP = new OutstandingRSP(msgid, new CompletableFuture<>());
+        outstandingRSPs.put(outstandingRSP);
+        writeDimse(pcid, dimse, commandSet, dataWriter);
         return outstandingRSP.futureDimseRSP;
     }
 
@@ -286,12 +405,19 @@ public class Association extends TCPConnection<Association> {
         return aarq.pcidsFor(abstractSyntax)
                 .filter(aaac::isAcceptance)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No accepted Presentation Con"));
+                .orElseThrow(() -> new IllegalStateException("No accepted Presentation Context"));
+    }
+
+    private Byte pcidFor(String abstractSyntax, String transferSyntax) {
+        return aarq.pcidsFor(abstractSyntax, transferSyntax)
+                .filter(pcid -> aaac.acceptedTransferSyntax(pcid, transferSyntax))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No accepted Presentation Context"));
     }
 
     public CompletableFuture<Association> release() {
         state.release(this);
-        return aaacReceived;
+        return arrpReceived;
     }
 
     @Override
@@ -350,13 +476,23 @@ public class Association extends TCPConnection<Association> {
         },
         STA_7(false, "Sta7 - Awaiting A-RELEASE-RP PDU") {
             @Override
+            BiConsumer<Association, ByteBuffer> onPDataTF() {
+                return Association::dt_2;
+            }
+
+            @Override
             BiConsumer<Association, ByteBuffer> onAReleaseRP() {
                 return Association::ar_3;
             }
         },
-        STA_8(true, "Sta8 - Awaiting local A-RELEASE response primitive (from local user)"),
         STA_9(true, "Sta9 - Release collision requestor side; awaiting A-RELEASE response (from local user)"),
         STA_10(false, "Sta10 - Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
+        STA_8(true, "Sta8 - Awaiting local A-RELEASE response primitive (from local user)") {
+            @Override
+            public void onEndOfPDVs(Association as) {
+                as.writeARRP();
+            }
+        },
         STA_11(false, "Sta11 - Release collision requestor side; awaiting A-RELEASE-RP PDU"),
         STA_12(true, "Sta12 - Release collision acceptor side; awaiting A-RELEASE response primitive (from local user)"),
         STA_13(true, "Sta13 - Awaiting Transport Connection Close Indication (Association no longer exists)");
@@ -374,7 +510,7 @@ public class Association extends TCPConnection<Association> {
             return description;
         }
 
-        BiConsumer<Association, ByteBuffer> action(Association as, int pduType, int pduLength) {
+        BiConsumer<Association, ByteBuffer> action(Association as, int pduType, int pduLength, ByteBuffer buffer) {
             switch (pduType) {
                 case 1:
                     LOG.info("{} >> A-ASSOCIATE-RQ[pdu-length: {}]", as, pduLength);
@@ -383,10 +519,10 @@ public class Association extends TCPConnection<Association> {
                     LOG.info("{} >> A-ASSOCIATE-AC[pdu-length: {}]", as, pduLength);
                     return onAAssociateAC();
                 case 3:
-                    LOG.info("{} >> A-ASSOCIATE-RJ", as);
+                    LOG.info("{} >> {}", as, AAssociateRJ.toString(buffer.getInt(buffer.position())));
                     return onAAssociateRJ();
                 case 4:
-                    LOG.info("{} >> P-DATA-TF[pdu-length: {}]", as, pduLength);
+                    LOG.debug("{} >> P-DATA-TF[pdu-length: {}]", as, pduLength);
                     return onPDataTF();
                 case 5:
                     LOG.info("{} >> A-RELEASE-RQ", as);
@@ -443,6 +579,9 @@ public class Association extends TCPConnection<Association> {
         public void release(Association as) {
             throw new IllegalStateException(toString());
         }
+
+        public void onEndOfPDVs(Association association) {
+        }
     }
 
     private void ae_1() {
@@ -451,16 +590,16 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_2(AAssociate.RQ aarq) {
         this.aarq = aarq;
-        name = aarq.getCallingAETitle() + "->" + aarq.getCalledAETitle() + "(" + id + ")";
+        asname = aarq.getCallingAETitle() + "->" + aarq.getCalledAETitle() + "(" + id + ")";
         ByteBuffer buffer = toBuffer((short) 0x0100, this.aarq);
-        LOG.info("{} << A-ASSOCIATE-RQ[pdu-length: {}]", name, buffer.remaining() - 6);
+        LOG.info("{} << A-ASSOCIATE-RQ[pdu-length: {}]", this, buffer.remaining() - 6);
         LOG.debug("{}", aarq);
         write(buffer, as -> as.changeState(State.STA_5));
     }
 
     private void ae_3(ByteBuffer buffer) {
         if (buffer.remaining() < pduLength) {
-            setCarry(buffer);
+            carry = buffer;
             return;
         }
         aaac = new AAssociate.AC(buffer, pduLength);
@@ -478,7 +617,7 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_4(ByteBuffer buffer) {
         if (buffer.remaining() < pduLength) {
-            setCarry(buffer);
+            carry = buffer;
             return;
         }
         resultSourceReason = buffer.getInt();
@@ -493,18 +632,35 @@ public class Association extends TCPConnection<Association> {
 
     private void ae_6(ByteBuffer buffer) {
         if (buffer.remaining() < pduLength) {
-            setCarry(buffer);
+            carry = buffer;
             return;
         }
         aarq = new AAssociate.RQ(buffer, pduLength);
-        name = aarq.getCalledAETitle() + "<-" + aarq.getCallingAETitle() + "(" + id + ")";
+        asname = aarq.getCalledAETitle() + "<-" + aarq.getCallingAETitle() + "(" + id + ")";
+        LOG.debug("{}", aarq);
         action = null;
         changeState(State.STA_3);
-        if (negotiate()) {
-            write(toBuffer((short) 0x0200, aaac), Association::onEstablished);
-        } else {
-            write(mkAAssociateRJ(), Association::closeAfterDelay);
+        try {
+            handler.onAAssociateRQ(this);
+            maxPDULength = aarq.getMaxPDULength();
+            outstandingRSPs = newBlockingQueue(aaac.getMaxOpsPerformed());
+            writeAAAC();
+        } catch (AAssociateRJ aarj) {
+            LOG.info("{} << {}", this, aarj.getMessage());
+            write(toBuffer((short) 0x0300, aarj.resultSourceReason), Association::closeAfterDelay);
         }
+    }
+
+    private void writeAAAC() {
+        ByteBuffer buffer = toBuffer((short) 0x0200, aaac);
+        LOG.info("{} << A-ASSOCIATE-AC[pdu-length: {}]", this, buffer.remaining() - 6);
+        LOG.debug("{}", aaac);
+        write(buffer, Association::onEstablished);
+    }
+
+    private void writeARRP() {
+        LOG.info("{} << A-RELEASE-RP", this);
+        write(toBuffer((short) 0x0600, 0), Association::closeAfterDelay);
     }
 
     private void onEstablished() {
@@ -512,47 +668,72 @@ public class Association extends TCPConnection<Association> {
         CompletableFuture.runAsync(this::run);
     }
 
+    private void markEndOfPDVs() {
+        key.interestOpsAnd(~SelectionKey.OP_READ);
+        LOG.trace("{}: END_OF_PDVS >> PDVQueue[size: {}]", asname, pdvQueue.size());
+        pdvQueue.offer(END_OF_PDVS);
+    }
+
     private void dt_2(ByteBuffer buffer) {
         while (pduLength > 0) {
             if (pdv == null) {
-                if (buffer.remaining() < 4) {
-                    setCarry(buffer);
+                if (buffer.remaining() < 6) {
+                    carry = buffer;
                     return;
                 }
                 pduLength -= 4;
                 int pdvLen = buffer.getInt();
-                if (pdvLen == 0) {
-                    continue;
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("{} >> PDV[pcid: {}, mch: {}, length: {}]", this,
+                            buffer.get(buffer.position()) & 0xff,
+                            buffer.get(buffer.position() + 1) & 0x3,
+                            pdvLen);
                 }
                 pdv = ByteBufferPool.allocate(pdvLen);
             }
-            pdv.put(buffer);
-            if (pdv.hasRemaining()) {
-                return;
+            if (buffer.remaining() > pdv.remaining()) {
+                int limit = buffer.limit();
+                pdv.put(buffer.limit(buffer.position() + pdv.remaining()));
+                buffer.limit(limit);
+            } else {
+                if (pdv.put(buffer).hasRemaining()) {
+                    return;
+                }
             }
             pdv.flip();
             pduLength -= pdv.remaining();
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("{}: PDV[pcid: {}, mch: {}, length: {}]@{} >> PDVQueue[size: {}]", this,
+                        pdv.get(0) & 0xff,
+                        pdv.get(1) & 0x3,
+                        pdv.remaining(),
+                        System.identityHashCode(pdv),
+                        pdvQueue.size());
+            }
             pdvQueue.offer(pdv);
+            pdvQueueMaxSize = Math.max(pdvQueueMaxSize, pdvQueue.size());
             pdv = null;
         }
         action = null;
     }
 
     private void ar_1() {
-        LOG.info("{} << A-RELEASE-RQ", name);
+        LOG.info("{} << A-RELEASE-RQ", this);
         write(mkAReleaseRQ(), as -> as.changeState(State.STA_7));
     }
 
     private void ar_2(ByteBuffer buffer) {
         buffer.position(buffer.limit());
         changeState(State.STA_8);
-        write(mkAReleaseRP(), Association::closeAfterDelay);
+        markEndOfPDVs();
         action = null;
     }
 
     private void ar_3(ByteBuffer buffer) {
+        arrpReceived.complete(this);
         buffer.position(buffer.limit());
         safeClose();
+        markEndOfPDVs();
         action = null;
     }
 
@@ -574,10 +755,10 @@ public class Association extends TCPConnection<Association> {
     }
 
     private enum MCH {
-        DATA(false, false),
-        COMMAND(false, true),
-        LAST_DATA(true, false),
-        LAST_COMMAND(true, true);
+        DATA_PDV(false, false),
+        COMMAND_PDV(false, true),
+        LAST_DATA_PDV(true, false),
+        LAST_COMMAND_PDV(true, true);
 
         final boolean last;
         final boolean command;
@@ -638,7 +819,9 @@ public class Association extends TCPConnection<Association> {
         }
 
         ByteBuffer writePDVHeader(MCH mch) {
-            pdu.putInt(pdvPosition, pdu.position() - pdvPosition - 4);
+            int pdvLen = pdu.position() - pdvPosition - 4;
+            LOG.debug("{} << PDV[pcid: {}, mch: {}, length: {}]", asname, pcid, mch.value(), pdvLen);
+            pdu.putInt(pdvPosition, pdvLen);
             pdu.put(pdvPosition + 4, pcid);
             pdu.put(pdvPosition + 5, mch.value());
             return pdu;
@@ -686,13 +869,14 @@ public class Association extends TCPConnection<Association> {
         }
 
         private boolean eof() {
+            if (pdv == null) return true;
             while (!pdv.hasRemaining()) {
                 ByteBufferPool.free(pdv);
                 if (mch.last) {
+                    pdv = null;
                     return true;
                 }
-                pdv = nextPDV();
-                pdv.get();
+                pdv = nextPDV(true);
                 requirePresentationContextID(pdv.get(), pcid);
                 mch = requireMatchingPDV(MCH.of(pdv.get()), mch);
             }
@@ -700,7 +884,7 @@ public class Association extends TCPConnection<Association> {
         }
     }
 
-    private static byte requirePresentationContextID(byte pcid, byte expected) {
+    private static Byte requirePresentationContextID(Byte pcid, Byte expected) {
         if (pcid != expected) {
             throw new IllegalArgumentException(
                     "Unexpected Presentation Context ID: " + (pcid & 0xff) + " - expected "+ (pcid & 0xff));

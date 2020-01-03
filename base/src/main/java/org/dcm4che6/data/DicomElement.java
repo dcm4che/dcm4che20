@@ -113,4 +113,6 @@ public interface DicomElement {
     default long getStreamPosition() { return -1L; }
 
     StringBuilder promptTo(StringBuilder appendTo, int maxLength);
+
+    int promptItemsTo(StringBuilder appendTo, int maxWidth, int maxLines);
 }

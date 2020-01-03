@@ -13,9 +13,9 @@ import java.util.*;
  * @author Gunter Zeilinger (gunterze@protonmail.com)
  * @since Nov 2019
  */
-public class DicomServiceRegistry implements DimseHandler {
+public class DicomServiceRegistry implements Association.Handler {
     private final Map<String, DimseHandler> map = new HashMap<>();
-    private DimseHandler defaultRQHandler = (as, pcid, dimse, commandSet, dataStream) -> {
+    private volatile DimseHandler defaultRQHandler = (as, pcid, dimse, commandSet, dataStream) -> {
         throw new DicomServiceException(dimse.noSuchSOPClass);
     };
 
@@ -29,8 +29,19 @@ public class DicomServiceRegistry implements DimseHandler {
         });
     }
 
+    public DicomServiceRegistry setDefaultRQHandler(DimseHandler defaultRQHandler) {
+        this.defaultRQHandler = Objects.requireNonNull(defaultRQHandler);
+        return this;
+    }
+
     @Override
-    public void accept(Association as, Byte pcid, Dimse dimse, DicomObject commandSet, InputStream dataStream) throws IOException {
+    public void onAAssociateRQ(Association as) throws AAssociateRJ {
+        as.onAAssociateRQ();
+    }
+
+    @Override
+    public void accept(Association as, Byte pcid, Dimse dimse, DicomObject commandSet, InputStream dataStream)
+            throws IOException {
         handlerOf(as, commandSet.getStringOrElseThrow(dimse.tagOfSOPClassUID))
                 .accept(as, pcid, dimse, commandSet, dataStream);
     }
@@ -56,5 +67,4 @@ public class DicomServiceRegistry implements DimseHandler {
         }
         return defaultRQHandler;
     }
-
 }

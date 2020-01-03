@@ -44,6 +44,7 @@ public class EchoSCU implements Callable<Integer> {
 
     @CommandLine.Parameters(
             description = "tcp/ip port number of peer",
+            showDefaultValue = CommandLine.Help.Visibility.NEVER,
             index = "1")
     int port;
 
@@ -73,7 +74,8 @@ public class EchoSCU implements Callable<Integer> {
                 .thenCompose(as1 -> as1.open(rq))
                 .join();
         as.cecho().join();
-        as.release().join();
+        as.release();
+        as.onClose().join();
         task.cancel(true);
         return 0;
     }

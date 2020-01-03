@@ -310,12 +310,15 @@ public class Device {
     }
 
     public Device addConnection(Connection conn) {
-        conns.add(Objects.requireNonNull(conn));
+        conns.add(conn.setDevice(this));
         return this;
     }
 
     public Device removeConnection(Connection conn) {
-        conns.remove(Objects.requireNonNull(conn));
+        if (conns.remove(Objects.requireNonNull(conn))) {
+            aes.forEach(ae -> ae.removeConnection(conn));
+            conn.setDevice(null);
+        }
         return this;
     }
 
@@ -323,13 +326,27 @@ public class Device {
         return Collections.unmodifiableList(aes);
     }
 
+    public Optional<ApplicationEntity> getApplicationEntityOrDefault(String name) {
+        return getApplicationEntity(name).or(this::getDefaultApplicationEntity);
+    }
+
+    public Optional<ApplicationEntity> getDefaultApplicationEntity() {
+        return getApplicationEntity("*");
+    }
+
+    public Optional<ApplicationEntity> getApplicationEntity(String name) {
+        return aes.stream().filter(ae -> ae.getAETitle().equals(name)).findFirst();
+    }
+
     public Device addApplicationEntity(ApplicationEntity ae) {
-        aes.add(Objects.requireNonNull(ae));
+        aes.add(ae.setDevice(this));
         return this;
     }
 
     public Device removeApplicationEntity(ApplicationEntity ae) {
-        aes.remove(Objects.requireNonNull(ae));
+        if (aes.remove(Objects.requireNonNull(ae))) {
+            ae.setDevice(null);
+        }
         return this;
     }
 

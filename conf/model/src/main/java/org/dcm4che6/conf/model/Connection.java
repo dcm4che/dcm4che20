@@ -1,5 +1,6 @@
 package org.dcm4che6.conf.model;
 
+import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.util.StringUtils;
 
 import java.util.List;
@@ -17,11 +18,31 @@ public class Connection {
     public static final String TLS_RSA_WITH_3DES_EDE_CBC_SHA = "SSL_RSA_WITH_3DES_EDE_CBC_SHA";
     public static final String TLS_RSA_WITH_AES_128_CBC_SHA = "TLS_RSA_WITH_AES_128_CBC_SHA";
 
-    private String name;
-    private String hostname = "localhost";
-    private int port = NOT_LISTENING;
-    private String[] tlsCipherSuites = {};
-    private Boolean installed;
+    private volatile String name;
+    private volatile String hostname = "localhost";
+    private volatile int port = NOT_LISTENING;
+    private volatile String[] tlsCipherSuites = {};
+    private volatile Boolean installed;
+    private volatile Device device;
+
+
+    public Optional<Device> getDevice() {
+        return Optional.ofNullable(device);
+    }
+
+    Connection setDevice(Device device) {
+        if (this.device != device) {
+            if (this.device != null && device != null)
+                throw new IllegalStateException("Connection already contained by " + device);
+            this.device = device;
+        }
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return "Connection[" + hostname + ':' + port + ']';
+    }
 
     public Optional<String> getName() {
         return Optional.ofNullable(name);

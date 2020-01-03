@@ -9,7 +9,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>dcm4che-tool-echoscu</artifactId>
+  <artifactId>dcm4che-tool-storescu</artifactId>
 
   <dependencies>
     <dependency>
@@ -39,6 +39,12 @@
       <version>${logback.version}</version>
       <scope>runtime</scope>
     </dependency>
+    <dependency>
+      <groupId>org.codehaus.janino</groupId>
+      <artifactId>janino</artifactId>
+      <version>${janino.version}</version>
+      <scope>runtime</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -64,7 +70,7 @@
                 <argument>--file</argument>
                 <argument>${project.build.finalName}.jar</argument>
                 <argument>--main-class</argument>
-                <argument>org.dcm4che6.tool.echoscu.EchoSCU</argument>
+                <argument>org.dcm4che6.tool.storescu.StoreSCU</argument>
               </arguments>
             </configuration>
           </execution>

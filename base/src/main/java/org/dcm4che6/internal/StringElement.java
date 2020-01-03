@@ -85,4 +85,13 @@ class StringElement extends DicomElementImpl {
     public void purgeEncodedValue() {
         encodedValue = null;
     }
+
+    @Override
+    StringBuilder promptValueTo(StringBuilder appendTo, int maxLength) {
+        appendTo.append(' ').append('[');
+        int endIndex = maxLength - appendTo.length();
+        return (value.length() < endIndex)
+            ? appendTo.append(value).append(']')
+            : appendTo.append(value.substring(0, endIndex));
+    }
 }

@@ -1,5 +1,7 @@
 package org.dcm4che6.net;
 
+import org.dcm4che6.conf.model.ApplicationEntity;
+import org.dcm4che6.conf.model.TransferCapability;
 import org.dcm4che6.data.Implementation;
 import org.dcm4che6.data.UID;
 import org.dcm4che6.util.UIDUtils;
@@ -8,6 +10,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -101,6 +106,10 @@ public abstract class AAssociate {
         this.asyncOpsWindow = -1;
     }
 
+    public boolean hasAsyncOpsWindow() {
+        return asyncOpsWindow != -1;
+    }
+
     public void putRoleSelection(String cuid, RoleSelection roleSelection) {
         roleSelectionMap.put(cuid, roleSelection);
     }
@@ -142,10 +151,10 @@ public abstract class AAssociate {
                 .append(maxPDULength)
                 .append(System.lineSeparator());
         if (asyncOpsWindow != -1) {
-            sb.append("  maximum-number-operations-invoked: ")
+            sb.append("  max-ops-invoked: ")
                     .append(asyncOpsWindow >> 16)
                     .append(System.lineSeparator())
-                    .append("maximum-number-operations-performed: ")
+                    .append("  max-ops-performed: ")
                     .append(asyncOpsWindow & 0xffff)
                     .append(System.lineSeparator());
         }
@@ -346,6 +355,24 @@ public abstract class AAssociate {
             pcs.put(id, new PresentationContext(abstractSyntax, transferSyntaxes));
         }
 
+        public Byte findOrAddPresentationContext(String abstractSyntax, String transferSyntax) {
+            return pcidsFor(abstractSyntax, transferSyntax).findFirst().orElseGet(
+                    () -> addPresentationContext(abstractSyntax, transferSyntax));
+        }
+
+        private Byte addPresentationContext(String abstractSyntax, String transferSyntax) {
+            if (pcs.size() >= 128)
+                throw new IllegalStateException("Maximal number (128) of Presentation Contexts reached");
+
+            Byte pcid = IntStream.iterate(pcs.size() * 2 + 1, i -> i + 2)
+                    .mapToObj(i -> Byte.valueOf((byte) i))
+                    .filter(((Predicate<Byte>) pcs.keySet()::contains).negate())
+                    .findFirst()
+                    .get();
+            pcs.put(pcid, new PresentationContext(abstractSyntax, transferSyntax));
+            return pcid;
+        }
+
         public PresentationContext getPresentationContext(Byte id) {
             return pcs.get(id);
         }
@@ -356,7 +383,13 @@ public abstract class AAssociate {
 
         Stream<Byte> pcidsFor(String abstractSyntax) {
             return pcs.entrySet().stream()
-                    .filter(e -> abstractSyntax.endsWith(e.getValue().abstractSyntax))
+                    .filter(e -> e.getValue().equalsAbstractSyntax(abstractSyntax))
+                    .map(Map.Entry::getKey);
+        }
+
+        Stream<Byte> pcidsFor(String abstractSyntax, String transferSyntax) {
+            return pcs.entrySet().stream()
+                    .filter(e -> e.getValue().matches(abstractSyntax, transferSyntax))
                     .map(Map.Entry::getKey);
         }
 
@@ -498,8 +531,24 @@ public abstract class AAssociate {
                 return abstractSyntax;
             }
 
+            public String anyTransferSyntax() {
+                return transferSyntaxList.get(0);
+            }
+
             public String[] transferSyntax() {
                 return transferSyntaxList.toArray(new String[0]);
+            }
+
+            public boolean equalsAbstractSyntax(String abstractSyntax) {
+                return this.abstractSyntax.equals(abstractSyntax);
+            }
+
+            public boolean containsTransferSyntax(String transferSyntax) {
+                return transferSyntaxList.contains(transferSyntax);
+            }
+
+            public boolean matches(String abstractSyntax, String transferSyntax) {
+                return equalsAbstractSyntax(abstractSyntax) && containsTransferSyntax(transferSyntax);
             }
 
             private void parseSubItem(int itemType, ByteBuffer buffer, int itemLength, byte[] b64) {
@@ -647,6 +696,11 @@ public abstract class AAssociate {
             pc.writeTo(buffer, b64);
         }
 
+        public boolean acceptedTransferSyntax(Byte pcid, String transferSyntax) {
+            PresentationContext pc = pcs.get(pcid);
+            return pc != null && pc.result == Result.ACCEPTANCE && pc.transferSyntax.equals(transferSyntax);
+        }
+
         boolean isAcceptance(Byte pcid) {
             PresentationContext pc = pcs.get(pcid);
             return pc != null && pc.result == Result.ACCEPTANCE;
@@ -684,9 +738,11 @@ public abstract class AAssociate {
                         .append(pcid)
                         .append(", result: ")
                         .append(result)
-                        .append(", transfer-syntax: ");
+                        .append(System.lineSeparator())
+                        .append("    transfer-syntax: ");
                 UIDUtils.promptTo(transferSyntax, sb)
-                        .append(']')
+                        .append(System.lineSeparator())
+                        .append("  ]")
                         .append(System.lineSeparator());
             }
         }
@@ -742,6 +798,12 @@ public abstract class AAssociate {
         RoleSelection(boolean scu, boolean scp) {
             this.scu = scu;
             this.scp = scp;
+        }
+
+        static RoleSelection of(boolean scu, boolean scp) {
+            return scu
+                    ? (scp ? BOTH : SCU)
+                    : (scp ? SCP : NONE);
         }
 
         static RoleSelection parse(ByteBuffer bb) {

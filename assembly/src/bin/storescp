@@ -1,0 +1,58 @@
+#!/bin/sh
+# -------------------------------------------------------------------------
+# storescp  Launcher
+# -------------------------------------------------------------------------
+
+MAIN_MODULE=org.dcm4che.tool.storescp
+MAIN_JAR=dcm4che-tool-storescp-${project.version}.jar
+
+DIRNAME="`dirname "$0"`"
+
+# OS specific support (must be 'true' or 'false').
+cygwin=false;
+case "`uname`" in
+    CYGWIN*)
+        cygwin=true
+        ;;
+esac
+
+# For Cygwin, ensure paths are in UNIX format before anything is touched
+if $cygwin ; then
+    [ -n "$DCM4CHE_HOME" ] &&
+        DCM4CHE_HOME=`cygpath --unix "$DCM4CHE_HOME"`
+    [ -n "$JAVA_HOME" ] &&
+        JAVA_HOME=`cygpath --unix "$JAVA_HOME"`
+fi
+
+# Setup DCM4CHE_HOME
+if [ "x$DCM4CHE_HOME" = "x" ]; then
+    DCM4CHE_HOME=`cd "$DIRNAME"/..; pwd`
+fi
+
+# Setup the JVM
+if [ "x$JAVA_HOME" != "x" ]; then
+    JAVA=$JAVA_HOME/bin/java
+else
+    JAVA="java"
+fi
+
+# Setup the module path
+MP="$DCM4CHE_HOME/lib/$MAIN_JAR"
+MP="$MP:$DCM4CHE_HOME/lib/dcm4che-base-${project.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/dcm4che-conf-model-${project.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/dcm4che-net-${project.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/slf4j-api-${slf4j.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/logback-core-${logback.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/logback-classic-${logback.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/janino-${janino.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/commons-compiler-${janino.version}.jar"
+MP="$MP:$DCM4CHE_HOME/lib/picocli-${picocli.version}.jar"
+
+# For Cygwin, switch paths to Windows format before running java
+if $cygwin; then
+    JAVA=`cygpath --path --windows "$JAVA"`
+    MP=`cygpath --path --windows "$MP"`
+fi
+
+# Execute the JVM
+exec "$JAVA" $JAVA_OPTS -p "$MP" -m $MAIN_MODULE "$@"

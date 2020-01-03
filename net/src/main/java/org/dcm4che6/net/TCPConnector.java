@@ -19,10 +19,10 @@ import java.util.function.BiFunction;
  */
 public class TCPConnector<T extends TCPConnection> implements Runnable {
     static final Logger LOG = LoggerFactory.getLogger(TCPConnector.class);
-    private final BiFunction<TCPConnector, TCPConnection.Role, T> connFactory;
+    private final BiFunction<TCPConnector, Connection, T> connFactory;
     private final Selector selector;
 
-    public TCPConnector(BiFunction<TCPConnector, TCPConnection.Role, T> connFactory)
+    public TCPConnector(BiFunction<TCPConnector, Connection, T> connFactory)
             throws IOException {
         this.connFactory = Objects.requireNonNull(connFactory);
         selector = Selector.open();
@@ -44,12 +44,9 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
         SocketChannel sc = SocketChannel.open();
         configure(sc, local);
         SocketAddress addr = addr(remote);
-        T conn = connFactory.apply(this, TCPConnection.Role.CLIENT);
-        conn.setName(sc.getLocalAddress() + "->" + addr + "(" + conn.id + ")");
-        LOG.info("{}: connect", conn);
+        T conn = connFactory.apply(this, local);
         SelectionKey key = sc.register(selector, SelectionKey.OP_CONNECT, conn);
-        conn.setKey(key);
-        if (sc.connect(addr)) {
+        if (conn.connect(key, addr)) {
             onConnectable(key);
         }
         wakeup();
@@ -58,7 +55,9 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
 
     private void configure(ServerSocketChannel ssc, Connection conn) throws IOException {
         ssc.configureBlocking(false);
-        ssc.bind(serverBind(conn), 0);
+        SocketAddress local = serverBind(conn);
+        LOG.info("Start listening on {}", local);
+        ssc.bind(local, 0);
     }
 
     private void configure(SocketChannel sc, Connection local) throws IOException {
@@ -86,24 +85,9 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                selector.select();
-                for (SelectionKey key : selector.selectedKeys()) {
-                    try {
-                        if (key.isAcceptable()) {
-                            onAcceptable(key);
-                        }
-                        if (key.isConnectable()) {
-                            onConnectable(key);
-                        }
-                        if (key.isWritable()) {
-                            ((TCPConnection) key.attachment()).onWritable();
-                        }
-                        if (key.isReadable()) {
-                            onReadable(key);
-                        }
-                    } catch (CancelledKeyException e) {
-//                        e.printStackTrace();
-                    }
+                if (selector.selectNow(this::onReady) == 0) {
+                    LOG.trace("Awaiting ready channels");
+                    selector.select(this::onReady);
                 }
             }
         } catch (Throwable e) {
@@ -111,24 +95,50 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
         }
     }
 
+    private void onReady(SelectionKey key) {
+        try {
+            int readyOps = key.readyOps();
+            if (LOG.isTraceEnabled()) LOG.trace("{}: {}", key.attachment(),  opsAsString(readyOps));
+            if ((readyOps & SelectionKey.OP_ACCEPT) != 0) {
+                onAcceptable(key);
+            }
+            if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
+                onConnectable(key);
+            }
+            if ((readyOps & SelectionKey.OP_WRITE) != 0) {
+                ((TCPConnection) key.attachment()).onWritable();
+            }
+            if ((readyOps & SelectionKey.OP_READ) != 0) {
+                onReadable(key);
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Object opsAsString(int readyOps) {
+        StringBuilder sb = new StringBuilder();
+        if ((readyOps & SelectionKey.OP_READ) != 0) sb.append("readable, ");
+        if ((readyOps & SelectionKey.OP_WRITE) != 0) sb.append("writeable, ");
+        if ((readyOps & SelectionKey.OP_CONNECT) != 0) sb.append("connectable, ");
+        if ((readyOps & SelectionKey.OP_ACCEPT) != 0) sb.append("acceptable, ");
+        if (sb.length() > 0) sb.setLength(sb.length() - 2);
+        return sb;
+    }
+
     void onAcceptable(SelectionKey skey) throws IOException {
         ServerSocketChannel ssc = (ServerSocketChannel) skey.channel();
         SocketChannel sc = ssc.accept();
         if (sc == null) return;
         sc.configureBlocking(false);
-        TCPConnection conn = connFactory.apply(this, TCPConnection.Role.SERVER);
-        conn.setName(sc.getLocalAddress() + "<-" + sc.getRemoteAddress() + "(" + conn.id + ")");
-        LOG.info("{}: accepted", conn);
-        conn.setKey(sc.register(selector, SelectionKey.OP_READ, conn));
+        TCPConnection conn = connFactory.apply(this, (Connection) skey.attachment());
+        conn.accepted(sc.register(selector, SelectionKey.OP_READ, conn));
     }
 
     private void onConnectable(SelectionKey key) throws IOException {
-        SocketChannel ch;
         if ((key.interestOps() & SelectionKey.OP_CONNECT) != 0
-                && (ch = (SocketChannel) key.channel()).finishConnect()) {
-            TCPConnection conn = (TCPConnection) key.attachment();
-            LOG.info("{}: connected", conn);
-            conn.connected();
+                && ((SocketChannel) key.channel()).finishConnect()) {
+            ((TCPConnection) key.attachment()).connected();
             key.interestOpsAnd(~SelectionKey.OP_CONNECT);
             key.interestOpsOr(SelectionKey.OP_READ);
         }

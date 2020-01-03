@@ -18,7 +18,7 @@ public interface DicomObject extends Iterable<DicomElement> {
         return new DicomObjectImpl();
     }
 
-    static DicomObject createFileMetaInformation(String iuid, String cuid, String tsuid) {
+    static DicomObject createFileMetaInformation(String cuid, String iuid, String tsuid) {
         if (iuid == null || iuid.isEmpty())
             throw new IllegalArgumentException("Missing SOP Instance UID");
         if (cuid == null || cuid.isEmpty())
@@ -61,6 +61,8 @@ public interface DicomObject extends Iterable<DicomElement> {
     void purgeElements();
 
     SpecificCharacterSet specificCharacterSet();
+
+    String toString(int maxWidth, int maxLines);
 
     Optional<DicomElement> get(String privateCreator, int tag);
 
