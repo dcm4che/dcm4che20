@@ -130,6 +130,18 @@ public enum StringVR implements VRType {
             action.accept(stringToDouble.applyAsDouble(s));
         }
     }
+    
+    @Override
+    public OptionalInt intValue(DicomInput input, long valpos, int vallen, int index) {
+        String value = input.stringAt(valpos, vallen, asciiOrCS.apply(null));
+        return intValue(value, index);
+    }
+    
+    @Override
+    public int[] intValues(DicomInput input, long valpos, int vallen) {
+        String value = input.stringAt(valpos, vallen, asciiOrCS.apply(null));
+        return intValues(value);
+    }
 
     @Override
     public OptionalInt intValue(String value, int index) {
@@ -173,6 +185,20 @@ public enum StringVR implements VRType {
         }
         return floats;
     }
+    
+    @Override
+    public OptionalDouble doubleValue(DicomInput input, long valpos, int vallen, int index) {
+        String value = input.stringAt(valpos, vallen, asciiOrCS.apply(null));
+        return doubleValue(value, index);
+    }
+    
+    @Override
+    public double[] doubleValues(DicomInput input, long valpos, int vallen) {
+        String value = input.stringAt(valpos, vallen, asciiOrCS.apply(null));
+        return doubleValues(value);
+    }
+
+
 
     @Override
     public OptionalDouble doubleValue(String value, int index) {
