@@ -22,6 +22,7 @@ public interface DicomElement {
     int[] EMPTY_INTS = {};
     float[] EMPTY_FLOATS = {};
     double[] EMPTY_DOUBLES = {};
+    byte[] EMPTY_BYTES= {};
 
     int tag();
 
@@ -54,6 +55,8 @@ public interface DicomElement {
     default OptionalDouble doubleValue(int index) { return OptionalDouble.empty(); }
 
     default double[] doubleValues() { return EMPTY_DOUBLES; }
+    
+    default byte[] byteValues() { return EMPTY_BYTES; }
 
     default <E extends Throwable> void forEachStringValue(StringValueConsumer<E> action) throws E {
         vr().type.forEachStringValue(this, action);

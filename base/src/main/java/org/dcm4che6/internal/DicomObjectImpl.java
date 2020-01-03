@@ -363,6 +363,16 @@ public class DicomObjectImpl implements DicomObject, Externalizable {
     public Optional<double[]> getDoubles(String privateCreator, int tag) {
         return get(privateCreator, tag).map(DicomElement::doubleValues);
     }
+    
+    @Override
+    public Optional<byte[]> getBytes(int tag) {
+        return get(tag).map(DicomElement::byteValues);
+    }
+
+    @Override
+    public Optional<byte[]> getBytes(String privateCreator, int tag) {
+        return get(privateCreator, tag).map(DicomElement::byteValues);
+    }
 
     @Override
     public DicomElement add(DicomElement el) {
