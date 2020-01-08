@@ -59,9 +59,14 @@ public class StoreSCP implements Callable<Integer>, DimseHandler {
             index = "1")
     Path directory;
 
-    @CommandLine.Option(names = "--called", paramLabel = "aetitle",
+    @CommandLine.Option(names = "--called", paramLabel = "<aetitle>",
             description = "accepted called AE title")
     String called = "*";
+
+    @CommandLine.Option(names = "--opsInvoked", paramLabel = "<max>",
+            description = "maximum number of outstanding operations it allows the Association-requester " +
+                    "to invoke asynchronously, 0 = unlimited")
+    int maxOpsInvoked;
 
     public static void main(String[] args) {
         new CommandLine(new StoreSCP()).execute(args);

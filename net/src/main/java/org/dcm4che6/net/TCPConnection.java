@@ -12,6 +12,7 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -25,13 +26,13 @@ public abstract class TCPConnection<T extends TCPConnection> {
     public final int id = idGenerator.incrementAndGet();
     public final TCPConnector<T> connector;
     public final Connection local;
-    protected final BlockingQueue<WriteAndThen<T>> writeQueue = new LinkedBlockingQueue<>();
+    private final Semaphore writeSemaphore = new Semaphore(1);
+    protected volatile WriteAndThen<T> writeAndThen;
     protected final CompletableFuture<T> connected = new CompletableFuture<>();
     protected final CompletableFuture<T> closed = new CompletableFuture<>();
     protected Role role;
     protected SelectionKey key;
     private String name;
-    private volatile int writeQueueMaxSize;
 
     public enum Role {
         ACCEPTOR,
@@ -65,18 +66,17 @@ public abstract class TCPConnection<T extends TCPConnection> {
         return name;
     }
 
-    public int writeQueueMaxSize() {
-        return writeQueueMaxSize;
-    }
-
-    public boolean write(ByteBuffer src, Consumer<T> action) {
-        LOG.trace("{}: WriteQueue[size: {}] << ByteBuffer@{}", this,
-                writeQueue.size(), System.identityHashCode(src));
+    public void write(ByteBuffer src, Consumer<T> action) {
+        LOG.trace("{}: Acquire Semaphore for writing {}", this, src);
+        try {
+            writeSemaphore.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        LOG.trace("{}: Pass {} to selector", this, src);
+        writeAndThen = new WriteAndThen<T>(src, action);
         key.interestOpsOr(SelectionKey.OP_WRITE);
-        boolean offer = writeQueue.offer(new WriteAndThen<T>(src, action));
-        writeQueueMaxSize = Math.max(writeQueueMaxSize, writeQueue.size());
         connector.wakeup();
-        return offer;
     }
 
     public boolean isOpen() {
@@ -87,7 +87,6 @@ public abstract class TCPConnection<T extends TCPConnection> {
         LOG.info("{}: close", name);
         key.channel().close();
         closed.complete((T) this);
-        LOG.debug("{}: WriteQueue[max-size: {}]", this, writeQueueMaxSize);
     }
 
     public CompletableFuture<T> onClose() {
@@ -106,18 +105,23 @@ public abstract class TCPConnection<T extends TCPConnection> {
     }
 
     void onWritable() throws IOException {
-        SocketChannel ch = (SocketChannel) key.channel();
         WriteAndThen<T> writeAndThen;
-        while ((writeAndThen = writeQueue.peek()) != null) {
-            LOG.trace("{} << ByteBuffer@{} << WriteQueue[size: {}]", this,
-                    System.identityHashCode(writeAndThen.buffer), writeQueue.size());
-            ch.write(writeAndThen.buffer);
-            if (writeAndThen.buffer.hasRemaining()) return;
-            ByteBufferPool.free(writeAndThen.buffer);
-            writeAndThen.action.accept((T) this);
-            writeQueue.poll();
+        if ((writeAndThen = this.writeAndThen) == null) {
+            LOG.trace("{}: no ByteBuffer for writing", this);
+            return;
         }
+        LOG.trace("{}: start writing {}", this, writeAndThen.buffer);
+        ((SocketChannel) key.channel()).write(writeAndThen.buffer);
+        if (writeAndThen.buffer.hasRemaining()) {
+            LOG.trace("{}: stop writing {}", this, writeAndThen.buffer);
+            return;
+        }
+        LOG.trace("{}: finished writing {}", this, writeAndThen.buffer);
+        ByteBufferPool.free(writeAndThen.buffer);
+        writeAndThen.action.accept((T) this);
+        this.writeAndThen = null;
         key.interestOpsAnd(~SelectionKey.OP_WRITE);
+        writeSemaphore.release();
     }
 
     private static class WriteAndThen<T> {

@@ -69,13 +69,17 @@ public class StoreSCU implements Callable<Integer> {
             index = "2..*")
     List<Path> file;
 
-    @CommandLine.Option(names = "--calling", paramLabel = "aetitle",
+    @CommandLine.Option(names = "--calling", paramLabel = "<aetitle>",
             description = "set my calling AE title")
     String calling = "STORESCU";
 
-    @CommandLine.Option(names = "--called", paramLabel = "aetitle",
+    @CommandLine.Option(names = "--called", paramLabel = "<aetitle>",
             description = "set called AE title of peer")
     String called = "STORESCP";
+
+    @CommandLine.Option(names = "--opsInvoked", paramLabel = "<max>",
+            description = "maximum number of outstanding operations invoked asynchronously, 0 = unlimited")
+    int maxOpsInvoked;
 
     private final List<FileInfo> fileInfos = new ArrayList<>();
 
@@ -87,13 +91,16 @@ public class StoreSCU implements Callable<Integer> {
     public Integer call() throws Exception {
         for (Path path : file) {
             try (Stream<Path> walk = Files.walk(path)) {
-                walk.forEach(this::scanFile);
+                walk.filter(file -> Files.isRegularFile(file)).forEach(this::scanFile);
             }
         }
         DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
         AAssociate.RQ rq = new AAssociate.RQ();
         rq.setCallingAETitle(calling);
         rq.setCalledAETitle(called);
+        if (maxOpsInvoked != 1) {
+            rq.setAsyncOpsWindow(maxOpsInvoked, 1);
+        }
         fileInfos.forEach(info -> rq.findOrAddPresentationContext(info.sopClassUID, info.transferSyntax));
         TCPConnector<Association> inst = new TCPConnector<>(
                 (connector, role) -> new Association(connector, role, serviceRegistry));

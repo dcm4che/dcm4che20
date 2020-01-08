@@ -320,8 +320,9 @@ public class Association extends TCPConnection<Association> {
         LOG.debug("{} << Data start", this);
         PDVOutputStream pdv = new PDVOutputStream(pcid, MCH.DATA_PDV, buffer);
         dataWriter.writeTo(pdv, getTransferSyntax(pcid));
+        buffer = pdv.writePDVHeader(MCH.LAST_DATA_PDV);
         LOG.debug("{} << Data finished", this);
-        return pdv.writePDVHeader(MCH.LAST_DATA_PDV);
+        return buffer;
     }
 
     private ByteBuffer writeCommandSet(Byte pcid, Dimse dimse, DicomObject commandSet) throws IOException {
@@ -485,14 +486,20 @@ public class Association extends TCPConnection<Association> {
                 return Association::ar_3;
             }
         },
-        STA_9(true, "Sta9 - Release collision requestor side; awaiting A-RELEASE response (from local user)"),
-        STA_10(false, "Sta10 - Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
+        STA_7a(true, "Sta7a - Awaiting PDVs processed") {
+            @Override
+            public void onEndOfPDVs(Association as) {
+                as.safeClose();
+            }
+        },
         STA_8(true, "Sta8 - Awaiting local A-RELEASE response primitive (from local user)") {
             @Override
             public void onEndOfPDVs(Association as) {
                 as.writeARRP();
             }
         },
+        STA_9(true, "Sta9 - Release collision requestor side; awaiting A-RELEASE response (from local user)"),
+        STA_10(false, "Sta10 - Release collision acceptor side; awaiting A-RELEASE-RP PDU"),
         STA_11(false, "Sta11 - Release collision requestor side; awaiting A-RELEASE-RP PDU"),
         STA_12(true, "Sta12 - Release collision acceptor side; awaiting A-RELEASE response primitive (from local user)"),
         STA_13(true, "Sta13 - Awaiting Transport Connection Close Indication (Association no longer exists)");
@@ -732,7 +739,7 @@ public class Association extends TCPConnection<Association> {
     private void ar_3(ByteBuffer buffer) {
         arrpReceived.complete(this);
         buffer.position(buffer.limit());
-        safeClose();
+        changeState(State.STA_7a);
         markEndOfPDVs();
         action = null;
     }
