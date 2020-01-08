@@ -77,7 +77,7 @@ public class StoreSCU implements Callable<Integer> {
             description = "set called AE title of peer")
     String called = "STORESCP";
 
-    @CommandLine.Option(names = "--opsInvoked", paramLabel = "<max>",
+    @CommandLine.Option(names = "--max-ops-invoked", paramLabel = "<no>",
             description = "maximum number of outstanding operations invoked asynchronously, 0 = unlimited")
     int maxOpsInvoked;
 
@@ -128,7 +128,6 @@ public class StoreSCU implements Callable<Integer> {
                 fileInfo.transferSyntax = fmi.getStringOrElseThrow(Tag.TransferSyntaxUID);
                 fileInfo.position = dis.getStreamPosition();
             } else {
-                fileInfo.transferSyntax = dis.getEncoding().transferSyntaxUID;
                 dis.withInputHandler(fileInfo).readDataSet();
             }
             fileInfos.add(fileInfo);
@@ -157,6 +156,7 @@ public class StoreSCU implements Callable<Integer> {
             switch (dcmElm.tag()) {
                 case Tag.SOPInstanceUID:
                     sopInstanceUID = dcmElm.stringValue(0).get();
+                    transferSyntax = dis.getEncoding().transferSyntaxUID;
                     return false;
                 case Tag.SOPClassUID:
                     sopClassUID = dcmElm.stringValue(0).get();
