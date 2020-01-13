@@ -9,9 +9,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -67,15 +65,16 @@ public abstract class TCPConnection<T extends TCPConnection> {
     }
 
     public void write(ByteBuffer src, Consumer<T> action) {
-        LOG.trace("{}: Acquire Semaphore for writing {}", this, src);
+        if (!writeSemaphore.tryAcquire())
         try {
+            LOG.trace("{}: wait to queue writing {} bytes", this, src.remaining());
             writeSemaphore.acquire();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        LOG.trace("{}: Pass {} to selector", this, src);
+        LOG.trace("{}: queue writing {} bytes", this, src.remaining());
         writeAndThen = new WriteAndThen<T>(src, action);
-        key.interestOpsOr(SelectionKey.OP_WRITE);
+        interestOpsOr(SelectionKey.OP_WRITE);
         connector.wakeup();
     }
 
@@ -93,11 +92,18 @@ public abstract class TCPConnection<T extends TCPConnection> {
         return closed;
     }
 
-    void continueReceive() throws IOException {
-        connector.onReadable(key);
+    void interestOpsAnd(int ops) {
+        int oldVal = key.interestOpsAnd(ops);
+        LOG.trace("{}: interestOps {}->{}", key.attachment(), oldVal, oldVal & ops);
     }
 
-    protected abstract boolean onNext(ByteBuffer buffer);
+    void interestOpsOr(int ops) {
+        int oldVal = key.interestOpsOr(ops);
+        LOG.trace("{}: interestOps {}->{}", key.attachment(), oldVal, oldVal | ops);
+        connector.wakeup();
+    }
+
+    protected abstract void onNext(ByteBuffer buffer);
 
     protected void connected() {
         LOG.info("{}: connected", name);
@@ -107,20 +113,20 @@ public abstract class TCPConnection<T extends TCPConnection> {
     void onWritable() throws IOException {
         WriteAndThen<T> writeAndThen;
         if ((writeAndThen = this.writeAndThen) == null) {
-            LOG.trace("{}: no ByteBuffer for writing", this);
+            LOG.trace("{}: no bytes for writing", this);
             return;
         }
-        LOG.trace("{}: start writing {}", this, writeAndThen.buffer);
+        int remaining = writeAndThen.buffer.remaining();
+        LOG.trace("{}: writing {} bytes", this, remaining);
         ((SocketChannel) key.channel()).write(writeAndThen.buffer);
+        LOG.trace("{}: wrote {} bytes", this, remaining - writeAndThen.buffer.remaining());
         if (writeAndThen.buffer.hasRemaining()) {
-            LOG.trace("{}: stop writing {}", this, writeAndThen.buffer);
             return;
         }
-        LOG.trace("{}: finished writing {}", this, writeAndThen.buffer);
         ByteBufferPool.free(writeAndThen.buffer);
         writeAndThen.action.accept((T) this);
         this.writeAndThen = null;
-        key.interestOpsAnd(~SelectionKey.OP_WRITE);
+        interestOpsAnd(~SelectionKey.OP_WRITE);
         writeSemaphore.release();
     }
 

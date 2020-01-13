@@ -98,7 +98,9 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
     private void onReady(SelectionKey key) {
         try {
             int readyOps = key.readyOps();
-            if (LOG.isTraceEnabled()) LOG.trace("{}: {}", key.attachment(),  opsAsString(readyOps));
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("{}: readyOps: {}/{}", key.attachment(),  readyOps, key.interestOps());
+            }
             if ((readyOps & SelectionKey.OP_ACCEPT) != 0) {
                 onAcceptable(key);
             }
@@ -114,16 +116,6 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
         } catch (Throwable e) {
             e.printStackTrace();
         }
-    }
-
-    private static Object opsAsString(int readyOps) {
-        StringBuilder sb = new StringBuilder();
-        if ((readyOps & SelectionKey.OP_READ) != 0) sb.append("readable, ");
-        if ((readyOps & SelectionKey.OP_WRITE) != 0) sb.append("writeable, ");
-        if ((readyOps & SelectionKey.OP_CONNECT) != 0) sb.append("connectable, ");
-        if ((readyOps & SelectionKey.OP_ACCEPT) != 0) sb.append("acceptable, ");
-        if (sb.length() > 0) sb.setLength(sb.length() - 2);
-        return sb;
     }
 
     void onAcceptable(SelectionKey skey) throws IOException {
@@ -145,23 +137,17 @@ public class TCPConnector<T extends TCPConnection> implements Runnable {
     }
 
     void onReadable(SelectionKey key) throws IOException {
-        SocketChannel ch = (SocketChannel) key.channel();
-        ByteBuffer buffer;
+        TCPConnection tcpConnection = (TCPConnection) key.attachment();
         boolean more = true;
-        while (more && ch.isOpen()){
-            if (ch.read(buffer = ByteBufferPool.allocate()) == 0) {
+        while (more && (key.interestOps() & SelectionKey.OP_READ) != 0) {
+            ByteBuffer buffer = ByteBufferPool.allocate();
+            if (((SocketChannel) key.channel()).read(buffer) <= 0) {
+                tcpConnection.interestOpsAnd(~SelectionKey.OP_READ);
                 ByteBufferPool.free(buffer);
                 return;
             }
             more = !buffer.hasRemaining();
-            buffer.flip();
-            if (!((TCPConnection) key.attachment()).onNext(buffer)) {
-                key.interestOpsAnd(~SelectionKey.OP_READ);
-                return;
-            }
-        }
-        if (!key.isReadable()) {
-            key.interestOpsOr(SelectionKey.OP_READ);
+            tcpConnection.onNext(buffer.flip());
         }
     }
 }
