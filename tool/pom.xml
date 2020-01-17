@@ -20,6 +20,7 @@
     <module>echoscu</module>
     <module>jpg2dcm</module>
     <module>json2dcm</module>
+    <module>mp4dump</module>
     <module>storescp</module>
     <module>storescu</module>
     <module>stowrs</module>
