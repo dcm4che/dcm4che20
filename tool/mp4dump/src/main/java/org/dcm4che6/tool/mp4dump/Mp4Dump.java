@@ -64,9 +64,7 @@ public class Mp4Dump implements Callable<Integer> {
             System.out.print((char) ((box.type >> 24) & 0xff));
             System.out.print((char) ((box.type >> 16) & 0xff));
             System.out.print((char) ((box.type >> 8) & 0xff));
-            System.out.print((char) ((box.type >> 0) & 0xff));
-            System.out.print(' ');
-            System.out.println(box.contentSize);
+            System.out.println((char) ((box.type >> 0) & 0xff));
             switch (box.type) {
                 case 1635148593: // avc1
                 case 1752589105: // hvc1
@@ -80,43 +78,19 @@ public class Mp4Dump implements Callable<Integer> {
                 case 1937007212: // stbl
                 case 1836475768: // mvex
                 case 1836019558: // moof
-                    dumpBoxes(channel, pos + box.contentSize, level + 1);
+                    dumpBoxes(channel, box.end, level + 1);
                     break;
                 default:
-                    skip(channel, box.contentSize);
+                    channel.position(box.end);
             }
         }
     }
 
     private Box nextBox(SeekableByteChannel channel, long remaining) throws IOException {
+        long pos = channel.position();
         long type = readLong(channel);
         int size = (int) (type >> 32);
-        return size == 0
-                ? new Box((int) type, remaining - 8)
-                : size == 1
-                ? new Box((int) type, readLong(channel) - 16)
-                : new Box((int) type, size - 8);
-    }
-
-    private byte readByte(SeekableByteChannel channel) throws IOException {
-        ((Buffer) buf).clear().limit(1);
-        channel.read(buf);
-        ((Buffer) buf).rewind();
-        return buf.get();
-    }
-
-    private short readShort(SeekableByteChannel channel) throws IOException {
-        ((Buffer) buf).clear().limit(2);
-        channel.read(buf);
-        ((Buffer) buf).rewind();
-        return buf.getShort();
-    }
-
-    private int readInt(SeekableByteChannel channel) throws IOException {
-        ((Buffer) buf).clear().limit(4);
-        channel.read(buf);
-        ((Buffer) buf).rewind();
-        return buf.getInt();
+        return new Box((int) type, pos + (size == 0 ? remaining : size == 1 ? readLong(channel) : size));
     }
 
     private long readLong(SeekableByteChannel channel) throws IOException {
@@ -132,11 +106,11 @@ public class Mp4Dump implements Callable<Integer> {
 
     private static class Box {
         final int type;
-        final long contentSize;
+        final long end;
 
-        Box(int type, long contentSize) {
+        Box(int type, long end) {
             this.type = type;
-            this.contentSize = contentSize;
+            this.end = end;
         }
 
     }
