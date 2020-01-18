@@ -45,32 +45,29 @@ public class Mp4Dump implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         try (SeekableByteChannel channel = Files.newByteChannel(mp4file)) {
-            dumpBoxes(channel, channel.size(), 0);
+            dumpBoxes(channel, channel.size(), "");
         }
         return 0;
     }
 
-    private void dumpBoxes(SeekableByteChannel channel, long end, int level) throws IOException {
+    private void dumpBoxes(SeekableByteChannel channel, long end, String level) throws IOException {
         long remaining;
         long pos;
         while ((remaining = end - (pos = channel.position())) > 0) {
             Box box = nextBox(channel, remaining);
-            System.out.print(pos);
-            System.out.print(": ");
-            for (int i = 0; i < level; i++) {
-                System.out.print('>');
-            }
-            System.out.print(' ');
-            System.out.print((char) ((box.type >> 24) & 0xff));
-            System.out.print((char) ((box.type >> 16) & 0xff));
-            System.out.print((char) ((box.type >> 8) & 0xff));
-            System.out.println((char) ((box.type >> 0) & 0xff));
+            System.out.format("%d: %s%c%c%c%c%n", pos, level,
+                    (box.type >> 24) & 0xff,
+                    (box.type >> 16) & 0xff,
+                    (box.type >> 8) & 0xff,
+                    box.type  & 0xff);
             switch (box.type) {
                 case 1635148593: // avc1
                 case 1752589105: // hvc1
-                    skip(channel,70);
+                    dumpBoxes(skip(channel, 78), box.end, level + '>');
+                    break;
                 case 1937011556: // stsd
-                    skip(channel,8);
+                    dumpBoxes(skip(channel, 8), box.end, level + '>');
+                    break;
                 case 1836019574: // moov
                 case 1953653099: // trak
                 case 1835297121: // mdia
@@ -78,7 +75,7 @@ public class Mp4Dump implements Callable<Integer> {
                 case 1937007212: // stbl
                 case 1836475768: // mvex
                 case 1836019558: // moof
-                    dumpBoxes(channel, box.end, level + 1);
+                    dumpBoxes(channel, box.end, level + '>');
                     break;
                 default:
                     channel.position(box.end);
@@ -100,8 +97,8 @@ public class Mp4Dump implements Callable<Integer> {
         return buf.getLong();
     }
 
-    private void skip(SeekableByteChannel channel, long n) throws IOException {
-        channel.position(channel.position() + n);
+    private SeekableByteChannel skip(SeekableByteChannel channel, long n) throws IOException {
+        return channel.position(channel.position() + n);
     }
 
     private static class Box {
