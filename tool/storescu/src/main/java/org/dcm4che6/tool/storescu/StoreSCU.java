@@ -105,13 +105,23 @@ public class StoreSCU implements Callable<Integer> {
         TCPConnector<Association> inst = new TCPConnector<>(
                 (connector, role) -> new Association(connector, role, serviceRegistry));
         CompletableFuture<Void> task = CompletableFuture.runAsync(inst);
-        Association as = inst.connect(new Connection(), new Connection().setHostname(peer).setPort(port))
-                .thenCompose(as1 -> as1.open(rq))
-                .join();
+        long t1 = System.currentTimeMillis();
+        Association as = inst.connect(new Connection(), new Connection().setHostname(peer).setPort(port)).join();
+        long t2 = System.currentTimeMillis();
+        System.out.format("Open TCP connection in %d ms%n", t2 - t1);
+        as.open(rq).join();
+        long t3 = System.currentTimeMillis();
+        System.out.format("Open DICOM association in %d ms%n", t3 - t2);
+        long totLength = 0;
         for (FileInfo fileInfo : fileInfos) {
             as.cstore(fileInfo.sopClassUID, fileInfo.sopInstanceUID, fileInfo, fileInfo.transferSyntax);
+            totLength += fileInfo.length;
         }
-        as.release();
+        as.release().join();
+        long t4 = System.currentTimeMillis();
+        long dt = t4 - t3;
+        System.out.format("Send %d objects (%f MB) in %d ms (%f MB/s)%n",
+                fileInfos.size(), totLength / 1000000.f, dt, totLength / (dt * 1000.f));
         as.onClose().join();
         task.cancel(true);
         return 0;
@@ -121,12 +131,14 @@ public class StoreSCU implements Callable<Integer> {
         try (DicomInputStream dis = new DicomInputStream(Files.newInputStream(path))) {
             FileInfo fileInfo = new FileInfo();
             fileInfo.path = path;
+            fileInfo.length = Files.size(path);
             DicomObject fmi = dis.readFileMetaInformation();
             if (fmi != null) {
                 fileInfo.sopClassUID = fmi.getStringOrElseThrow(Tag.MediaStorageSOPClassUID);
                 fileInfo.sopInstanceUID = fmi.getStringOrElseThrow(Tag.MediaStorageSOPInstanceUID);
                 fileInfo.transferSyntax = fmi.getStringOrElseThrow(Tag.TransferSyntaxUID);
                 fileInfo.position = dis.getStreamPosition();
+                fileInfo.length -= fileInfo.position;
             } else {
                 dis.withInputHandler(fileInfo).readDataSet();
             }
@@ -142,6 +154,7 @@ public class StoreSCU implements Callable<Integer> {
         String sopInstanceUID;
         String transferSyntax;
         long position;
+        long length;
 
         @Override
         public void writeTo(OutputStream out, String tsuid) throws IOException {
