@@ -202,6 +202,7 @@ public class Jpg2Dcm implements Callable<Integer> {
                     case "video/mpeg":
                         return ContentType.VIDEO_MPEG;
                     case "video/mp4":
+                    case "video/quicktime":
                         return ContentType.VIDEO_MP4;
                 }
                 throw new UnsupportedOperationException(

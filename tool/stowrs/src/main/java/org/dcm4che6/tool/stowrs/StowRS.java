@@ -273,7 +273,8 @@ public class StowRS implements Callable<Integer> {
         IMAGE_JPEG("image/jpeg", Tag.PixelData, x -> x.photo ? "photo.xml" : "sc.xml", JPEGParser::new),
         IMAGE_JP2("image/jp2", Tag.PixelData, x -> x.photo ? "photo.xml" : "sc.xml", JPEGParser::new),
         VIDEO_MPEG("video/mpeg", Tag.PixelData, x -> "video.xml", MPEG2Parser::new),
-        VIDEO_MP4("video/mp4", Tag.PixelData, x -> "video.xml", MP4Parser::new);
+        VIDEO_MP4("video/mp4", Tag.PixelData, x -> "video.xml", MP4Parser::new),
+        VIDEO_QT("video/quicktime", Tag.PixelData, x -> "video.xml", MP4Parser::new);
 
         @FunctionalInterface
         interface ParserGenerator {
@@ -312,6 +313,8 @@ public class StowRS implements Callable<Integer> {
                         return ContentType.VIDEO_MPEG;
                     case "video/mp4":
                         return ContentType.VIDEO_MP4;
+                    case "video/quicktime":
+                        return ContentType.VIDEO_QT;
                 }
                 throw new UnsupportedOperationException(
                         String.format("unsupported content type: '%s' of file: '%s'", type, path));
