@@ -91,6 +91,13 @@ public class Jpg2Dcm implements Callable<Integer> {
             })
     boolean noapp;
 
+    @CommandLine.Option(names = "--qt2mp4",
+            description = {
+                    "Replace quicktime ('qt  ') by ISO Base Media file ('isom') branch in MP4 File Type Box",
+                    "Otherwise encapsulate quicktime MP4 container verbatim."
+            })
+    boolean qt2mp4;
+
     public static void main(String[] args) {
         CommandLine cl = new CommandLine(new Jpg2Dcm());
         cl.registerConverter(TagPath.class, TagPath::new);
@@ -115,6 +122,11 @@ public class Jpg2Dcm implements Callable<Integer> {
                 if (noapp && parser.getPositionAfterAPPSegments().isPresent()) {
                     copyPixelData(channel, parser.getPositionAfterAPPSegments().getAsLong(), dos,
                             (byte) 0xFF, (byte) JPEG.SOI);
+                } else if (qt2mp4
+                        && parser.getMP4FileType().isPresent()
+                        && parser.getMP4FileType().get().majorBrand() == MP4FileType.qt) {
+                    copyPixelData(channel, parser.getMP4FileType().get().size(), dos,
+                            MP4FileType.ISOM_QT.toBytes());
                 } else {
                     copyPixelData(channel, parser.getCodeStreamPosition(), dos);
                 }
