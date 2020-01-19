@@ -1,7 +1,5 @@
 package org.dcm4che6.codec;
 
-import org.dcm4che6.util.TagUtils;
-
 import java.nio.ByteBuffer;
 
 /**
