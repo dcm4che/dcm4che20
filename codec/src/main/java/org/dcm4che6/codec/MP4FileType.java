@@ -26,7 +26,7 @@ public class MP4FileType {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         append4CC(sb.append("ftyp["), brands[0]);
-        sb.append('.').append(TagUtils.toHexString(brands[1]));
+        sb.append('.').append(brands[1]);
         for (int i = 2; i < brands.length; i++) {
             append4CC(sb.append(", "), brands[i]);
         }
