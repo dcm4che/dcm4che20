@@ -91,13 +91,6 @@ public class Jpg2Dcm implements Callable<Integer> {
             })
     boolean noapp;
 
-    @CommandLine.Option(names = "--qt2mp4",
-            description = {
-                    "Replace quicktime ('qt  ') by ISO Base Media file ('isom') branch in MP4 File Type Box",
-                    "Otherwise encapsulate quicktime MP4 container verbatim."
-            })
-    boolean qt2mp4;
-
     public static void main(String[] args) {
         CommandLine cl = new CommandLine(new Jpg2Dcm());
         cl.registerConverter(TagPath.class, TagPath::new);
@@ -122,19 +115,14 @@ public class Jpg2Dcm implements Callable<Integer> {
                 if (noapp && parser.getPositionAfterAPPSegments().isPresent()) {
                     copyPixelData(channel, parser.getPositionAfterAPPSegments().getAsLong(), dos,
                             (byte) 0xFF, (byte) JPEG.SOI);
-                } else if (qt2mp4
-                        && parser.getMP4FileType().isPresent()
-                        && parser.getMP4FileType().get().majorBrand() == MP4FileType.qt) {
-                    copyPixelData(channel, parser.getMP4FileType().get().size(), dos,
-                            MP4FileType.ISOM_QT.toBytes());
                 } else {
                     copyPixelData(channel, parser.getCodeStreamPosition(), dos);
                 }
                 dos.writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
             }
         }
-        String cuid = fmi.getString(Tag.MediaStorageSOPClassUID).get();
-        String tsuid = fmi.getString(Tag.TransferSyntaxUID).get();
+        String cuid = fmi.getString(Tag.MediaStorageSOPClassUID).orElseThrow();
+        String tsuid = fmi.getString(Tag.TransferSyntaxUID).orElseThrow();
         System.out.println(String.format(
                 "Encapsulated %s to %s%n  SOP Class UID: %s - %s%n  Transfer Syntax UID: %s - %s%n",
                 jpgfile, dcmfile, cuid, UID.nameOf(cuid), tsuid, UID.nameOf(tsuid)));
@@ -214,7 +202,6 @@ public class Jpg2Dcm implements Callable<Integer> {
                     case "video/mpeg":
                         return ContentType.VIDEO_MPEG;
                     case "video/mp4":
-                    case "video/quicktime":
                         return ContentType.VIDEO_MP4;
                 }
                 throw new UnsupportedOperationException(
